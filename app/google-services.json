@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "303478520606",
+    "project_id": "craftoria432",
+    "storage_bucket": "craftoria432.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:303478520606:android:b057ea942b8369f6ada70f",
+        "android_client_info": {
+          "package_name": "com.gcuf.craftoria"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRB1gusQDj_6qLELh-GmDp41a327oEMBY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
