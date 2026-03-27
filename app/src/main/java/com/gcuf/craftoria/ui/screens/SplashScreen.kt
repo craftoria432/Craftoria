@@ -1,6 +1,7 @@
 package com.gcuf.craftoria.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -12,16 +13,65 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gcuf.craftoria.R
 import androidx.compose.ui.platform.LocalInspectionMode
 import com.gcuf.craftoria.ui.theme.Primary
 import kotlinx.coroutines.delay
 import com.gcuf.craftoria.ui.theme.CraftoriaTheme
+
+// ─── Crosshatch pattern — matches HTML prototype ──────────────────────────────
+// CSS used: repeating-linear-gradient(45deg, transparent 35px, #e91e63 1px)
+//           repeating-linear-gradient(-45deg, transparent 35px, #e91e63 1px)
+//           opacity: 0.12
+//
+// Key insight: for a 45° diagonal on a tall screen (h >> w) we must iterate
+// starting well before x=0 so lines cover the full top-left & bottom-right corners.
+// Range: from -(h) to +(w+h) ensures every corner is covered regardless of aspect ratio.
+private fun DrawScope.drawCrosshatchPattern() {
+    val lineColor = Color(0xFFE91E63).copy(alpha = 0.12f)
+    val strokeWidth = 1.5f
+    val step = 24.dp.toPx()   // gap between parallel diagonal lines
+
+    val w = size.width
+    val h = size.height
+
+    // +45° lines: go from top-left to bottom-right
+    // start.x ranges from -h to w+h so lines fully cover a tall screen
+    var x = -h
+    while (x <= w + h) {
+        drawLine(
+            color = lineColor,
+            start = Offset(x, 0f),
+            end   = Offset(x + h, h),
+            strokeWidth = strokeWidth
+        )
+        x += step
+    }
+
+    // -45° lines: go from top-right to bottom-left
+    // mirror: start at (x, 0) end at (x - h, h)
+    x = -h
+    while (x <= w + h) {
+        drawLine(
+            color = lineColor,
+            start = Offset(x, 0f),
+            end   = Offset(x - h, h),
+            strokeWidth = strokeWidth
+        )
+        x += step
+    }
+}
 
 @Composable
 fun SplashScreen(
@@ -65,6 +115,7 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Base gradient: #FFF6F8 → #FFE5EC (matches HTML)
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -75,28 +126,12 @@ fun SplashScreen(
             )
     ) {
 
-        // Top Badge
-        Surface(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(20.dp)
-                .size(35.dp)
-                .scale(badgeScale),
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.9f),
-            shadowElevation = 4.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "00",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Primary
-                )
-            }
+        // ── Crosshatch pattern overlay ────────────────────────────────────────
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCrosshatchPattern()
         }
 
-        // Center content
+        // ── Center content — untouched from original ──────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -113,16 +148,14 @@ fun SplashScreen(
                 shadowElevation = 8.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
-
-                    // Emoji replaced for Preview stability
-                    Text(
-                        text = "LOGO",
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.Bold
+                    Image(
+                        painter = painterResource(id = R.drawable.handmade_logo),
+                        contentDescription = "App Logo",
+                        modifier = Modifier.size(140.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
@@ -181,7 +214,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "© 2024 Craftoria. All rights reserved.",
+                text = "© 2026 Craftoria. All rights reserved.",
                 fontSize = 11.sp,
                 color = Color(0xFFAAAAAA)
             )
@@ -199,4 +232,3 @@ fun SplashScreenPreview() {
         )
     }
 }
-

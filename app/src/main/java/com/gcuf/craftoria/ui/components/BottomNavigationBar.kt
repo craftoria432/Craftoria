@@ -1,6 +1,17 @@
 package com.gcuf.craftoria.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -11,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.ui.theme.Primary
 import com.gcuf.craftoria.ui.theme.TextSecondary
+import com.gcuf.craftoria.utils.BadgeManager
+import com.gcuf.craftoria.utils.CustomBadge
 
 data class NavItem(
     val label: String,
@@ -23,63 +36,146 @@ fun BottomNavigationBar(
     items: List<NavItem>,
     selectedRoute: String,
     onItemClick: (String) -> Unit,
+    cartCount: Int = 0,
+    wishlistCount: Int = 0,
+    pendingOrdersCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    NavigationBar(
+        containerColor = Color.White,
+        contentColor = Primary,
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0.dp),
         modifier = modifier
-            .fillMaxWidth()
-            .height(60.dp),
-        color = Color.White,
-        shadowElevation = 8.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            items.forEach { item ->
-                BottomNavItem(
-                    label = item.label,
-                    icon = item.icon,
-                    isSelected = item.route == selectedRoute,
-                    onClick = { onItemClick(item.route) }
+        // Home
+        NavigationBarItem(
+            selected = selectedRoute == "home",
+            onClick = { onItemClick("home") },
+            icon = {
+                Icon(
+                    imageVector = if (selectedRoute == "home") Icons.Filled.Home else Icons.Outlined.Home,
+                    contentDescription = "Home"
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun BottomNavItem(
-    label: String,
-    icon: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier
-            .padding(8.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Text(
-            text = icon,
-            fontSize = 20.sp
+            },
+            label = {
+                Text(
+                    text = "Home",
+                    fontSize = 11.sp,
+                    fontWeight = if (selectedRoute == "home") FontWeight.Bold else FontWeight.Normal
+                )
+            },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Primary,
+                selectedTextColor = Primary,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = Primary.copy(alpha = 0.10f)
+            )
         )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) Primary else TextSecondary
+
+        // Orders with badge
+        NavigationBarItem(
+            selected = selectedRoute == "orders",
+            onClick = { onItemClick("orders") },
+            icon = {
+                Box {
+                    Icon(
+                        imageVector = if (selectedRoute == "orders") Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag,
+                        contentDescription = "Orders"
+                    )
+                    if (pendingOrdersCount > 0) {
+                        CustomBadge(
+                            count = pendingOrdersCount,
+                            color = Color(0xFFFF9800),
+                            shouldPulse = true,
+                            priority = BadgeManager.BadgePriority.HIGH,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 8.dp, y = (-8).dp)
+                        )
+                    }
+                }
+            },
+            label = {
+                Text(
+                    text = "Orders",
+                    fontSize = 11.sp,
+                    fontWeight = if (selectedRoute == "orders") FontWeight.Bold else FontWeight.Normal
+                )
+            },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Primary,
+                selectedTextColor = Primary,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = Primary.copy(alpha = 0.10f)
+            )
+        )
+
+        // Wishlist with badge
+        NavigationBarItem(
+            selected = selectedRoute == "wishlist",
+            onClick = { onItemClick("wishlist") },
+            icon = {
+                Box {
+                    Icon(
+                        imageVector = if (selectedRoute == "wishlist") Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Wishlist"
+                    )
+                    if (wishlistCount > 0) {
+                        CustomBadge(
+                            count = wishlistCount,
+                            color = Color(0xFFE91E63),
+                            shouldPulse = false,
+                            priority = BadgeManager.BadgePriority.LOW,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 8.dp, y = (-8).dp)
+                        )
+                    }
+                }
+            },
+            label = {
+                Text(
+                    text = "Wishlist",
+                    fontSize = 11.sp,
+                    fontWeight = if (selectedRoute == "wishlist") FontWeight.Bold else FontWeight.Normal
+                )
+            },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Primary,
+                selectedTextColor = Primary,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = Primary.copy(alpha = 0.10f)
+            )
+        )
+
+        // Profile
+        NavigationBarItem(
+            selected = selectedRoute == "profile",
+            onClick = { onItemClick("profile") },
+            icon = {
+                Icon(
+                    imageVector = if (selectedRoute == "profile") Icons.Filled.Person else Icons.Outlined.Person,
+                    contentDescription = "Profile"
+                )
+            },
+            label = {
+                Text(
+                    text = "Profile",
+                    fontSize = 11.sp,
+                    fontWeight = if (selectedRoute == "profile") FontWeight.Bold else FontWeight.Normal
+                )
+            },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Primary,
+                selectedTextColor = Primary,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = Primary.copy(alpha = 0.10f)
+            )
         )
     }
-}
-
-private fun Modifier.clickable(onClick: () -> Unit): Modifier {
-    return this.then(
-        Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-    )
 }

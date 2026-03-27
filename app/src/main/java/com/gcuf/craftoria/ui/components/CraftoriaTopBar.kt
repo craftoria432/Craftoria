@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,17 +18,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.ui.theme.Primary
 import com.gcuf.craftoria.ui.theme.PrimaryLight
+import com.gcuf.craftoria.utils.CartBadge
+import com.gcuf.craftoria.utils.NotificationBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CraftoriaTopBar(
     screenNumber: String? = null,
     title: String? = null,
+    subtitle: String? = null,
     showLogo: Boolean = false,
     showBack: Boolean = false,
     showEdit: Boolean = false,
+    showCart: Boolean = false,
+    showNotifications: Boolean = false,
+    cartCount: Int = 0,
     onBackClick: () -> Unit = {},
-    onEditClick: () -> Unit = {}
+    onEditClick: () -> Unit = {},
+    onCartClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {}
 ) {
     TopAppBar(
         title = {
@@ -48,12 +58,27 @@ fun CraftoriaTopBar(
                     )
                 }
             } else if (title != null) {
-                Text(
-                    text = title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxHeight()
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        lineHeight = 16.sp
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 12.sp
+                        )
+                    }
+                }
             }
         },
         navigationIcon = {
@@ -85,6 +110,50 @@ fun CraftoriaTopBar(
             }
         },
         actions = {
+            if (showNotifications) {
+                Box(
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    IconButton(onClick = onNotificationsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    
+                    // Professional notification badge with pulsing animation
+                    NotificationBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-4).dp, y = 4.dp)
+                    )
+                }
+            }
+            
+            if (showCart) {
+                Box(
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    IconButton(onClick = onCartClick) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.ShoppingCart,
+                            contentDescription = "Cart",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    
+                    // Professional cart badge with pulsing animation
+                    CartBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-4).dp, y = 4.dp)
+                    )
+                }
+            }
+            
             if (showEdit) {
                 TextButton(
                     onClick = onEditClick,
@@ -107,7 +176,7 @@ fun CraftoriaTopBar(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-            } else if (!showBack && screenNumber != null) {
+            } else if (!showBack && !showCart && screenNumber != null) {
                 Spacer(modifier = Modifier.width(28.dp))
             }
         },
@@ -120,6 +189,6 @@ fun CraftoriaTopBar(
                     colors = listOf(Primary, PrimaryLight)
                 )
             )
-            .height(70.dp)
+            .height(64.dp)
     )
 }

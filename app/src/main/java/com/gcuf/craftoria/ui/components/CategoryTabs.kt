@@ -3,6 +3,9 @@ package com.gcuf.craftoria.ui.components
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -12,8 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.ui.theme.BorderColor
 import com.gcuf.craftoria.ui.theme.Primary
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import com.gcuf.craftoria.ui.theme.TextSecondary
 
 @Composable
 fun CategoryTabs(
@@ -26,8 +28,8 @@ fun CategoryTabs(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 15.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         categories.forEach { category ->
             CategoryChip(
@@ -52,13 +54,14 @@ fun CategoryChip(
             Text(
                 text = text,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
             )
         },
+        shape = RoundedCornerShape(20.dp),
         colors = FilterChipDefaults.filterChipColors(
             containerColor = Color.White,
             selectedContainerColor = Primary,
-            labelColor = Color.Gray,
+            labelColor = TextSecondary,
             selectedLabelColor = Color.White
         ),
         border = FilterChipDefaults.filterChipBorder(
@@ -66,7 +69,7 @@ fun CategoryChip(
             selected = isSelected,
             borderColor = BorderColor,
             selectedBorderColor = Primary,
-            borderWidth = 2.dp
+            borderWidth = if (isSelected) 0.dp else 0.5.dp
         )
     )
 }

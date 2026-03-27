@@ -1,5 +1,6 @@
 package com.gcuf.craftoria.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,27 +22,28 @@ fun SearchBar(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.2f)
+            .height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Color.White.copy(alpha = 0.8f),
+                tint = Color.Gray.copy(alpha = 0.60f),
                 modifier = Modifier.size(18.dp)
             )
             Text(
                 text = "Search for handicrafts",
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                fontSize = 14.sp,
+                color = Color.Gray.copy(alpha = 0.60f)
             )
         }
     }

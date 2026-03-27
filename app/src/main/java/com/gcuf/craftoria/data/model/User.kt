@@ -43,7 +43,15 @@ data class User(
 
     @get:PropertyName("main_seller_id")
     @set:PropertyName("main_seller_id")
-    var mainSellerId: String = ""
+    var mainSellerId: String = "",
+
+    @get:PropertyName("seller_application_status")
+    @set:PropertyName("seller_application_status")
+    var sellerApplicationStatus: SellerApplicationStatus = SellerApplicationStatus.NONE,
+
+    @get:PropertyName("theme_preference")
+    @set:PropertyName("theme_preference")
+    var themePreference: String = "rose"  // Default to rose theme
 )
 
 enum class UserRole {
@@ -64,11 +72,20 @@ enum class VerificationStatus {
     }
 }
 
+enum class SellerApplicationStatus {
+    NONE, PENDING, APPROVED, REJECTED;
+
+    companion object {
+        fun fromString(value: String?) =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: NONE
+    }
+}
+
 fun User.toMap(): Map<String, Any> = mapOf(
     "id" to id,
     "email" to email,
     "name" to name,
-    "role" to role.name,
+    "role" to role.name.lowercase(),
     "phone" to phone,
     "address" to address,
     "profile_image" to profileImage,
@@ -76,9 +93,11 @@ fun User.toMap(): Map<String, Any> = mapOf(
     "store_name" to storeName,
     "store_description" to storeDescription,
     "verified" to verified,
-    "verification_status" to verificationStatus.name,
+    "verification_status" to verificationStatus.name.lowercase(),
     "verification_photo_url" to verificationPhotoUrl,
     "rejection_reason" to rejectionReason,
-    "main_seller_id" to mainSellerId
+    "main_seller_id" to mainSellerId,
+    "seller_application_status" to sellerApplicationStatus.name.lowercase(),
+    "theme_preference" to themePreference
 )
 

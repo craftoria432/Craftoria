@@ -53,6 +53,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/NOTICE.md"
+            excludes += "/META-INF/LICENSE.md"
         }
     }
 }
@@ -63,14 +65,16 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.0")
 
-    // Compose BOM (controls all compose versions)
-    implementation(platform("androidx.compose:compose-bom:2025.01.00"))
+    // Compose BOM (controls all compose versions) - Using stable version
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
+        implementation ("com.sun.mail:android-mail:1.6.7")
+        implementation ("com.sun.mail:android-activation:1.6.7")
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
@@ -83,6 +87,14 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // NEW: Credential Manager (replaces GoogleSignIn)
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+
+// Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Cloudinary
     implementation("com.cloudinary:cloudinary-android:3.1.2")
@@ -109,6 +121,14 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    implementation("com.google.firebase:firebase-messaging:23.4.0")
+
+    // ML Kit Face Detection (FREE - on-device)
+    implementation("com.google.mlkit:face-detection:16.1.5")
+
+    // ML Kit Pose Detection (optional - for liveness detection)
+    implementation("com.google.mlkit:pose-detection:18.0.0-beta3")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
