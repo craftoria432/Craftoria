@@ -125,7 +125,7 @@ fun LoginScreen(
                     // White circle border
                     Box(
                         modifier = Modifier
-                            .size(84.dp)
+                            .size(74.dp)
                             .background(Color.White.copy(alpha = 0.25f), CircleShape)
                             .border(2.dp, Color.White.copy(alpha = 0.6f), CircleShape),
                         contentAlignment = Alignment.Center
@@ -133,7 +133,7 @@ fun LoginScreen(
                         Image(
                             painter = painterResource(id = R.drawable.handmade1_logo),
                             contentDescription = "Craftoria Logo",
-                            modifier = Modifier.size(82.dp),
+                            modifier = Modifier.size(72.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
