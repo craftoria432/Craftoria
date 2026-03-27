@@ -1,0 +1,1025 @@
+package com.gcuf.craftoria.ui.screens.notifications
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gcuf.craftoria.data.model.Notification
+import com.gcuf.craftoria.data.model.NotificationActionType
+import com.gcuf.craftoria.data.model.NotificationCategory
+import androidx.compose.foundation.BorderStroke
+import com.gcuf.craftoria.data.model.User
+import com.gcuf.craftoria.ui.theme.*
+import com.gcuf.craftoria.viewmodel.NotificationUiState
+import com.gcuf.craftoria.viewmodel.NotificationViewModel
+import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
+import android.util.Log
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NotificationsScreen(
+    user: User,
+    onBackClick: () -> Unit,
+    onNotificationAction: (Notification) -> Unit,
+    notificationViewModel: NotificationViewModel = viewModel()
+) {
+    val uiState by notificationViewModel.uiState.collectAsState()
+    val notifications by notificationViewModel.notifications.collectAsState()
+    val currentFilter by notificationViewModel.currentFilter.collectAsState()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
+
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var confirmDialogData by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedNotifications by remember { mutableStateOf(setOf<String>()) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(user.id) {
+        notificationViewModel.loadNotifications(user.id)
+        notificationViewModel.startListening(user.id)
+    }
+
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is NotificationUiState.ActionSuccess -> {
+                snackbarHostState.showSnackbar(message = state.message, duration = SnackbarDuration.Short)
+                notificationViewModel.resetState()
+            }
+            is NotificationUiState.Error -> {
+                snackbarHostState.showSnackbar(message = state.message, duration = SnackbarDuration.Short)
+                notificationViewModel.resetState()
+            }
+            else -> {}
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
+                        Text(
+                            text = "Notifications",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            lineHeight = 16.sp
+                        )
+                        if (unreadCount > 0) {
+                            Text(
+                                text = "$unreadCount unread",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                lineHeight = 12.sp
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (isSelectionMode) {
+                        // Delete selected — Error tinted pill
+                        if (selectedNotifications.isNotEmpty()) {
+                            TextButton(
+                                onClick = {
+                                    confirmDialogData = "Delete Selected" to {
+                                        notificationViewModel.deleteMultipleNotifications(
+                                            selectedNotifications.toList(), user.id
+                                        )
+                                        selectedNotifications = emptySet()
+                                        isSelectionMode = false
+                                    }
+                                    showConfirmDialog = true
+                                },
+                                colors = ButtonDefaults.textButtonColors(
+                                    containerColor = Error.copy(alpha = 0.9f),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Delete (${selectedNotifications.size})",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        // Cancel selection
+                        TextButton(
+                            onClick = { isSelectionMode = false; selectedNotifications = emptySet() },
+                            colors = ButtonDefaults.textButtonColors(
+                                containerColor = Color.White.copy(alpha = 0.25f),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Text("Cancel", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        // Delete icon — tinted circle
+                        if (notifications.isNotEmpty()) {
+                            IconButton(
+                                onClick = { isSelectionMode = true },
+                                modifier = Modifier.padding(end = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Delete",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                        // Mark all read — white pill with Primary icon + text
+                        if (unreadCount > 0) {
+                            Surface(
+                                onClick = { notificationViewModel.markAllAsRead(user.id) },
+                                color = Color.White,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .padding(end = 10.dp)
+                                    .height(34.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DoneAll,
+                                        contentDescription = null,
+                                        tint = Primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Mark All Read",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                modifier = Modifier.background(
+                    brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight))
+                )
+            )
+        },
+        containerColor = BackgroundSecondary
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // Filter tabs — pill style, consistent with all other filter tabs in project
+            NotificationFilterTabs(
+                currentFilter = currentFilter,
+                onFilterSelected = { filter ->
+                    notificationViewModel.filterNotifications(filter, user.id)
+                }
+            )
+
+            when (uiState) {
+                is NotificationUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Primary)
+                    }
+                }
+                is NotificationUiState.Empty -> EmptyNotificationUiState()
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(notifications) { notification ->
+                            NotificationCard(
+                                notification = notification,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = selectedNotifications.contains(notification.id),
+                                onSelectionToggle = {
+                                    selectedNotifications =
+                                        if (selectedNotifications.contains(notification.id))
+                                            selectedNotifications - notification.id
+                                        else selectedNotifications + notification.id
+                                },
+                                onMarkAsRead = {
+                                    notificationViewModel.markAsRead(notification.id, user.id)
+                                },
+                                onDelete = {
+                                    confirmDialogData = "Delete Notification" to {
+                                        notificationViewModel.deleteNotification(
+                                            notification.id, user.id
+                                        )
+                                    }
+                                    showConfirmDialog = true
+                                },
+                                onAction = { action ->
+                                    when (action) {
+                                        "accept_invitation" -> {
+                                            confirmDialogData = "Accept Invitation" to {
+                                                onNotificationAction(notification)
+                                                notificationViewModel.markAsRead(
+                                                    notification.id, user.id
+                                                )
+                                            }
+                                            showConfirmDialog = true
+                                        }
+                                        "decline_invitation" -> {
+                                            confirmDialogData = "Decline Invitation" to {
+                                                notificationViewModel.deleteNotification(
+                                                    notification.id, user.id
+                                                )
+                                            }
+                                            showConfirmDialog = true
+                                        }
+                                        else -> {
+                                            onNotificationAction(notification)
+                                            if (!notification.isRead)
+                                                notificationViewModel.markAsRead(
+                                                    notification.id, user.id
+                                                )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Confirm Dialog ────────────────────────────────────────────────────────
+    if (showConfirmDialog && confirmDialogData != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp),
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Primary.copy(alpha = 0.08f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.HelpOutline,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    confirmDialogData!!.first,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to proceed?",
+                    fontSize = 13.sp,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                // Gradient confirm — consistent with all confirm dialogs
+                Button(
+                    onClick = {
+                        confirmDialogData!!.second()
+                        showConfirmDialog = false
+                        confirmDialogData = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .height(40.dp)
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(10.dp)
+                        )
+                ) {
+                    Text(
+                        "Confirm",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showConfirmDialog = false; confirmDialogData = null },
+                    border = BorderStroke(0.5.dp, BorderColor),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Text("Cancel", color = TextSecondary, fontSize = 13.sp)
+                }
+            }
+        )
+    }
+}
+
+// ── Filter Tabs ───────────────────────────────────────────────────────────────
+
+@Composable
+fun NotificationFilterTabs(
+    currentFilter: NotificationCategory,
+    onFilterSelected: (NotificationCategory) -> Unit
+) {
+    val filters = listOf(
+        NotificationCategory.ALL to "All",
+        NotificationCategory.ORDERS to "Orders",
+        NotificationCategory.MESSAGES to "Messages",
+        NotificationCategory.PROMOTIONS to "Promotions",
+        NotificationCategory.SYSTEM to "System"
+    )
+
+    // White surface with 0.5.dp bottom divider — consistent with FilterTabs in ManageProductsScreen
+    Surface(
+        color = Color.White,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(filters.size) { index ->
+                    val (category, label) = filters[index]
+                    val isSelected = currentFilter == category
+                    // Pill style — selected=Primary fill, unselected=0.5.dp BorderColor outlined
+                    Surface(
+                        onClick = { onFilterSelected(category) },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) Primary else Color.White,
+                        border = BorderStroke(
+                            width = if (isSelected) 0.dp else 0.5.dp,
+                            color = if (isSelected) Primary else BorderColor
+                        ),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else TextSecondary,
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+        }
+    }
+}
+
+// ── Notification Card ─────────────────────────────────────────────────────────
+
+@Composable
+fun NotificationCard(
+    notification: Notification,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onSelectionToggle: () -> Unit,
+    onMarkAsRead: () -> Unit,
+    onDelete: () -> Unit,
+    onAction: (String) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.isRead) Color.White else Color(0xFFFFF5F8)
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 0.5.dp,
+            color = when {
+                isSelected -> Primary
+                !notification.isRead -> PrimaryLight.copy(alpha = 0.6f)
+                else -> BorderColor
+            }
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(0.dp),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = {
+            if (isSelectionMode) onSelectionToggle()
+            else if (!notification.isRead) onMarkAsRead()
+        }
+    ) {
+        Box {
+            Row(modifier = Modifier.padding(13.dp)) {
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelectionToggle() },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Primary,
+                            uncheckedColor = TextSecondary
+                        ),
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .size(20.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // Category icon — tinted circle
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(
+                                    getIconBackground(notification.categoryEnum),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getCategoryIcon(notification.categoryEnum),
+                                contentDescription = null,
+                                tint = getCategoryIconTint(notification.categoryEnum),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = notification.title,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary,
+                                modifier = Modifier.padding(bottom = 2.dp),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = notification.description,
+                                fontSize = 12.sp,
+                                color = TextSecondary,
+                                lineHeight = 17.sp,
+                                modifier = Modifier.padding(bottom = 5.dp),
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            // Store pill — 0.5.dp BorderColor surface with real-time updates
+                            if (notification.storeName.isNotEmpty()) {
+                                var realtimeStoreName by remember { mutableStateOf(notification.storeName) }
+                                var realtimeMemberCount by remember { mutableStateOf(notification.memberCount) }
+                                
+                                LaunchedEffect(notification.storeId) {
+                                    if (notification.storeId.isNotEmpty()) {
+                                        try {
+                                            // Real-time listener for seller name
+                                            val db = FirebaseFirestore.getInstance()
+                                            db.collection("users").document(notification.storeId)
+                                                .addSnapshotListener { snapshot, error ->
+                                                    if (error == null && snapshot != null && snapshot.exists()) {
+                                                        val name = snapshot.getString("name") ?: notification.storeName
+                                                        realtimeStoreName = name
+                                                        Log.d("NotificationCard", "✅ Updated store name: $name")
+                                                    }
+                                                }
+                                            
+                                            // Real-time listener for member count
+                                            db.collection("co_seller_stores").document(notification.storeId)
+                                                .addSnapshotListener { snapshot, error ->
+                                                    if (error == null && snapshot != null && snapshot.exists()) {
+                                                        val memberCount = snapshot.getLong("member_count")?.toInt() 
+                                                            ?: (snapshot.get("member_ids") as? List<*>)?.size 
+                                                            ?: notification.memberCount
+                                                        realtimeMemberCount = memberCount
+                                                        Log.d("NotificationCard", "✅ Updated member count: $memberCount")
+                                                    }
+                                                }
+                                        } catch (e: Exception) {
+                                            Log.e("NotificationCard", "Error setting up real-time listeners", e)
+                                        }
+                                    }
+                                }
+                                
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = BackgroundSecondary,
+                                    border = BorderStroke(0.5.dp, BorderColor),
+                                    modifier = Modifier.padding(bottom = 5.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(
+                                            horizontal = 8.dp, vertical = 5.dp
+                                        ),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Store,
+                                            contentDescription = null,
+                                            tint = Primary,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                        Text(
+                                            text = realtimeStoreName,
+                                            fontSize = 11.sp,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        Text(
+                                            text = "·",
+                                            fontSize = 10.sp,
+                                            color = TextSecondary
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Outlined.Group,
+                                            contentDescription = null,
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                        Text(
+                                            text = "$realtimeMemberCount Members",
+                                            fontSize = 11.sp,
+                                            color = TextSecondary,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = getTimeAgo(notification.createdAt),
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+
+                        // Delete icon — only when read and not in selection mode
+                        if (!isSelectionMode && notification.isRead) {
+                            IconButton(
+                                onClick = onDelete,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete",
+                                    tint = TextLight,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (notification.actionTypeEnum != NotificationActionType.NONE) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        NotificationActions(
+                            actionType = notification.actionTypeEnum,
+                            onAction = onAction
+                        )
+                    }
+                }
+            }
+
+            // Unread dot — Primary circle top-end
+            if (!notification.isRead) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(13.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Primary)
+                )
+            }
+        }
+    }
+}
+
+// ── Category helpers ──────────────────────────────────────────────────────────
+
+fun getCategoryIcon(category: NotificationCategory): ImageVector {
+    return when (category) {
+        NotificationCategory.ORDERS -> Icons.Outlined.ShoppingBag
+        NotificationCategory.MESSAGES -> Icons.AutoMirrored.Outlined.Message
+        NotificationCategory.PROMOTIONS -> Icons.Outlined.Campaign
+        NotificationCategory.SYSTEM -> Icons.Outlined.CheckCircle
+        NotificationCategory.REPORT -> Icons.Outlined.Flag
+        NotificationCategory.ADMIN_MESSAGE -> Icons.Outlined.AdminPanelSettings
+        NotificationCategory.STORE_RATING -> Icons.Outlined.Store
+        NotificationCategory.PAYMENTS -> Icons.Outlined.ShoppingBag
+        else -> Icons.Outlined.Notifications
+    }
+}
+
+fun getCategoryIconTint(category: NotificationCategory): Color {
+    return when (category) {
+        NotificationCategory.ORDERS -> Color(0xFFE91E8C)
+        NotificationCategory.MESSAGES -> Color(0xFF1976D2)
+        NotificationCategory.PROMOTIONS -> Color(0xFFF57F17)
+        NotificationCategory.SYSTEM -> Color(0xFF2E7D32)
+        NotificationCategory.REPORT -> Color(0xFFE91E63)
+        NotificationCategory.ADMIN_MESSAGE -> Color(0xFFD32F2F)
+        NotificationCategory.STORE_RATING -> Color(0xFFE91E8C)
+        NotificationCategory.PAYMENTS -> Color(0xFF2E7D32)
+        else -> Color(0xFF757575)
+    }
+}
+
+fun getIconBackground(category: NotificationCategory): Color {
+    return when (category) {
+        NotificationCategory.ORDERS -> Color(0xFFFFF5F8)
+        NotificationCategory.MESSAGES -> Color(0xFFE3F2FD)
+        NotificationCategory.PROMOTIONS -> Color(0xFFFFF9C4)
+        NotificationCategory.SYSTEM -> Color(0xFFE8F5E8)
+        NotificationCategory.REPORT -> Color(0xFFFFF5F8)
+        NotificationCategory.ADMIN_MESSAGE -> Color(0xFFFFEBEE)
+        NotificationCategory.STORE_RATING -> Color(0xFFFFF5F8)
+        NotificationCategory.PAYMENTS -> Color(0xFFE8F5E9)
+        else -> Color(0xFFF5F5F5)
+    }
+}
+
+// ── Notification Actions ──────────────────────────────────────────────────────
+
+@Composable
+fun NotificationActions(actionType: NotificationActionType, onAction: (String) -> Unit) {
+    when (actionType) {
+        NotificationActionType.ACCEPT_INVITATION -> {
+            // Accept + Decline side by side
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { onAction("accept_invitation") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Success),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Accept", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+                OutlinedButton(
+                    onClick = { onAction("decline_invitation") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                    border = BorderStroke(0.5.dp, BorderColor),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Decline", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        NotificationActionType.VIEW_ORDER -> {
+            // Gradient fill — primary action with hover effect
+            var isHovered by remember { mutableStateOf(false) }
+            Button(
+                onClick = { onAction("view_order") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp),
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    .also { interactionSource ->
+                        LaunchedEffect(interactionSource) {
+                            interactionSource.interactions.collect { interaction ->
+                                isHovered = interaction is androidx.compose.foundation.interaction.HoverInteraction.Enter
+                            }
+                        }
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isHovered) {
+                                Brush.horizontalGradient(listOf(Color(0xFFE91E8C), Color(0xFFF06292)))
+                            } else {
+                                Brush.horizontalGradient(listOf(Primary, PrimaryLight))
+                            },
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "View Order",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        NotificationActionType.TRACK_ORDER -> {
+            // Gradient fill with hover effect
+            var isHovered by remember { mutableStateOf(false) }
+            Button(
+                onClick = { onAction("track_order") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp),
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    .also { interactionSource ->
+                        LaunchedEffect(interactionSource) {
+                            interactionSource.interactions.collect { interaction ->
+                                isHovered = interaction is androidx.compose.foundation.interaction.HoverInteraction.Enter
+                            }
+                        }
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isHovered) {
+                                Brush.horizontalGradient(listOf(Color(0xFFE91E8C), Color(0xFFF06292)))
+                            } else {
+                                Brush.horizontalGradient(listOf(Primary, PrimaryLight))
+                            },
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Track Order",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        NotificationActionType.REPLY_MESSAGE -> {
+            // Blue solid — distinct from Primary for messaging context
+            Button(
+                onClick = { onAction("reply_message") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("View & Reply", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        NotificationActionType.VIEW_STORE -> {
+            Button(
+                onClick = { onAction("view_store") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "View Store",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        NotificationActionType.VIEW_PROMOTIONS -> {
+            Button(
+                onClick = { onAction("view_promotions") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Browse Offers",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        NotificationActionType.RATE_ORDER -> {
+            Button(
+                onClick = { onAction("rate_order") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Rate Order",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        NotificationActionType.VIEW_PRODUCT -> {
+            Button(
+                onClick = { onAction("view_product") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "View Product",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        else -> {}
+    }
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+
+@Composable
+fun EmptyNotificationUiState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .background(Primary.copy(alpha = 0.08f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = Primary.copy(alpha = 0.5f),
+                modifier = Modifier.size(40.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = "No notifications yet",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "When you get notifications, they'll show up here",
+            fontSize = 13.sp,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
+        )
+    }
+}
+
+// ── Time helper ───────────────────────────────────────────────────────────────
+
+fun getTimeAgo(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(diff)
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(diff)
+    val hours = TimeUnit.MILLISECONDS.toHours(diff)
+    val days = TimeUnit.MILLISECONDS.toDays(diff)
+
+    return when {
+        seconds < 60 -> "Just now"
+        minutes < 60 -> "$minutes minute${if (minutes > 1) "s" else ""} ago"
+        hours < 24 -> "$hours hour${if (hours > 1) "s" else ""} ago"
+        days < 7 -> "$days day${if (days > 1) "s" else ""} ago"
+        days < 30 -> "${days / 7} week${if (days / 7 > 1) "s" else ""} ago"
+        else -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(timestamp))
+    }
+}
