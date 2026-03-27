@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "303478520606",
+    "project_id": "craftoria432",
+    "storage_bucket": "craftoria432.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:303478520606:android:b057ea942b8369f6ada70f",
+        "android_client_info": {
+          "package_name": "com.gcuf.craftoria"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "303478520606-kj9uqeihnr8b0ilqm99irgfbouvr9a48.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gcuf.craftoria",
+            "certificate_hash": "746329fe4787ed9140d08fd6d58c5b2078ae63bc"
+          }
+        },
+        {
+          "client_id": "303478520606-cs6fu2kbpa8vv15msgsgvnjqk95qlf3k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRB1gusQDj_6qLELh-GmDp41a327oEMBY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "303478520606-cs6fu2kbpa8vv15msgsgvnjqk95qlf3k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
