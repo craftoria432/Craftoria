@@ -68,7 +68,6 @@ fun LoginScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val authState = vm?.authState?.collectAsState()?.value ?: AuthState.Idle
-    var isNewUser by remember { mutableStateOf(false) }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -77,9 +76,7 @@ fun LoginScreen(
         try {
             val account = task.getResult(ApiException::class.java)
             account?.idToken?.let { idToken ->
-                vm?.signInWithGoogle(idToken) { newUser ->
-                    isNewUser = newUser
-                }
+                vm?.signInWithGoogle(idToken)
             }
         } catch (e: ApiException) {
             vm?.setAuthError("Google Sign-In failed: ${e.message}")
@@ -94,9 +91,8 @@ fun LoginScreen(
                     if (user != null) {
                         vm.resetAuthState()
                         
-                        // ✅ NEW: If this is a new Google user, show role selection
-                        if (isNewUser) {
-                            isNewUser = false  // Reset flag
+                        // ✅ Check if this is a new Google user using the VM flag
+                        if (vm.consumeNewGoogleUserFlag()) {
                             onNavigateToRoleSelection(user.id, user.name)
                         } else if (user.role == UserRole.SELLER &&
                             user.verificationStatus != VerificationStatus.APPROVED
@@ -671,8 +667,6 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     var email by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resendCountdown by remember { mutableIntStateOf(0) }

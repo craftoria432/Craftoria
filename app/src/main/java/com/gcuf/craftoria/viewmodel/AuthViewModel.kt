@@ -344,6 +344,11 @@ class AuthViewModel(
                         onResult(false, "Incorrect OTP. Please try again.")
                     }
                     else -> {
+                        // ✅ Mark OTP as used so it can't be replayed
+                        Firebase.firestore.collection("password_reset_otps")
+                            .document(email)
+                            .update("used", true)
+                            .await()
                         _authState.value = AuthState.Idle
                         onResult(true, null)
                     }
