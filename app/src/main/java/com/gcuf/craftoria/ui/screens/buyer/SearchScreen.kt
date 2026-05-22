@@ -63,69 +63,24 @@ fun SearchScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    // Embedded search field — white translucent pill on gradient
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = {
-                            Text(
-                                text = "Search for handicrafts...",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.70f)
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.80f),
-                                modifier = Modifier.size(17.dp)
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .background(
-                                                Color.White.copy(alpha = 0.20f),
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Clear",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        colors = TextFieldDefaults.colors(
-                            unfocusedContainerColor  = Color.White.copy(alpha = 0.20f),
-                            focusedContainerColor    = Color.White.copy(alpha = 0.20f),
-                            focusedIndicatorColor    = Color.Transparent,
-                            unfocusedIndicatorColor  = Color.Transparent,
-                            cursorColor              = Color.White,
-                            focusedTextColor         = Color.White,
-                            unfocusedTextColor       = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                navigationIcon = {
-                    // Pill back button — consistent with every other screen
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight)))
+            ) {
+                // Top row: Back button and title
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Back button
                     IconButton(onClick = onBackClick) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(36.dp)
                                 .background(Color.White.copy(alpha = 0.18f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -137,12 +92,95 @@ fun SearchScreen(
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                modifier = Modifier.background(
-                    brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight))
-                )
-            )
+                    
+                    Text(
+                        text = "Search Products",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+                
+                // Search bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White.copy(alpha = 0.25f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search for handicrafts...",
+                                        fontSize = 14.sp,
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 14.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(
+                                                Color.White.copy(alpha = 0.25f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Clear",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Column(

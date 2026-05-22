@@ -23,11 +23,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.FirebaseFirestore
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Chat
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*

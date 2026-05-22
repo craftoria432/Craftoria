@@ -47,7 +47,21 @@ class ManageProductsViewModel(
                 )
 
                 if (result.isSuccess) {
-                    val products = result.getOrNull() ?: emptyList()
+                    var products = result.getOrNull() ?: emptyList()
+                    
+                    // ✅ DEFENSIVE FILTER: Ensure no products without seller_id are shown
+                    products = products.filter { product ->
+                        if (product.sellerId.isBlank()) {
+                            Log.w(TAG, "Filtering out product without seller_id: ${product.id}")
+                            false
+                        } else if (product.sellerId != sellerId) {
+                            Log.w(TAG, "Filtering out product with mismatched seller_id: ${product.id}")
+                            false
+                        } else {
+                            true
+                        }
+                    }
+                    
                     _products.value = products
                     _uiState.value = if (products.isEmpty()) {
                         ManageProductsState.Empty
@@ -92,7 +106,21 @@ class ManageProductsViewModel(
                 val result = productRepository.searchSellerProducts(sellerId, query)
 
                 if (result.isSuccess) {
-                    val products = result.getOrNull() ?: emptyList()
+                    var products = result.getOrNull() ?: emptyList()
+                    
+                    // ✅ DEFENSIVE FILTER: Ensure no products without seller_id are shown
+                    products = products.filter { product ->
+                        if (product.sellerId.isBlank()) {
+                            Log.w(TAG, "Filtering out product without seller_id: ${product.id}")
+                            false
+                        } else if (product.sellerId != sellerId) {
+                            Log.w(TAG, "Filtering out product with mismatched seller_id: ${product.id}")
+                            false
+                        } else {
+                            true
+                        }
+                    }
+                    
                     _products.value = products
                     _uiState.value = if (products.isEmpty()) {
                         ManageProductsState.Empty

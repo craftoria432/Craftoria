@@ -16,6 +16,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Wrapper for sign-in result that includes whether this is a new user
+ * Used to determine if role selection screen should be shown
+ */
+data class SignInResult(
+    val user: User,
+    val isNewUser: Boolean
+)
+
 class AuthRepository {
 
     private val auth = FirebaseAuth.getInstance()
@@ -145,14 +154,16 @@ class AuthRepository {
 
     /**
      * Sign in with Google
+     * Returns SignInResult with isNewUser flag to determine if role selection is needed
      */
-    suspend fun signInWithGoogle(idToken: String): Result<User> {
+    suspend fun signInWithGoogle(idToken: String): Result<SignInResult> {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             val authResult = auth.signInWithCredential(credential).await()
             val firebaseUser = authResult.user ?: throw Exception("Google sign in failed")
 
             val userDoc = usersCollection.document(firebaseUser.uid).get().await()
+            var isNewUser = false
 
             val user = if (userDoc.exists()) {
                 // ✅ Manual mapping instead of toObject() — handles lowercase role/status
@@ -213,7 +224,8 @@ class AuthRepository {
                     sellerApplicationStatus = SellerApplicationStatus.fromString(data["seller_application_status"] as? String)
                 )
             } else {
-                // New Google user — create as BUYER
+                // New Google user — create as BUYER and flag for role selection
+                isNewUser = true
                 val newUser = User(
                     id = firebaseUser.uid,
                     email = firebaseUser.email ?: "",
@@ -226,11 +238,28 @@ class AuthRepository {
                 newUser
             }
 
-            Log.d(TAG, "Google sign in successful: ${firebaseUser.uid}")
-            Result.success(user)
+            Log.d(TAG, "Google sign in successful: ${firebaseUser.uid}, isNewUser: $isNewUser")
+            Result.success(SignInResult(user = user, isNewUser = isNewUser))
 
         } catch (e: Exception) {
             Log.e(TAG, "Google sign in failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Set initial role for new Google sign-in users
+     * Called after user selects role on RoleSelectionScreen
+     */
+    suspend fun setInitialRole(userId: String, role: UserRole): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update(
+                mapOf("role" to role.name.lowercase())
+            ).await()
+            Log.d(TAG, "✅ Initial role set for user $userId: $role")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set initial role", e)
             Result.failure(e)
         }
     }

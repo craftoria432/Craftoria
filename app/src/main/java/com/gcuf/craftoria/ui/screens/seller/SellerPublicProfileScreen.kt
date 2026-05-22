@@ -47,7 +47,8 @@ fun SellerPublicProfileScreen(
     onChatWithSeller: (String, String) -> Unit,
     onAddToCart: (Product) -> Unit,
     onAddToWishlist: (Product) -> Unit,
-    onNavigateToCart: () -> Unit
+    onNavigateToCart: () -> Unit,
+    onInviteClick: (() -> Unit)? = null
 ) {
     var seller by remember { mutableStateOf<User?>(null) }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
@@ -126,7 +127,8 @@ fun SellerPublicProfileScreen(
                                 userId = it.id,
                                 fallbackName = it.name,
                                 fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.85f)
+                                color = Color.White.copy(alpha = 0.85f),
+                                lineHeight = 12.sp
                             )
                         }
                     }
@@ -323,29 +325,62 @@ fun SellerPublicProfileScreen(
                             // Chat CTA button (only for other users)
                             if (currentUserId != sellerId) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { onChatWithSeller(seller!!.id, seller!!.name) },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color.White,
-                                        contentColor = Primary
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier
                                         .padding(horizontal = 32.dp)
                                         .fillMaxWidth()
-                                        .height(44.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Chat,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Chat with Seller",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                    Button(
+                                        onClick = { onChatWithSeller(seller!!.id, seller!!.name) },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.White,
+                                            contentColor = Primary
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(44.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Chat,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Chat",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
+                                    // Invite button (only when called from directory)
+                                    if (onInviteClick != null) {
+                                        Button(
+                                            onClick = onInviteClick,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Primary,
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(44.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PersonAdd,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Invite",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

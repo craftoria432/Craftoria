@@ -204,57 +204,73 @@ fun ManageProductCard(
                     )
                 }
 
-                // Badges row — use design-system colors, no hardcoded hex
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                // Badges — Two rows layout
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    StockBadge(stock = product.stock)
-                    StatusBadge(isActive = product.isActive)
-
-                    // Co-seller badge — info blue tinted, consistent with project badge pattern
-                    if (product.coSellerStoreId.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFE3F2FD)
-                        ) {
-                            Text(
-                                text = "Co-Seller",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1565C0),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
-                        }
+                    // Row 1: Stock + Status (always visible)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StockBadge(stock = product.stock)
+                        StatusBadge(isActive = product.isActive)
                     }
 
-                    // Approval status badge — pending/rejected only (approved is default, no badge needed)
-                    if (product.approvalStatus == "pending") {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFFFA500).copy(alpha = 0.15f)
+                    // Row 2: Additional badges (Pending/Rejected + Co-Seller) — only if applicable
+                    val hasPendingOrRejected = product.approvalStatus == "pending" || product.approvalStatus == "rejected"
+                    val hasCoSeller = product.coSellerStoreId.isNotEmpty()
+
+                    if (hasPendingOrRejected || hasCoSeller) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Pending",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFFFA500),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
-                        }
-                    } else if (product.approvalStatus == "rejected") {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Error.copy(alpha = 0.10f)
-                        ) {
-                            Text(
-                                text = "Rejected",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Error,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
+                            // Approval status badge — pending/rejected only
+                            if (product.approvalStatus == "pending") {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFFFA500).copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "Pending",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFFFA500),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            } else if (product.approvalStatus == "rejected") {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Error.copy(alpha = 0.10f)
+                                ) {
+                                    Text(
+                                        text = "Rejected",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Error,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+
+                            // Co-seller badge — info blue tinted
+                            if (product.coSellerStoreId.isNotEmpty()) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFE3F2FD)
+                                ) {
+                                    Text(
+                                        text = "Co-Seller",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF1565C0),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

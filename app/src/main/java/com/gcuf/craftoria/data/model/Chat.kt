@@ -11,6 +11,10 @@ data class Chat(
     val participantNames: Map<String, String> = emptyMap(),
     @PropertyName("participant_avatars")
     val participantAvatars: Map<String, String> = emptyMap(),
+    @PropertyName("participant_roles")
+    val participantRoles: Map<String, String> = emptyMap(),  // ✅ NEW: userId -> role (BUYER/SELLER)
+    @PropertyName("chat_type")
+    val chatType: String = "buyer_seller",  // ✅ NEW: buyer_seller, seller_seller, buyer_buyer
     @PropertyName("last_message")
     val lastMessage: String = "",
     @PropertyName("last_message_time")
@@ -24,7 +28,12 @@ data class Chat(
     @PropertyName("blocked_by")
     val blockedBy: String = "",
     @PropertyName("created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @PropertyName("last_role_update")
+    val lastRoleUpdate: Long = System.currentTimeMillis(),  // ✅ NEW: Track when roles were last synced
+    // Product context for first-time chats
+    @PropertyName("initial_product_id")
+    val initialProductId: String = ""
 )
 
 data class Message(
@@ -92,13 +101,17 @@ fun Chat.toMap(): Map<String, Any> = mapOf(
     "participant_ids" to participantIds,
     "participant_names" to participantNames,
     "participant_avatars" to participantAvatars,
+    "participant_roles" to participantRoles,  // ✅ NEW
+    "chat_type" to chatType,  // ✅ NEW
     "last_message" to lastMessage,
     "last_message_time" to lastMessageTime,
     "last_message_sender_id" to lastMessageSenderId,
     "unread_count" to unreadCount,
     "is_blocked" to isBlocked,
     "blocked_by" to blockedBy,
-    "created_at" to createdAt
+    "created_at" to createdAt,
+    "last_role_update" to lastRoleUpdate,  // ✅ NEW
+    "initial_product_id" to initialProductId
 )
 
 fun Message.toMap(): Map<String, Any> = mapOf(

@@ -268,6 +268,7 @@ fun CreateCoSellerStoreScreen(
 ) {
     val context = LocalContext.current
     val uiState by coSellerStoreViewModel.uiState.collectAsState()
+    val isCreating = uiState is CoSellerStoreState.Loading
 
     var storeName by remember { mutableStateOf("") }
     var storeDescription by remember { mutableStateOf("") }
@@ -356,7 +357,7 @@ fun CreateCoSellerStoreScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = onBackClick, enabled = uiState !is CoSellerStoreState.Loading, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary), border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor), shape = RoundedCornerShape(12.dp)) {
+                    OutlinedButton(onClick = onBackClick, enabled = !isCreating, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary), border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor), shape = RoundedCornerShape(12.dp)) {
                         Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                     Button(
@@ -366,17 +367,17 @@ fun CreateCoSellerStoreScreen(
                                 coSellerStoreViewModel.createStore(context = context, store = store, logoUri = logoUri, bannerUri = bannerUri, invitedEmails = invitedEmails)
                             }
                         },
-                        enabled = storeName.isNotEmpty() && uiState !is CoSellerStoreState.Loading,
+                        enabled = storeName.isNotEmpty() && !isCreating,
                         modifier = Modifier.weight(1f).height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Primary.copy(alpha = 0.4f)),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize().background(if (storeName.isNotEmpty() && uiState !is CoSellerStoreState.Loading) Brush.horizontalGradient(listOf(Primary, PrimaryLight)) else Brush.horizontalGradient(listOf(Primary.copy(0.4f), PrimaryLight.copy(0.4f))), RoundedCornerShape(12.dp)),
+                            modifier = Modifier.fillMaxSize().background(if (storeName.isNotEmpty() && !isCreating) Brush.horizontalGradient(listOf(Primary, PrimaryLight)) else Brush.horizontalGradient(listOf(Primary.copy(0.4f), PrimaryLight.copy(0.4f))), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (uiState is CoSellerStoreState.Loading) {
+                            if (isCreating) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                             } else {
                                 Text("Create Store", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)

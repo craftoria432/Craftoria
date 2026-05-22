@@ -348,6 +348,26 @@ fun ProfessionalBadge(
 ) {
     if (config.count <= 0) return
     
+    // ✅ NEW: Entrance animation when badge first appears
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(config.count) {
+        if (config.count > 0) {
+            isVisible = false
+            kotlinx.coroutines.delay(50) // Small delay for smooth transition
+            isVisible = true
+        }
+    }
+    
+    val entranceScale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "entrance_scale"
+    )
+    
     // Animation for pulsing effect
     val infiniteTransition = rememberInfiniteTransition(label = "badge_pulse")
     
@@ -378,7 +398,7 @@ fun ProfessionalBadge(
     )
     
     // Apply animation only if pulsing
-    val scale = when (config.animationState) {
+    val continuousScale = when (config.animationState) {
         BadgeManager.BadgeAnimationState.PULSING,
         BadgeManager.BadgeAnimationState.URGENT_PULSING -> pulseScale
         else -> 1f
@@ -390,9 +410,12 @@ fun ProfessionalBadge(
         else -> 1f
     }
     
+    // ✅ Combine entrance animation with continuous pulsing
+    val finalScale = entranceScale * continuousScale
+    
     Box(
         modifier = modifier
-            .scale(scale)
+            .scale(finalScale)
             .size(
                 width = if (config.count > 99) 28.dp else if (config.count > 9) 24.dp else 20.dp,
                 height = 20.dp

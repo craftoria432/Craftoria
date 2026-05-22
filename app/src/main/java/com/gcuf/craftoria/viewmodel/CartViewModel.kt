@@ -98,6 +98,7 @@ class CartViewModel(
         viewModelScope.launch {
             try {
                 val cartItem = CartItem(
+                    id = "temp_${product.id}_${System.currentTimeMillis()}", // Temporary ID
                     userId = userId,
                     productId = product.id,
                     product = product,
@@ -105,14 +106,46 @@ class CartViewModel(
                     price = price,
                     originalPrice = product.price,
                     isNegotiated = isNegotiated,
-                    negotiationStatus = negotiationStatus
+                    negotiationStatus = negotiationStatus,
+                    addedAt = System.currentTimeMillis()
                 )
                 
+                // ✅ OPTIMISTIC UPDATE: Add to cart immediately for instant UI feedback
+                val existingItem = _cartItems.value.find { it.productId == product.id }
+                if (existingItem != null) {
+                    // Update quantity if item already exists
+                    _cartItems.value = _cartItems.value.map { item ->
+                        if (item.productId == product.id) {
+                            item.copy(quantity = item.quantity + 1)
+                        } else {
+                            item
+                        }
+                    }
+                    Log.d(TAG, "⚡ Optimistic update: Increased quantity for ${product.title}")
+                } else {
+                    // Add new item
+                    _cartItems.value = _cartItems.value + cartItem
+                    Log.d(TAG, "⚡ Optimistic update: Added ${product.title} to cart")
+                }
+                
+                // Then save to Firebase (real-time listener will update with actual data)
                 val result = cartRepository.addToCart(cartItem)
                 if (result.isSuccess) {
                     Log.d(TAG, "✅ Added to Firebase cart: ${product.title}")
                 } else {
                     Log.e(TAG, "❌ Failed to add to cart: ${result.exceptionOrNull()?.message}")
+                    // Rollback optimistic update on failure
+                    if (existingItem != null) {
+                        _cartItems.value = _cartItems.value.map { item ->
+                            if (item.productId == product.id) {
+                                item.copy(quantity = item.quantity - 1)
+                            } else {
+                                item
+                            }
+                        }
+                    } else {
+                        _cartItems.value = _cartItems.value.filter { it.productId != product.id }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error adding to cart", e)
@@ -157,11 +190,32 @@ class CartViewModel(
 
         viewModelScope.launch {
             try {
+                // ✅ OPTIMISTIC UPDATE: Update UI immediately
+                val oldQuantity = _cartItems.value.find { it.id == itemId }?.quantity
+                _cartItems.value = _cartItems.value.map { item ->
+                    if (item.id == itemId) {
+                        item.copy(quantity = newQuantity)
+                    } else {
+                        item
+                    }
+                }
+                Log.d(TAG, "⚡ Optimistic update: Changed quantity from $oldQuantity to $newQuantity")
+                
                 val result = cartRepository.updateQuantity(itemId, newQuantity)
                 if (result.isSuccess) {
                     Log.d(TAG, "✅ Updated quantity in Firebase")
                 } else {
                     Log.e(TAG, "❌ Failed to update quantity: ${result.exceptionOrNull()?.message}")
+                    // Rollback on failure
+                    if (oldQuantity != null) {
+                        _cartItems.value = _cartItems.value.map { item ->
+                            if (item.id == itemId) {
+                                item.copy(quantity = oldQuantity)
+                            } else {
+                                item
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error updating quantity", e)
@@ -172,11 +226,20 @@ class CartViewModel(
     fun removeFromCart(itemId: String) {
         viewModelScope.launch {
             try {
+                // ✅ OPTIMISTIC UPDATE: Remove from UI immediately
+                val removedItem = _cartItems.value.find { it.id == itemId }
+                _cartItems.value = _cartItems.value.filter { it.id != itemId }
+                Log.d(TAG, "⚡ Optimistic update: Removed item from cart")
+                
                 val result = cartRepository.removeFromCart(itemId)
                 if (result.isSuccess) {
                     Log.d(TAG, "✅ Removed from Firebase cart")
                 } else {
                     Log.e(TAG, "❌ Failed to remove: ${result.exceptionOrNull()?.message}")
+                    // Rollback on failure
+                    if (removedItem != null) {
+                        _cartItems.value = _cartItems.value + removedItem
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error removing from cart", e)
@@ -254,14 +317,17 @@ class CartViewModel(
                         quantity = sellerItems.sumOf { it.quantity },
                         totalPrice = total,
                         status = OrderStatus.PENDING.name,
+                        isViewed = false, // ✅ NEW: Explicitly mark as unviewed for badge
                         shippingAddress = "${deliveryInfo.address}, ${deliveryInfo.city}",
                         buyerPhone = deliveryInfo.phoneNumber,
+                        coSellerStoreId = firstItem.product.coSellerStoreId, // ✅ CRITICAL: Set co-seller store ID
                         items = sellerItems.map { cartItem ->
                             OrderItem(
                                 productId = cartItem.product.id,
                                 productTitle = cartItem.product.title,
                                 productImage = cartItem.product.imageUrls.firstOrNull() ?: "",
                                 sellerName = cartItem.product.sellerName,
+                                sellerId = cartItem.product.sellerId,
                                 quantity = cartItem.quantity,
                                 price = cartItem.price,
                                 isNegotiated = cartItem.isNegotiated
@@ -289,49 +355,45 @@ class CartViewModel(
                     Log.d(TAG, "   Status: ${order.status}")
                     Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-                    // Save to Firestore
-                    val orderMap = order.toMap()
-
-                    Log.d(TAG, "📤 Firestore map:")
-                    orderMap.forEach { (key, value) ->
-                        Log.d(TAG, "   $key: $value")
-                    }
-
-                    val docRef = FirebaseFirestore.getInstance()
-                        .collection("orders")
-                        .add(orderMap)
-                        .await()
-
-                    allOrderIds.add(docRef.id)
-                    Log.d(TAG, "✅ Order created: ${docRef.id}")
+                    // ✅ FIX: Use OrderRepository.createOrder() to ensure payments are processed
+                    val createResult = orderRepository.createOrder(order)
                     
-                    // ✅ Log activity for seller dashboard
-                    try {
-                        val activityData = mapOf(
-                            "seller_id" to sellerId,
-                            "type" to "NEW_ORDER",
-                            "title" to "New Order Received",
-                            "description" to "Order for ${firstItem.product.title} (${sellerItems.sumOf { it.quantity }} items)",
-                            "timestamp" to com.google.firebase.Timestamp.now(),
-                            "order_id" to docRef.id,
-                            "product_id" to firstItem.product.id
-                        )
+                    if (createResult.isSuccess) {
+                        val orderId = createResult.getOrNull() ?: ""
+                        allOrderIds.add(orderId)
+                        Log.d(TAG, "✅ Order created with payments: $orderId")
                         
-                        FirebaseFirestore.getInstance()
-                            .collection("activities")
-                            .add(activityData)
-                            .await()
+                        // ✅ Log activity for seller dashboard
+                        try {
+                            val activityData = mapOf(
+                                "seller_id" to sellerId,
+                                "type" to "NEW_ORDER",
+                                "title" to "New Order Received",
+                                "description" to "Order for ${firstItem.product.title} (${sellerItems.sumOf { it.quantity }} items)",
+                                "timestamp" to com.google.firebase.Timestamp.now(),
+                                "order_id" to orderId,
+                                "product_id" to firstItem.product.id
+                            )
                         
-                        Log.d(TAG, "✅ Activity logged for seller: $sellerId")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to log activity", e)
-                        // Don't fail the order if activity logging fails
+                            FirebaseFirestore.getInstance()
+                                .collection("activities")
+                                .add(activityData)
+                                .await()
+                            
+                            Log.d(TAG, "✅ Activity logged for seller: $sellerId")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to log activity", e)
+                            // Don't fail the order if activity logging fails
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Failed to create order: ${createResult.exceptionOrNull()?.message}")
+                        throw createResult.exceptionOrNull() ?: Exception("Failed to create order")
                     }
                 }
 
-                // Clear cart after successful order
-                clearCart()
-
+                // ✅ DON'T clear cart here - it causes empty screen flash
+                // Cart will be cleared after navigation to success screen
+                
                 // ✅ Pass all order IDs as comma-separated string
                 val orderIdsString = allOrderIds.joinToString(",")
                 Log.d(TAG, "✅ All orders created: $orderIdsString")
@@ -346,6 +408,24 @@ class CartViewModel(
 
     fun resetOrderState() {
         _orderState.value = OrderState.Idle
+    }
+    
+    // ✅ Clear cart after successful order (called after navigation to success screen)
+    fun clearCartAfterOrder() {
+        val userId = _currentUserId.value ?: return
+        
+        viewModelScope.launch {
+            try {
+                val result = cartRepository.clearCart(userId)
+                if (result.isSuccess) {
+                    Log.d(TAG, "✅ Cart cleared after successful order")
+                } else {
+                    Log.e(TAG, "❌ Failed to clear cart: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error clearing cart", e)
+            }
+        }
     }
     // 🔁 Reorder: Add previous order items back to cart
     fun reorder(userId: String, order: Order) {

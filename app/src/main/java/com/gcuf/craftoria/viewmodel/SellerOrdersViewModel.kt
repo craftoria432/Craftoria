@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.repository.OrderRepository
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,14 +28,37 @@ class SellerOrdersViewModel(
     private val _newOrdersCount = MutableStateFlow(0)
     val newOrdersCount: StateFlow<Int> = _newOrdersCount.asStateFlow()
 
+    private var newOrdersListener: ListenerRegistration? = null
+
     companion object {
         private const val TAG = "SellerOrdersViewModel"
     }
 
-    fun loadOrders(sellerId: String) {
+    override fun onCleared() {
+        super.onCleared()
+        newOrdersListener?.remove()
+    }
+
+    fun loadOrders(sellerId: String, runMigration: Boolean = false) {
+        // Only show Loading on very first load when list is truly empty
+        // This prevents the "No orders found" flicker on tab switches
+        if (_orders.value.isEmpty()) {
+            _uiState.value = SellerOrdersState.Loading
+        }
+
         viewModelScope.launch {
             try {
-                _uiState.value = SellerOrdersState.Loading
+                // ✅ Run migration on first load to populate missing store IDs
+                if (runMigration) {
+                    Log.d(TAG, "🔄 Running order store migration...")
+                    val migrationResult = com.gcuf.craftoria.utils.OrderStoreMigration.migrateSellerOrders(sellerId)
+                    if (migrationResult.isSuccess) {
+                        val count = migrationResult.getOrNull() ?: 0
+                        if (count > 0) {
+                            Log.d(TAG, "✅ Migration updated $count orders")
+                        }
+                    }
+                }
 
                 val result = orderRepository.getSellerOrders(
                     sellerId = sellerId,
@@ -49,8 +73,6 @@ class SellerOrdersViewModel(
                     } else {
                         SellerOrdersState.Success
                     }
-
-                    // Load new orders count
                     loadNewOrdersCount(sellerId)
                 } else {
                     _uiState.value = SellerOrdersState.Error(
@@ -66,15 +88,10 @@ class SellerOrdersViewModel(
     }
 
     private fun loadNewOrdersCount(sellerId: String) {
-        viewModelScope.launch {
-            try {
-                val result = orderRepository.getNewOrdersCount(sellerId)
-                if (result.isSuccess) {
-                    _newOrdersCount.value = result.getOrNull() ?: 0
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load new orders count", e)
-            }
+        // Remove any existing listener before attaching a new one
+        newOrdersListener?.remove()
+        newOrdersListener = orderRepository.observeNewOrdersCount(sellerId) { count ->
+            _newOrdersCount.value = count
         }
     }
 

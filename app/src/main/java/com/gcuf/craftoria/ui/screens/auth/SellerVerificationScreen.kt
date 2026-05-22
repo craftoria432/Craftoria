@@ -78,7 +78,7 @@ fun SellerVerificationScreen(
     val imageSourceSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showImageSourceSheet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.listenToVerificationStatus() }
+    // ✅ REMOVED: listenToVerificationStatus() is deprecated - real-time listener is already active in AuthViewModel.observeAuthState()
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) { 
@@ -96,7 +96,7 @@ fun SellerVerificationScreen(
             mlKitVerificationResult?.let { result ->
                 // Save ML Kit result to Firestore before submitting
                 val saved = mlKitViewModel.saveVerificationResultToFirestore(
-                    imageUrl = uri.toString(),
+                    imageUri = uri,
                     result = result
                 )
                 if (saved) {

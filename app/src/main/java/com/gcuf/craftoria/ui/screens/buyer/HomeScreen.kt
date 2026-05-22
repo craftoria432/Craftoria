@@ -89,7 +89,7 @@ fun HomeScreen(
     var selectedCategory by remember { mutableStateOf("All Products") }
     var selectedNavRoute by remember { mutableStateOf("home") }
 
-    val categories = listOf("All Products", "Textiles", "Jewelry", "Home Décor", "Embroidery", "Pottery")
+    val categories = listOf("All Products") + com.gcuf.craftoria.utils.ProductCategories.ALL
 
     val pendingOrdersCount = remember(orders) {
         orders.count { it.status in listOf("pending", "processing", "shipped") }
@@ -112,86 +112,112 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Craftoria",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                actions = {
-                    // Search
-                    IconButton(onClick = onNavigateToSearch) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight)))
+            ) {
+                // Top row: Title and icons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Craftoria",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.sp
+                        )
+                        Text(
+                            text = "Empowering Women Artisans",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White.copy(alpha = 0.9f),
+                            letterSpacing = 0.sp
+                        )
                     }
-                    // Notifications
-                    BadgedBox(badge = {
-                        if (unreadNotificationCount > 0) {
-                            Badge(containerColor = Error, contentColor = Color.White) {
-                                Text(if (unreadNotificationCount > 9) "9+" else unreadNotificationCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }) {
-                        IconButton(
-                            onClick = {
-                                try {
-                                    onNavigateToNotifications()
-                                } catch (e: Exception) {
-                                    android.util.Log.e("HomeScreen", "Navigation error to notifications", e)
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Notifications
+                        BadgedBox(badge = {
+                            if (unreadNotificationCount > 0) {
+                                Badge(containerColor = Error, contentColor = Color.White) {
+                                    Text(if (unreadNotificationCount > 9) "9+" else unreadNotificationCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
-                        ) {
-                            Box(modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White, modifier = Modifier.size(16.dp))
+                        }) {
+                            IconButton(
+                                onClick = {
+                                    try {
+                                        onNavigateToNotifications()
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("HomeScreen", "Navigation error to notifications", e)
+                                    }
+                                }
+                            ) {
+                                Box(modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                        // Cart
+                        BadgedBox(badge = {
+                            if (cartCount > 0) {
+                                Badge(containerColor = Error, contentColor = Color.White) {
+                                    Text(cartCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }) {
+                            IconButton(onClick = onNavigateToCart) {
+                                Box(modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     }
-                    // Chats
-                    BadgedBox(badge = {
-                        if (unreadMessageCount > 0) {
-                            Badge(containerColor = Error, contentColor = Color.White) {
-                                Text(if (unreadMessageCount > 9) "9+" else unreadMessageCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }) {
-                        IconButton(onClick = onNavigateToChats) {
-                            Box(modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
-                                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Chats", tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
-                        }
+                }
+                
+                // Search bar
+                Surface(
+                    onClick = onNavigateToSearch,
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White.copy(alpha = 0.25f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 0.dp)
+                        .padding(bottom = 16.dp)
+                        .height(48.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Search for handicrafts...",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Normal
+                        )
                     }
-                    // Cart
-                    BadgedBox(badge = {
-                        if (cartCount > 0) {
-                            Badge(containerColor = Error, contentColor = Color.White) {
-                                Text(cartCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }) {
-                        IconButton(
-                            onClick = onNavigateToCart,
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Box(modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                modifier = Modifier.background(
-                    brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight))
-                )
-            )
+                }
+            }
         },
         bottomBar = {
             BottomNavigationBar(
@@ -386,7 +412,15 @@ fun StoreCard(store: CoSellerStore, onClick: () -> Unit) {
             }
             // Info
             Column(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(text = store.storeName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                // ✅ NEW: Display store name with real-time updates
+                com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                    userId = store.ownerId,
+                    fallbackName = store.storeName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Text(text = "${store.productCount} products", fontSize = 10.sp, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 // Rating
                 Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFFFF3E0), modifier = Modifier.fillMaxWidth()) {

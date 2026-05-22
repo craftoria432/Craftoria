@@ -108,6 +108,96 @@ class MainActivity : ComponentActivity() {
                     Log.e("Craftoria", "❌ Theme initialization failed", e)
                 }
             }
+
+            // ─────────────────────────────────────────────
+            // ⭐ PAYMENT DATA MIGRATION (One-time fix)
+            // ─────────────────────────────────────────────
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                    val migrationDone = prefs.getBoolean("payment_coseller_fix_applied", false)
+                    
+                    if (!migrationDone) {
+                        Log.d("Craftoria", "🔄 Running payment co-seller store ID fix...")
+                        val result = com.gcuf.craftoria.utils.PaymentDataMigration.fixCoSellerStoreIdField()
+                        result.onSuccess { count ->
+                            Log.d("Craftoria", "✅ Fixed $count payments")
+                            prefs.edit { putBoolean("payment_coseller_fix_applied", true) }
+                        }.onFailure { e ->
+                            Log.e("Craftoria", "❌ Payment fix failed", e)
+                        }
+                    } else {
+                        Log.d("Craftoria", "ℹ️ Payment co-seller fix already applied")
+                    }
+                } catch (e: Exception) {
+                    Log.e("Craftoria", "❌ Payment migration error", e)
+                }
+            }
+
+            // ─────────────────────────────────────────────
+            // ⭐ ORDER CO-SELLER STORE ID MIGRATION (One-time fix)
+            // ─────────────────────────────────────────────
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                    val orderMigrationDone = prefs.getBoolean("order_coseller_store_id_migrated", false)
+                    
+                    if (!orderMigrationDone) {
+                        Log.d("Craftoria", "🔄 Running order co-seller store ID migration...")
+                        val result = com.gcuf.craftoria.utils.PaymentDataMigration.migrateOrderCoSellerStoreIds()
+                        result.onSuccess { count ->
+                            Log.d("Craftoria", "✅ Migrated $count orders with co-seller store IDs")
+                            prefs.edit { putBoolean("order_coseller_store_id_migrated", true) }
+                        }.onFailure { e ->
+                            Log.e("Craftoria", "❌ Order migration failed", e)
+                        }
+                    } else {
+                        Log.d("Craftoria", "ℹ️ Order co-seller store ID migration already applied")
+                    }
+                } catch (e: Exception) {
+                    Log.e("Craftoria", "❌ Order migration error", e)
+                }
+            }
+
+            // ─────────────────────────────────────────────
+            // ⭐ PAYMENT SPLIT MIGRATIONS (One-time setup)
+            // ─────────────────────────────────────────────
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    Log.d("Craftoria", "🔄 Running payment split migrations...")
+                    
+                    // 1. Migrate existing payments to have payment_splits array
+                    com.gcuf.craftoria.utils.PaymentDataMigration.migrateExistingPayments()
+                    Log.d("Craftoria", "✅ Existing payments migrated")
+                    
+                    // 2. Populate payment_split_config for all stores
+                    com.gcuf.craftoria.utils.PaymentDataMigration.migrateStorePaymentSplits()
+                    Log.d("Craftoria", "✅ Store payment splits configured")
+                    
+                } catch (e: Exception) {
+                    Log.e("Craftoria", "❌ Payment split migration error", e)
+                }
+            }
+
+            // ─────────────────────────────────────────────
+            // ⭐ REFUND STATUS MIGRATION (One-time fix)
+            // ─────────────────────────────────────────────
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    Log.d("Craftoria", "🔄 Running refund status migration...")
+                    val success = com.gcuf.craftoria.utils.RefundStatusMigration.migrateOldRefunds(
+                        context = applicationContext,
+                        firestore = Firebase.firestore
+                    )
+                    if (success) {
+                        Log.d("Craftoria", "✅ Refund status migration completed")
+                    } else {
+                        Log.w("Craftoria", "⚠️ Refund status migration had some failures")
+                    }
+                } catch (e: Exception) {
+                    Log.e("Craftoria", "❌ Refund status migration error", e)
+                }
+            }
         }
 
         // ─────────────────────────────────────────────

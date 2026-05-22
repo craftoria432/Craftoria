@@ -122,6 +122,9 @@ class CoSellerStoreRepository {
             )
             membersCollection.add(member.toMap()).await()
 
+            // Auto-initialize equal split with owner as sole member
+            recalculateAndSaveEqualSplits(storeId, listOf(store.ownerId))
+
             // ✅ Send invitations to all invited emails
             invitedEmails.forEach { email ->
                 sendInvitationToEmail(
@@ -473,6 +476,9 @@ class CoSellerStoreRepository {
                 // ✅ Update all existing notifications for this store with new member count
                 com.gcuf.craftoria.utils.CoSellerMemberCountManager.updateAllStoreNotifications(invitation.storeId)
                 
+                // ✅ Recalculate equal splits with new member included
+                recalculateAndSaveEqualSplits(invitation.storeId, updatedMemberIds)
+                
             } else {
                 Log.e(TAG, "Store not found: ${invitation.storeId}")
             }
@@ -541,6 +547,9 @@ class CoSellerStoreRepository {
                 
                 // ✅ Update all existing notifications for this store with new member count
                 com.gcuf.craftoria.utils.CoSellerMemberCountManager.updateAllStoreNotifications(storeId)
+                
+                // ✅ Recalculate equal splits after member removal
+                recalculateAndSaveEqualSplits(storeId, updatedMemberIds)
             }
 
             Log.d(TAG, "Member removed successfully")
@@ -597,6 +606,9 @@ class CoSellerStoreRepository {
             // ✅ Update all existing notifications for this store with new member count
             com.gcuf.craftoria.utils.CoSellerMemberCountManager.updateAllStoreNotifications(storeId)
 
+            // ✅ Recalculate equal splits after member leaves
+            recalculateAndSaveEqualSplits(storeId, updatedMemberIds)
+
             // ✅ Notify store owner that member left
             val memberName = usersCollection.document(userId).get().await().getString("name") ?: "A member"
             com.gcuf.craftoria.utils.NotificationHelper.notifyMemberLeftStore(
@@ -613,6 +625,51 @@ class CoSellerStoreRepository {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to leave store", e)
             Result.failure(e)
+        }
+    }
+
+    // Update payment split configuration for a store
+    suspend fun updatePaymentSplitConfig(
+        storeId: String,
+        splitConfig: Map<String, Double>
+    ): Result<Unit> {
+        return try {
+            // Validate total equals 100%
+            val total = splitConfig.values.sum()
+            if (kotlin.math.abs(total - 1.0) > 0.01) {
+                return Result.failure(Exception("Split percentages must add up to 100%"))
+            }
+
+            storesCollection.document(storeId).update(
+                mapOf(
+                    "payment_split_config" to splitConfig,
+                    "updated_at" to System.currentTimeMillis()
+                )
+            ).await()
+
+            Log.d(TAG, "✅ Payment split config updated for store: $storeId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to update payment split config", e)
+            Result.failure(e)
+        }
+    }
+
+    // Auto-initialize equal splits when member list changes
+    private suspend fun recalculateAndSaveEqualSplits(
+        storeId: String,
+        memberIds: List<String>
+    ) {
+        try {
+            if (memberIds.isEmpty()) return
+            val equalShare = 1.0 / memberIds.size
+            val splitConfig = memberIds.associateWith { equalShare }
+            storesCollection.document(storeId).update(
+                "payment_split_config", splitConfig
+            ).await()
+            Log.d(TAG, "✅ Equal splits recalculated for ${memberIds.size} members")
+        } catch (e: Exception) {
+            Log.e(TAG, "⚠️ Failed to recalculate splits", e)
         }
     }
 

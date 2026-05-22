@@ -30,6 +30,13 @@ class ChatViewModel(
     private val _isBlocked = MutableStateFlow(false)
     val isBlocked: StateFlow<Boolean> = _isBlocked.asStateFlow()
 
+    // ✅ NEW: Chat type and other user's role
+    private val _chatType = MutableStateFlow("buyer_seller")
+    val chatType: StateFlow<String> = _chatType.asStateFlow()
+
+    private val _otherUserRole = MutableStateFlow(UserRole.SELLER)
+    val otherUserRole: StateFlow<UserRole> = _otherUserRole.asStateFlow()
+
     companion object {
         private const val TAG = "ChatViewModel"
     }
@@ -38,34 +45,44 @@ class ChatViewModel(
         currentUserId: String,
         currentUserName: String,
         otherUserId: String,
-        otherUserName: String
+        otherUserName: String,
+        productId: String = ""
     ) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "🔄 INITIALIZING CHAT")
+                Log.d(TAG, "🔄 INITIALIZING CHAT (OPTIMIZED)")
                 Log.d(TAG, "   Current User: $currentUserId ($currentUserName)")
                 Log.d(TAG, "   Other User: $otherUserId ($otherUserName)")
 
-                _uiState.value = ChatState.Loading
-
+                // ✅ CRITICAL FIX: Show UI immediately with basic data
+                _otherUser.value = otherUserName
+                _uiState.value = ChatState.Success
+                
+                // ✅ Load chat data in background (non-blocking)
                 val result = chatRepository.getOrCreateChat(
                     currentUserId = currentUserId,
                     currentUserName = currentUserName,
                     otherUserId = otherUserId,
-                    otherUserName = otherUserName
+                    otherUserName = otherUserName,
+                    productId = productId
                 )
 
                 if (result.isSuccess) {
                     val chatId = result.getOrNull()!!
                     Log.d(TAG, "✅ Chat ID obtained: $chatId")
 
+                    // ✅ Load chat metadata (non-blocking)
                     loadChat(chatId, currentUserId)
+                    
+                    // ✅ Start listening to messages immediately (real-time updates)
                     listenToMessages(chatId)
+                    
+                    // ✅ Mark messages as delivered/read in background
                     markMessagesAsDelivered(chatId, currentUserId)
                     markMessagesAsRead(chatId, currentUserId)
-
-                    _otherUser.value = otherUserName
-                    _uiState.value = ChatState.Success
+                    
+                    // ✅ Start continuous read receipt updates
+                    startReadReceiptUpdates(chatId, currentUserId)
 
                     Log.d(TAG, "✅ Chat initialization complete")
                 } else {
@@ -88,14 +105,23 @@ class ChatViewModel(
             val chat = result.getOrNull()!!
             _chat.value = chat
             _isBlocked.value = chat.isBlocked
+            
+            // ✅ NEW: Load chat type and other user's role
+            _chatType.value = chat.chatType
 
             Log.d(TAG, "📋 Chat participants: ${chat.participantIds}")
             Log.d(TAG, "📋 Current user: $currentUserId")
+            Log.d(TAG, "📋 Chat type: ${chat.chatType}")
 
             val otherUserId = chat.participantIds.firstOrNull { it != currentUserId }
             if (otherUserId != null) {
                 _otherUser.value = chat.participantNames[otherUserId] ?: ""
-                Log.d(TAG, "✅ Other user: $otherUserId, name: ${_otherUser.value}")
+                
+                // ✅ NEW: Load other user's role
+                val roleString = chat.participantRoles[otherUserId] ?: "BUYER"
+                _otherUserRole.value = if (roleString == "SELLER") UserRole.SELLER else UserRole.BUYER
+                
+                Log.d(TAG, "✅ Other user: $otherUserId, name: ${_otherUser.value}, role: $roleString")
             } else {
                 Log.e(TAG, "❌ Could not find other user in participants")
             }
@@ -419,6 +445,21 @@ class ChatViewModel(
 
     fun resetState() {
         _uiState.value = ChatState.Success
+    }
+
+    // ✅ NEW: Start continuous read receipt updates
+    private fun startReadReceiptUpdates(chatId: String, currentUserId: String) {
+        viewModelScope.launch {
+            chatRepository.startContinuousReadReceiptUpdates(chatId, currentUserId)
+                .catch { e ->
+                    Log.e(TAG, "❌ Read receipt updates error", e)
+                }
+                .collect {
+                    Log.d(TAG, "📬 Read receipt updated")
+                    // Flow will automatically trigger message re-fetch
+                    // because Firestore listener detects changes
+                }
+        }
     }
 }
 

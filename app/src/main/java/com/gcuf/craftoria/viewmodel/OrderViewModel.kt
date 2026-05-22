@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
+import com.gcuf.craftoria.data.model.OrderRefundStatus
 import com.gcuf.craftoria.data.repository.OrderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.gcuf.craftoria.data.model.getStatusEnum
+import com.gcuf.craftoria.data.model.getRefundStatusEnum
 import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.google.firebase.firestore.ListenerRegistration
 
 class OrderViewModel : ViewModel() {
     private val orderRepository = OrderRepository()
+    private var ordersListener: ListenerRegistration? = null
 
     private val _orders = MutableStateFlow<List<Order>>(emptyList())
     val orders: StateFlow<List<Order>> = _orders.asStateFlow()
@@ -44,33 +48,21 @@ class OrderViewModel : ViewModel() {
             return
         }
 
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                Log.d("OrderViewModel", "Loading orders for user: $userId")
+        // Cancel any existing listener before starting a new one
+        ordersListener?.remove()
 
-                val result = orderRepository.getUserOrders(userId)
-
-                if (result.isSuccess) {
-                    val ordersList = result.getOrNull() ?: emptyList()
-                    Log.d("OrderViewModel", "Successfully loaded ${ordersList.size} orders")
-                    _orders.value = ordersList
-                    applyFilter(_currentFilter.value)
-                } else {
-                    val error = result.exceptionOrNull()
-                    Log.e("OrderViewModel", "Failed to load orders: ${error?.message}", error)
-                    _orders.value = emptyList()
-                    _filteredOrders.value = emptyList()
-                }
-
-            } catch (e: Exception) {
-                Log.e("OrderViewModel", "Load orders error", e)
-                _orders.value = emptyList()
-                _filteredOrders.value = emptyList()
-            } finally {
-                _isLoading.value = false
-            }
+        _isLoading.value = true
+        ordersListener = orderRepository.observeUserOrders(userId) { ordersList ->
+            Log.d("OrderViewModel", "Real-time update: ${ordersList.size} orders")
+            _orders.value = ordersList
+            applyFilter(_currentFilter.value)
+            _isLoading.value = false
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        ordersListener?.remove()
     }
 
     fun filterOrders(status: OrderStatus?) {
@@ -94,7 +86,19 @@ class OrderViewModel : ViewModel() {
         val filtered = if (status == null) {
             _orders.value
         } else {
-            _orders.value.filter { it.getStatusEnum() == status }
+            _orders.value.filter { order ->
+                val orderStatus = order.getStatusEnum()
+                val refundStatus = order.getRefundStatusEnum()
+                
+                // ✅ CRITICAL: Exclude refunded orders from ALL tabs
+                // An order with refund status = COMPLETED should NOT appear in any tab
+                if (refundStatus == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                    return@filter false
+                }
+                
+                // Only show orders matching the selected status
+                orderStatus == status
+            }
         }
 
         // Apply current sort after filtering

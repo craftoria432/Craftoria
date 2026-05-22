@@ -35,8 +35,10 @@ import com.gcuf.craftoria.viewmodel.NegotiationViewModel
 import com.gcuf.craftoria.viewmodel.NegotiationState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -155,25 +157,27 @@ fun ProductDetailsScreen(
                     }
                 },
                 actions = {
-                    // Wishlist toggle in tinted circle
-                    IconButton(
-                        onClick = { 
-                            wishlistViewModel?.toggleWishlist(product)
-                        }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                            contentAlignment = Alignment.Center
+                    // Wishlist toggle in tinted circle - hidden in seller preview mode
+                    if (!isSellerPreview) {
+                        IconButton(
+                            onClick = { 
+                                wishlistViewModel?.toggleWishlist(product)
+                            }
                         ) {
-                            Icon(
-                                imageVector = if (isWishlisted) Icons.Default.Favorite
-                                else Icons.Default.FavoriteBorder,
-                                contentDescription = "Add to Wishlist",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isWishlisted) Icons.Default.Favorite
+                                    else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Add to Wishlist",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 },
@@ -600,18 +604,6 @@ fun ProductDetailsScreen(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = TextLight,
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Secure & encrypted checkout",
-                                fontSize = 11.sp,
-                                color = TextLight
-                            )
                         }
                     }
                 }
@@ -667,23 +659,23 @@ fun SellerCard(
     val isOwnProduct = currentUserId == sellerId
     var currentSellerProfileImage by remember { mutableStateOf("") }
 
-    // Real-time seller profile picture listener
-    LaunchedEffect(sellerId) {
-        if (sellerId.isNotEmpty()) {
-            try {
-                val db = Firebase.firestore
-                db.collection("users").document(sellerId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error == null && snapshot != null && snapshot.exists()) {
-                            val profileImage = snapshot.getString("profile_image") ?: ""
-                            currentSellerProfileImage = profileImage
-                            Log.d("SellerCard", "✅ Updated seller profile image: ${if (profileImage.isNotEmpty()) "loaded" else "empty"}")
-                        }
+    // Real-time seller profile picture + name listener
+    DisposableEffect(sellerId) {
+        if (sellerId.isEmpty()) return@DisposableEffect onDispose {}
+        var registration: ListenerRegistration? = null
+        try {
+            registration = Firebase.firestore
+                .collection("users")
+                .document(sellerId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && snapshot.exists()) {
+                        currentSellerProfileImage = snapshot.getString("profile_image") ?: ""
                     }
-            } catch (e: Exception) {
-                Log.e("SellerCard", "❌ Error listening to seller profile image: ${e.message}")
-            }
+                }
+        } catch (e: Exception) {
+            Log.e("SellerCard", "Error listening to seller data: ${e.message}")
         }
+        onDispose { registration?.remove() }
     }
 
     Surface(
@@ -734,8 +726,9 @@ fun SellerCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(
-                        text = sellerName,
+                    RealtimeNameDisplay(
+                        userId = sellerId,
+                        fallbackName = sellerName,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         color = TextPrimary
@@ -1142,6 +1135,7 @@ fun ReportProductDialog(
                                     reportType = com.gcuf.craftoria.data.model.ReportType.PRODUCT,
                                     reporterId = currentUserId,
                                     reporterName = userName,
+                                    reporterRole = "buyer",
                                     reportedEntityId = productId,
                                     reportedEntityName = productName,
                                     reason = selectedReason,

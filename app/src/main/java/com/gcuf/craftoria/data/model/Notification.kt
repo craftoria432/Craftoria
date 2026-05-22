@@ -76,7 +76,23 @@ data class Notification(
 
     @get:PropertyName("rating_review")
     @set:PropertyName("rating_review")
-    var ratingReview: String = ""
+    var ratingReview: String = "",
+
+    @get:PropertyName("refund_id")
+    @set:PropertyName("refund_id")
+    var refundId: String = "",
+
+    @get:PropertyName("refund_amount")
+    @set:PropertyName("refund_amount")
+    var refundAmount: Double = 0.0,
+
+    @get:PropertyName("refund_status")
+    @set:PropertyName("refund_status")
+    var refundStatus: String = "",
+
+    @get:PropertyName("refund_reason")
+    @set:PropertyName("refund_reason")
+    var refundReason: String = ""
 ) {
     // ✅ Helper computed properties for UI use
     val categoryEnum: NotificationCategory
@@ -89,6 +105,7 @@ data class Notification(
 }
 enum class NotificationCategory {
     ALL,
+    UNREAD,          // ✅ NEW: Filter to show only unread notifications
     ORDERS,
     MESSAGES,
     PROMOTIONS,
@@ -96,7 +113,8 @@ enum class NotificationCategory {
     REPORT,          // For report-related notifications
     ADMIN_MESSAGE,   // For admin messages to users
     PAYMENTS,        // For payment-related notifications
-    STORE_RATING;    // For store rating notifications
+    STORE_RATING,    // For store rating notifications
+    REFUNDS;         // For refund-related notifications
 
     override fun toString(): String = name.lowercase()
 }
@@ -140,5 +158,9 @@ fun Notification.toMap(): Map<String, Any> = mapOf(
     "negotiation_price" to negotiationPrice,
     "buyer_name" to buyerName,
     "rating_value" to ratingValue,
-    "rating_review" to ratingReview
+    "rating_review" to ratingReview,
+    "refund_id" to refundId,
+    "refund_amount" to refundAmount,
+    "refund_status" to refundStatus,
+    "refund_reason" to refundReason
 )

@@ -1,5 +1,6 @@
 package com.gcuf.craftoria.ui.screens.buyer
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,18 +44,21 @@ fun CartScreen(
     onCheckout: () -> Unit,
     onContinueShopping: () -> Unit,
     onProductClick: (String) -> Unit = {},
-    cartViewModel: CartViewModel = viewModel()
+    cartViewModel: CartViewModel
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
     val subtotal = remember(cartItems) { cartViewModel.getSubtotal() }
     val shipping = CartViewModel.SHIPPING_COST
     val total = remember(cartItems) { cartViewModel.getTotal() }
     var showClearDialog by remember { mutableStateOf(false) }
-    var showEmptyState by remember { mutableStateOf(false) }
-
+    
+    // ✅ Track if we've ever loaded cart data to prevent empty state flash
+    var hasLoadedOnce by remember { mutableStateOf(false) }
+    
     LaunchedEffect(cartItems) {
-        if (cartItems.isEmpty()) { kotlinx.coroutines.delay(500); showEmptyState = true }
-        else showEmptyState = false
+        if (cartItems.isNotEmpty()) {
+            hasLoadedOnce = true
+        }
     }
 
     Scaffold(
@@ -96,9 +100,22 @@ fun CartScreen(
             )
         }
     ) { paddingValues ->
-        if (cartItems.isEmpty() && showEmptyState) {
+        // ✅ Only show empty state if we've loaded and cart is truly empty
+        // This prevents the flash of empty state when navigating to cart after adding items
+        if (cartItems.isEmpty() && hasLoadedOnce) {
             EmptyCartState(modifier = Modifier.padding(paddingValues), onContinueShopping = onContinueShopping)
-        } else if (cartItems.isNotEmpty()) {
+        } else if (cartItems.isEmpty()) {
+            // Show loading state instead of empty state on first load
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BackgroundSecondary)
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Primary)
+            }
+        } else {
             Box(modifier = Modifier.fillMaxSize().background(BackgroundSecondary).padding(paddingValues)) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(bottom = 88.dp),
@@ -186,6 +203,11 @@ fun SellerGroupDivider() {
 fun CartItemCard(item: CartItem, onQuantityChange: (Int) -> Unit, onRemove: () -> Unit, onClick: () -> Unit = {}) {
     var showRemoveDialog by remember { mutableStateOf(false) }
     val itemSubtotal = item.price * item.quantity
+    
+    // ✅ Log negotiation status for debugging
+    LaunchedEffect(item.negotiationStatus) {
+        Log.d("CartItemCard", "🏷️ ${item.product.title}: negotiationStatus=${item.negotiationStatus}, price=${item.price}")
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
@@ -213,11 +235,56 @@ fun CartItemCard(item: CartItem, onQuantityChange: (Int) -> Unit, onRemove: () -
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Text(text = "PKR ${String.format("%.0f", item.price)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Primary)
+                        // ✅ Enhanced badge display with better visibility
                         when (item.negotiationStatus) {
-                            NegotiationStatus.PENDING -> Surface(color = Warning.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) { Text(text = "Pending", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Warning, modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)) }
-                            NegotiationStatus.AUTO_ACCEPTED -> Surface(color = Success.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) { Text(text = "Negotiated", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Success, modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)) }
-                            NegotiationStatus.REJECTED -> Surface(color = Error.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) { Text(text = "Rejected", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Error, modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)) }
-                            else -> {}
+                            NegotiationStatus.PENDING -> {
+                                Surface(
+                                    color = Warning.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Warning.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "Pending",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Warning,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            NegotiationStatus.ACCEPTED, NegotiationStatus.AUTO_ACCEPTED -> {
+                                Surface(
+                                    color = Success.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Success.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "Accepted",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Success,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            NegotiationStatus.REJECTED, NegotiationStatus.DECLINED -> {
+                                Surface(
+                                    color = Error.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Error.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "Rejected",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Error,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            null -> {
+                                // No badge for non-negotiated items
+                            }
                         }
                     }
                 }
@@ -318,12 +385,6 @@ fun CartCheckoutButton(total: Double, itemCount: Int, onCheckout: () -> Unit) {
                     Text(text = "Proceed to Checkout", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, letterSpacing = 0.3.sp)
                     Text(text = "→", fontSize = 15.sp, color = Color.White)
                 }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = TextLight, modifier = Modifier.size(11.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "Safe & secure checkout", fontSize = 11.sp, color = TextLight, textAlign = TextAlign.Center)
             }
         }
     }

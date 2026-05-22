@@ -32,6 +32,11 @@ class ProductRepository {
         imageUris: List<Uri>
     ): Result<String> {
         return try {
+            // Hard block: never create a product without a valid seller_id
+            if (product.sellerId.isBlank()) {
+                return Result.failure(Exception("Cannot create product: seller_id is missing"))
+            }
+
             Log.d(TAG, "Creating product with ${imageUris.size} images")
 
             // Upload images to Cloudinary
@@ -91,6 +96,10 @@ class ProductRepository {
      */
     suspend fun createProduct(product: Product): Result<String> {
         return try {
+            if (product.sellerId.isBlank()) {
+                return Result.failure(Exception("Cannot create product: seller_id is missing"))
+            }
+
             val docRef = productsCollection.document()
             val productWithId = product.copy(id = docRef.id)
             docRef.set(productWithId.toMap()).await()
@@ -111,6 +120,10 @@ class ProductRepository {
         imageUris: List<Uri>
     ): Result<String> {
         return try {
+            if (product.sellerId.isBlank()) {
+                return Result.failure(Exception("Cannot save draft: seller_id is missing"))
+            }
+
             Log.d(TAG, "Saving draft with ${imageUris.size} images")
 
             // Upload images if any
@@ -269,6 +282,11 @@ class ProductRepository {
      * Get products by seller (including drafts)
      */
     fun getProductsBySeller(sellerId: String): Flow<List<Product>> = callbackFlow {
+        if (sellerId.isBlank()) {
+            close(Exception("sellerId cannot be blank"))
+            return@callbackFlow
+        }
+
         val listener = productsCollection
             .whereEqualTo("seller_id", sellerId)
             .addSnapshotListener { snapshot, error ->
@@ -442,14 +460,26 @@ class ProductRepository {
         sortBy: ProductSort = ProductSort.NEWEST
     ): Result<List<Product>> {
         return try {
+            if (sellerId.isBlank()) {
+                return Result.failure(Exception("sellerId cannot be blank"))
+            }
+
             Log.d(TAG, "Fetching products for seller: $sellerId, filter: $filter, sort: $sortBy")
 
-            // Fetch all products for the seller
-            val query = productsCollection.whereEqualTo("seller_id", sellerId)
-            val snapshot = query.get().await()
+            val snapshot = productsCollection
+                .whereEqualTo("seller_id", sellerId)
+                .get()
+                .await()
 
             // Parse all products
             var products = snapshot.documents.mapNotNull { doc ->
+                // Double-check: skip any doc whose seller_id doesn't exactly match
+                val docSellerId = doc.getString("seller_id")
+                if (docSellerId.isNullOrBlank() || docSellerId != sellerId) {
+                    Log.w(TAG, "Skipping orphan product: ${doc.id}")
+                    return@mapNotNull null
+                }
+
                 val product = doc.toObject(Product::class.java)?.copy(id = doc.id)
                 // ✅ FIX: If approval_status is missing (old products), set to "approved"
                 if (product != null && !doc.contains("approval_status")) {
@@ -689,6 +719,10 @@ class ProductRepository {
         searchQuery: String
     ): Result<List<Product>> {
         return try {
+            if (sellerId.isBlank()) {
+                return Result.failure(Exception("sellerId cannot be blank"))
+            }
+
             // First get all seller products
             val allProducts = getSellerProducts(sellerId, ProductFilter.ALL).getOrNull() ?: emptyList()
 

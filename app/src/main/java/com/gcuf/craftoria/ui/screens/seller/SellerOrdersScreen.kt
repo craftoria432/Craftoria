@@ -1,5 +1,6 @@
 package com.gcuf.craftoria.ui.screens.seller
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,11 +15,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.outlined.Delete
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +34,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
+import com.gcuf.craftoria.utils.OrderRefundState
+import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.viewmodel.SellerOrdersState
 import com.gcuf.craftoria.viewmodel.SellerOrdersViewModel
 import java.text.SimpleDateFormat
@@ -78,7 +83,8 @@ fun SellerOrdersScreen(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(user.id) {
-        sellerOrdersViewModel.loadOrders(user.id)
+        // ✅ Run migration on first load to populate missing store IDs
+        sellerOrdersViewModel.loadOrders(user.id, runMigration = true)
     }
 
     LaunchedEffect(highlightedOrderId) {
@@ -192,10 +198,20 @@ fun SellerOrdersScreen(
                 onFilterSelected = { sellerOrdersViewModel.filterOrders(it, user.id) }
             )
 
-            if (orders.isEmpty()) {
-                SellerEmptyOrdersState()
-            } else {
-                LazyColumn(
+            when {
+                uiState is SellerOrdersState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Primary)
+                    }
+                }
+                orders.isEmpty() && uiState !is SellerOrdersState.Loading -> {
+                    SellerEmptyOrdersState()
+                }
+                else -> {
+                    LazyColumn(
                     state = lazyListState,
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -228,6 +244,7 @@ fun SellerOrdersScreen(
                             onMarkShipped = { selectedOrder = order; showShippedDialog = true },
                             onMarkDelivered = { selectedOrder = order; showDeliveredDialog = true }
                         )
+                    }
                     }
                 }
             }
@@ -299,38 +316,63 @@ fun SellerOrderFilterTabs(
         OrderStatus.PROCESSING to "Processing",
         OrderStatus.SHIPPED to "Shipped",
         OrderStatus.DELIVERED to "Delivered",
+        OrderStatus.COMPLETED to "Completed",
         OrderStatus.CANCELLED to "Cancelled"
     )
-    
-    val selectedIndex = filters.indexOfFirst { it.first == currentFilter }.coerceAtLeast(0)
-    
-    ScrollableTabRow(
-        selectedTabIndex = selectedIndex,
-        containerColor = Color.White,
-        contentColor = Primary,
-        edgePadding = 16.dp,
-        divider = {},
-        indicator = { tabPositions ->
-            TabRowDefaults.SecondaryIndicator(
-                Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                color = Primary
-            )
-        }
+
+    Surface(
+        color = Color.White,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        filters.forEach { (status, label) ->
-            Tab(
-                selected = currentFilter == status,
-                onClick = { onFilterSelected(status) },
-                text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(label, fontSize = 13.sp, fontWeight = if (currentFilter == status) FontWeight.Bold else FontWeight.Medium)
+        androidx.compose.foundation.lazy.LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(filters.size) { index ->
+                val (status, label) = filters[index]
+                val isSelected = currentFilter == status
+                Surface(
+                    onClick = { onFilterSelected(status) },
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isSelected) Primary else Color.White,
+                    border = BorderStroke(
+                        width = if (isSelected) 0.dp else 0.5.dp,
+                        color = if (isSelected) Primary else BorderColor
+                    ),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else TextSecondary
+                        )
                         if (status == OrderStatus.PENDING && newOrdersCount > 0) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Badge(containerColor = Primary) { Text(newOrdersCount.toString(), color = Color.White) }
+                            Surface(
+                                color = if (isSelected) Color.White.copy(alpha = 0.25f) else Primary.copy(alpha = 0.1f),
+                                shape = CircleShape,
+                                modifier = Modifier.size(18.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = newOrdersCount.toString(),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color.White else Primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            )
+            }
         }
     }
 }
@@ -350,6 +392,66 @@ fun SellerOrderCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+
+    // ✅ Track refund state for this order
+    var refundState by remember(order.id) {
+        mutableStateOf<OrderRefundState?>(null)
+    }
+
+    // ✅ NEW: Eagerly load co-seller store name to eliminate loading state
+    var coSellerStoreName by remember(order.coSellerStoreId) {
+        mutableStateOf<String?>(null)
+    }
+
+    LaunchedEffect(order.coSellerStoreId) {
+        if (order.coSellerStoreId.isNotEmpty()) {
+            try {
+                val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
+                val result = storeRepository.getStoreById(order.coSellerStoreId)
+                if (result.isSuccess) {
+                    coSellerStoreName = result.getOrNull()?.storeName ?: "Co-seller Store"
+                } else {
+                    coSellerStoreName = "Co-seller Store"
+                }
+            } catch (e: Exception) {
+                Log.e("SellerOrderCard", "Error loading co-seller store name", e)
+                coSellerStoreName = "Co-seller Store"
+            }
+        }
+    }
+
+    DisposableEffect(order.id) {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val query = db.collection("refunds")
+            .whereEqualTo("order_id", order.id)
+            .limit(5)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                refundState = OrderRefundState.NONE
+                return@addSnapshotListener
+            }
+
+            try {
+                refundState = if (snapshot == null || snapshot.documents.isEmpty()) {
+                    OrderRefundState.NONE
+                } else {
+                    val best = snapshot.documents.maxByOrNull { com.gcuf.craftoria.utils.docPriority(it) }
+                    if (best == null) {
+                        OrderRefundState.NONE
+                    } else {
+                        com.gcuf.craftoria.utils.docToRefundState(best)
+                    }
+                }
+            } catch (e: Exception) {
+                refundState = OrderRefundState.NONE
+            }
+        }
+
+        onDispose {
+            listener.remove()
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -397,7 +499,44 @@ fun SellerOrderCard(
                         )
                     }
                 }
-                StatusBadge(status = order.status)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // ✅ When refund is completed, show ONLY the refunded badge — suppress order status badge
+                    if (refundState == OrderRefundState.COMPLETED) {
+                        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Undo,
+                                    contentDescription = "Refunded",
+                                    tint = Color(0xFF9C27B0),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Refunded",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF9C27B0)
+                                )
+                            }
+                        }
+                        // No StatusBadge shown when refund is completed
+                    } else {
+                        // Show order status badge only when NOT refunded
+                        // Convert string status to OrderStatus enum
+                        val orderStatus = try {
+                            OrderStatus.valueOf(order.status.uppercase())
+                        } catch (e: Exception) {
+                            OrderStatus.PENDING // Fallback if status is not valid
+                        }
+                        OrderStatusBadge(status = orderStatus)
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -432,6 +571,26 @@ fun SellerOrderCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    // ✅ NEW: Display buyer name with real-time updates
+                    com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                        userId = order.buyerId,
+                        fallbackName = order.buyerName,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    // ✅ Display store identification for co-seller orders
+                    if (order.coSellerStoreId.isNotEmpty()) {
+                        Log.d("SellerOrderCard", "Co-seller order detected: storeId=${order.coSellerStoreId}")
+                        CoSellerStoreBadge(
+                            storeId = order.coSellerStoreId,
+                            storeName = coSellerStoreName,  // ✅ Pass pre-fetched store name
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    } else {
+                        Log.d("SellerOrderCard", "Regular order (no store): orderId=${order.id}")
+                    }
                     Text(
                         text = "Total: PKR ${String.format(Locale.getDefault(), "%,.0f", order.totalPrice)}",
                         fontSize = 12.sp,
@@ -497,32 +656,6 @@ fun SellerOrderCard(
 }
 
 @Composable
-fun StatusBadge(status: String) {
-    val color = when (status.lowercase()) {
-        "pending" -> Color(0xFFFFA500)
-        "processing" -> Color(0xFF1E90FF)
-        "shipped" -> Color(0xFF9370DB)
-        "delivered", "completed" -> Success
-        "cancelled", "rejected" -> Error
-        else -> TextSecondary
-    }
-    
-    Surface(
-        color = color.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(0.5.dp, color.copy(alpha = 0.3f))
-    ) {
-        Text(
-            text = status.replaceFirstChar { it.uppercase() },
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-    }
-}
-
-@Composable
 fun SellerEmptyOrdersState() {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -559,4 +692,69 @@ fun SellerEmptyOrdersState() {
     }
 }
 
-fun formatDateTime(timestamp: Long): String = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault()).format(Date(timestamp))
+/**
+ * ✅ IMPROVED: Display store badge for co-seller orders
+ * - Receives store name as parameter to eliminate loading state
+ * - Professional styling with building icon
+ * - No async loading - data is pre-fetched at order screen level
+ */
+@Composable
+fun CoSellerStoreBadge(
+    storeId: String,
+    storeName: String? = null,
+    modifier: Modifier = Modifier
+) {
+    val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
+    
+    // ✅ If storeName is provided, use it directly (no loading state)
+    var displayName by remember(storeId, storeName) { 
+        mutableStateOf(storeName ?: "Co-seller Store")
+    }
+
+    // ✅ Only fetch if storeName is not provided
+    if (storeName == null) {
+        LaunchedEffect(storeId) {
+            try {
+                val result = storeRepository.getStoreById(storeId)
+                if (result.isSuccess) {
+                    val store = result.getOrNull()
+                    displayName = store?.storeName ?: "Co-seller Store"
+                }
+            } catch (e: Exception) {
+                Log.e("CoSellerStoreBadge", "Error loading store name", e)
+                displayName = "Co-seller Store"
+            }
+        }
+    }
+
+    // ✅ Professional badge design: Building icon instead of shopping bag
+    Surface(
+        color = Primary.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(0.8.dp, Primary.copy(alpha = 0.25f)),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            // ✅ Professional icon: Using filled shopping bag in a professional way
+            Icon(
+                imageVector = Icons.Filled.ShoppingBag,
+                contentDescription = "Co-seller Store",
+                tint = Primary,
+                modifier = Modifier.size(11.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = displayName,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = Primary.copy(alpha = 0.9f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}

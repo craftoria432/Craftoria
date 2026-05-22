@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +39,9 @@ import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.viewmodel.CoSellerStoreState
 import com.gcuf.craftoria.viewmodel.CoSellerStoreViewModel
+import com.gcuf.craftoria.ui.screens.coseller.ImageUploadBox
+import com.gcuf.craftoria.ui.screens.coseller.formatJoinedDate
+import com.gcuf.craftoria.ui.screens.coseller.SellerDirectoryScreen
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -51,6 +55,7 @@ fun ManageCoSellerStoreScreen(
     onAddProductClick: () -> Unit,
     onEditProductClick: (String) -> Unit,
     onPaymentsClick: () -> Unit = {},
+    onNavigateToChat: (String, String) -> Unit = { _, _ -> }, // ✅ NEW: Chat navigation callback
     coSellerStoreViewModel: CoSellerStoreViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -65,6 +70,7 @@ fun ManageCoSellerStoreScreen(
     var showRemoveMemberDialog by remember { mutableStateOf(false) }
     var showDeleteProductDialog by remember { mutableStateOf(false) }
     var showLeaveStoreDialog by remember { mutableStateOf(false) }
+    var showSellerDirectory by remember { mutableStateOf(false) }
     var memberToRemove by remember { mutableStateOf<StoreMember?>(null) }
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -181,7 +187,8 @@ fun ManageCoSellerStoreScreen(
                                         inviterId = user.id, inviterName = user.name, inviteeEmail = email
                                     )
                                     coSellerStoreViewModel.sendInvitation(invitation)
-                                }
+                                },
+                                onBrowseSellers = { showSellerDirectory = true }
                             )
                             2 -> SettingsTab(
                                 store = store,
@@ -199,7 +206,31 @@ fun ManageCoSellerStoreScreen(
         }
     }
 
-    // ── Delete Store Dialog ───────────────────────────────────────────────────
+    // ── Seller Directory Navigation ───────────────────────────────────────────
+    // ── Seller Directory Navigation ───────────────────────────────────────────
+    if (showSellerDirectory && currentStore != null) {
+        SellerDirectoryScreen(
+            currentStoreId = storeId,
+            currentUserId = user.id,
+            onSellerSelected = { seller ->
+                val invitation = StoreInvitation(
+                    storeId = currentStore!!.id,
+                    storeName = currentStore!!.storeName,
+                    inviterId = user.id,
+                    inviterName = user.name,
+                    inviteeEmail = seller.email
+                )
+                coSellerStoreViewModel.sendInvitation(invitation)
+                showSellerDirectory = false
+            },
+            onBackClick = { showSellerDirectory = false },
+            onNavigateToChat = { sellerId, sellerName ->
+                showSellerDirectory = false
+                onNavigateToChat(sellerId, sellerName) // ✅ Pass to parent
+            }
+        )
+    }
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -550,7 +581,8 @@ fun MembersTab(
     invitations: List<StoreInvitation>,
     currentUserId: String,
     onRemoveMember: (StoreMember) -> Unit,
-    onSendInvitation: (String) -> Unit
+    onSendInvitation: (String) -> Unit,
+    onBrowseSellers: () -> Unit = {}
 ) {
     var inviteEmail by remember { mutableStateOf("") }
 
@@ -602,6 +634,28 @@ fun MembersTab(
                 }
             }
         }
+        item {
+            OutlinedButton(
+                onClick = onBrowseSellers,
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text("Browse Sellers", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
+            }
+        }
         if (invitations.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -636,7 +690,14 @@ fun MemberCard(member: StoreMember, isOwner: Boolean, canRemove: Boolean, onRemo
             }
             Column(modifier = Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = member.userName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    // ✅ NEW: Display member name with real-time updates
+                    com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                        userId = member.userId,
+                        fallbackName = member.userName,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
                     if (isOwner) {
                         Surface(shape = RoundedCornerShape(4.dp), color = Primary.copy(alpha = 0.10f)) {
                             Text(text = "Owner", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Primary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))

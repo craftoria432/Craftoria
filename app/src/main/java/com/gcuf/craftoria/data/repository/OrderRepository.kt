@@ -17,6 +17,73 @@ class OrderRepository {
 
     companion object {
         private const val TAG = "OrderRepository"
+        
+        /**
+         * Helper function to convert Firestore Timestamp or Long to Long milliseconds
+         * Handles backward compatibility with both data types
+         */
+        private fun convertTimestamp(value: Any?): Long {
+            return when (value) {
+                is Long -> value
+                is com.google.firebase.Timestamp -> value.toDate().time
+                is Number -> value.toLong()
+                else -> System.currentTimeMillis()
+            }
+        }
+        
+        /**
+         * Manual parsing of Order document with proper Timestamp handling
+         * Used as fallback when automatic deserialization fails
+         */
+        private fun parseOrderManually(doc: com.google.firebase.firestore.DocumentSnapshot): Order? {
+            return try {
+                val data = doc.data ?: return null
+                
+                Order(
+                    id = doc.id,
+                    buyerId = data["buyer_id"] as? String ?: "",
+                    buyerName = data["buyer_name"] as? String ?: "",
+                    buyerPhone = data["buyer_phone"] as? String ?: "",
+                    buyerAvatar = data["buyer_avatar"] as? String ?: "",
+                    sellerId = data["seller_id"] as? String ?: "",
+                    sellerName = data["seller_name"] as? String ?: "",
+                    productId = data["product_id"] as? String ?: "",
+                    productTitle = data["product_title"] as? String ?: "",
+                    productImage = data["product_image"] as? String ?: "",
+                    productPrice = (data["product_price"] as? Number)?.toDouble() ?: 0.0,
+                    quantity = (data["quantity"] as? Number)?.toInt() ?: 1,
+                    items = emptyList(), // Will be populated if exists
+                    subtotal = (data["subtotal"] as? Number)?.toDouble() ?: 0.0,
+                    shipping = (data["shipping"] as? Number)?.toDouble() ?: 0.0,
+                    discount = (data["discount"] as? Number)?.toDouble() ?: 0.0,
+                    totalPrice = (data["total_price"] as? Number)?.toDouble() ?: 0.0,
+                    totalAmount = (data["total_amount"] as? Number)?.toDouble() ?: 0.0,
+                    coSellerStoreId = data["co_seller_store_id"] as? String ?: "",
+                    status = data["status"] as? String ?: "pending",
+                    shippingAddress = data["shipping_address"] as? String ?: "",
+                    fullAddress = data["full_address"] as? String ?: "",
+                    paymentMethod = data["payment_method"] as? String ?: "Cash on Delivery",
+                    createdAt = convertTimestamp(data["created_at"]),
+                    updatedAt = convertTimestamp(data["updated_at"]),
+                    orderPlacedAt = convertTimestamp(data["order_placed_at"]),
+                    processingAt = data["processing_at"]?.let { convertTimestamp(it) },
+                    shippedAt = data["shipped_at"]?.let { convertTimestamp(it) },
+                    deliveredAt = data["delivered_at"]?.let { convertTimestamp(it) },
+                    cancelledAt = data["cancelled_at"]?.let { convertTimestamp(it) },
+                    trackingId = data["tracking_id"] as? String ?: "",
+                    trackingNumber = data["tracking_number"] as? String ?: "",
+                    courierName = data["courier_name"] as? String ?: "",
+                    courierContact = data["courier_contact"] as? String ?: "",
+                    estimatedDelivery = data["estimated_delivery"]?.let { convertTimestamp(it) },
+                    expectedDeliveryDate = data["expected_delivery_date"]?.let { convertTimestamp(it) },
+                    rejectionReason = data["rejection_reason"] as? String ?: "",
+                    rejectionDetails = data["rejection_details"] as? String ?: ""
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Manual parsing failed for ${doc.id}", e)
+                null
+            }
+        }
     }
 
     /* ==================== CREATE ORDER WITH NOTIFICATION ==================== */
@@ -50,7 +117,8 @@ class OrderRepository {
                 orderId = docRef.id,
                 productTitle = order.productTitle,
                 buyerName = order.buyerName,
-                totalPrice = order.totalPrice
+                totalPrice = order.totalPrice,
+                coSellerStoreId = order.coSellerStoreId
             )
 
             Result.success(docRef.id)
@@ -66,9 +134,33 @@ class OrderRepository {
         orderId: String,
         productTitle: String,
         buyerName: String,
-        totalPrice: Double
+        totalPrice: Double,
+        coSellerStoreId: String = ""
     ) {
         try {
+            // ✅ Fetch store name and member count from co-seller store if available
+            var storeName = ""
+            var memberCount = 0
+            
+            if (coSellerStoreId.isNotEmpty()) {
+                try {
+                    val storeDoc = db.collection("co_seller_stores")
+                        .document(coSellerStoreId)
+                        .get()
+                        .await()
+                    
+                    if (storeDoc.exists()) {
+                        storeName = storeDoc.getString("store_name") ?: ""
+                        // Prioritize member_ids array over member_count field
+                        val memberIds = storeDoc.get("member_ids") as? List<*>
+                        memberCount = memberIds?.size ?: (storeDoc.getLong("member_count")?.toInt() ?: 0)
+                        Log.d(TAG, "✅ Fetched store data: $storeName with $memberCount members")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "⚠️ Failed to fetch store data for notification", e)
+                }
+            }
+            
             val notificationData = hashMapOf(
                 "user_id" to sellerId,
                 "title" to "🎉 New Order Received!",
@@ -77,9 +169,9 @@ class OrderRepository {
                 "action_type" to NotificationActionType.VIEW_ORDER.toString(),
                 "order_id" to orderId,
                 "product_id" to "",
-                "store_id" to "",
-                "store_name" to "",
-                "member_count" to 0,
+                "store_id" to coSellerStoreId,
+                "store_name" to storeName,
+                "member_count" to memberCount,
                 "created_at" to System.currentTimeMillis(),
                 "is_read" to false
             )
@@ -88,7 +180,7 @@ class OrderRepository {
                 .add(notificationData)
                 .await()
 
-            Log.d(TAG, "✅ Notification sent to seller: $sellerId")
+            Log.d(TAG, "✅ Notification sent to seller: $sellerId with store: $storeName ($memberCount members)")
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to send notification", e)
@@ -378,9 +470,10 @@ class OrderRepository {
 
     suspend fun getNewOrdersCount(sellerId: String): Result<Int> {
         return try {
+            // Count pending orders (status buyers create when placing an order)
             val snapshot = ordersCollection
                 .whereEqualTo("seller_id", sellerId)
-                .whereEqualTo("status", OrderStatus.NEW.toString())
+                .whereEqualTo("status", OrderStatus.PENDING.toString())
                 .get()
                 .await()
 
@@ -391,6 +484,42 @@ class OrderRepository {
             Log.e(TAG, "Failed to get new orders count", e)
             Result.failure(e)
         }
+    }
+
+    fun observeUserOrders(userId: String, onUpdate: (List<Order>) -> Unit): com.google.firebase.firestore.ListenerRegistration {
+        return ordersCollection
+            .whereEqualTo("buyer_id", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Real-time buyer orders error", error)
+                    return@addSnapshotListener
+                }
+                val orders = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(Order::class.java)?.copy(id = doc.id)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing order ${doc.id}", e)
+                        null
+                    }
+                }?.sortedByDescending { it.getCreatedAtLong() } ?: emptyList()
+                Log.d(TAG, "Real-time update: ${orders.size} buyer orders")
+                onUpdate(orders)
+            }
+    }
+
+    fun observeNewOrdersCount(sellerId: String, onUpdate: (Int) -> Unit): com.google.firebase.firestore.ListenerRegistration {
+        return ordersCollection
+            .whereEqualTo("seller_id", sellerId)
+            .whereEqualTo("status", OrderStatus.PENDING.toString())
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Failed to observe new orders count", error)
+                    return@addSnapshotListener
+                }
+                val count = snapshot?.size() ?: 0
+                Log.d(TAG, "Real-time new orders count for seller $sellerId: $count")
+                onUpdate(count)
+            }
     }
 
     suspend fun acceptOrder(orderId: String): Result<Unit> {
@@ -415,11 +544,28 @@ class OrderRepository {
 
             // ✅ Send processing notification to buyer
             if (order != null) {
+                // ✅ FIXED: Fetch current seller name (not stale order name)
+                var currentSellerName = order.sellerName
+                try {
+                    val sellerDoc = FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(order.sellerId)
+                        .get()
+                        .await()
+                    if (sellerDoc.exists()) {
+                        currentSellerName = sellerDoc.getString("name") ?: order.sellerName
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch current seller name: ${e.message}, using order name")
+                }
+                
                 com.gcuf.craftoria.utils.NotificationHelper.notifyOrderProcessing(
                     buyerId = order.buyerId,
                     orderId = orderId,
-                    storeName = order.sellerName,
-                    orderNumber = orderId.take(8)
+                    storeName = currentSellerName,
+                    orderNumber = orderId.take(8),
+                    storeId = order.coSellerStoreId,
+                    memberCount = 0  // Will be fetched real-time in UI if co-seller
                 )
                 Log.d(TAG, "✅ Processing notification sent to buyer")
             }
@@ -492,6 +638,21 @@ class OrderRepository {
             val sellerId = orderDoc.getString("seller_id") ?: ""
             val productTitle = orderDoc.getString("product_title") ?: "Product"
 
+            // ✅ FIX: Create simplified timeline - only show current status, not future pending statuses
+            val currentTime = System.currentTimeMillis()
+            val timeline = listOf(
+                mapOf(
+                    "title" to "Order Confirmed",
+                    "timestamp" to currentTime,
+                    "is_completed" to true
+                ),
+                mapOf(
+                    "title" to "Shipped",
+                    "timestamp" to currentTime,
+                    "is_completed" to true
+                )
+            )
+
             ordersCollection.document(orderId)
                 .update(
                     mapOf(
@@ -501,8 +662,9 @@ class OrderRepository {
                         "tracking_id" to trackingNumber,
                         "expected_delivery_date" to expectedDeliveryDate,
                         "estimated_delivery" to expectedDeliveryDate,
-                        "shipped_at" to System.currentTimeMillis(),
-                        "updated_at" to System.currentTimeMillis()
+                        "shipped_at" to currentTime,
+                        "updated_at" to currentTime,
+                        "timeline" to timeline
                     )
                 )
                 .await()
@@ -511,13 +673,30 @@ class OrderRepository {
 
             // ✅ Send shipped notification to buyer
             if (order != null) {
+                // ✅ FIXED: Fetch current seller name (not stale order name)
+                var currentSellerName = order.sellerName
+                try {
+                    val sellerDoc = FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(order.sellerId)
+                        .get()
+                        .await()
+                    if (sellerDoc.exists()) {
+                        currentSellerName = sellerDoc.getString("name") ?: order.sellerName
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch current seller name: ${e.message}, using order name")
+                }
+                
                 com.gcuf.craftoria.utils.NotificationHelper.notifyOrderShipped(
                     buyerId = order.buyerId,
                     orderId = orderId,
-                    storeName = order.sellerName,
+                    storeName = currentSellerName,
                     orderNumber = orderId.take(8),
                     courierName = courierName,
-                    trackingNumber = trackingNumber
+                    trackingNumber = trackingNumber,
+                    storeId = order.coSellerStoreId,
+                    memberCount = 0  // Will be fetched real-time in UI if co-seller
                 )
                 Log.d(TAG, "✅ Shipped notification sent to buyer")
             }
@@ -557,25 +736,88 @@ class OrderRepository {
             val sellerId = orderDoc.getString("seller_id") ?: ""
             val productTitle = orderDoc.getString("product_title") ?: "Product"
 
+            val currentTime = System.currentTimeMillis()
+
+            // Build update data with null-safe timeline handling
+            val updateData = mutableMapOf<String, Any>(
+                "status" to OrderStatus.COMPLETED.toString(),
+                "delivered_at" to currentTime,
+                "updated_at" to currentTime
+            )
+
+            // Only update timeline if we have one to update
+            val updatedTimeline = (order?.timeline ?: emptyList()).map { item ->
+                item.copy(isCompleted = true, timestamp = currentTime)
+            }
+
+            if (updatedTimeline.isNotEmpty()) {
+                updateData["timeline"] = updatedTimeline.map { it.toMap() }
+            }
+
             ordersCollection.document(orderId)
-                .update(
-                    mapOf(
-                        "status" to OrderStatus.COMPLETED.toString(),
-                        "delivered_at" to System.currentTimeMillis(),
-                        "updated_at" to System.currentTimeMillis()
-                    )
-                )
+                .update(updateData)
                 .await()
 
             Log.d(TAG, "✅ Order marked as delivered: $orderId")
+            
+            // ✅ CRITICAL FIX: Also update payment status to completed
+            // This ensures that when an order is delivered, the payment status is also updated
+            try {
+                Log.d(TAG, "💳 Updating payment status for delivered order: $orderId")
+                
+                // Find all payments for this order
+                val paymentsSnapshot = db.collection("payments")
+                    .whereEqualTo("order_id", orderId)
+                    .get()
+                    .await()
 
-            // ✅ Send delivery notification to buyer - FIXED: Use sellerName instead of storeName
+                Log.d(TAG, "Found ${paymentsSnapshot.documents.size} payments for order: $orderId")
+
+                // Update each payment to COMPLETED
+                paymentsSnapshot.documents.forEach { paymentDoc ->
+                    try {
+                        paymentDoc.reference.update(
+                            mapOf(
+                                "status" to "completed",
+                                "payment_date" to currentTime,
+                                "updated_at" to currentTime
+                            )
+                        ).await()
+                        
+                        Log.d(TAG, "✅ Payment ${paymentDoc.id} marked as COMPLETED")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "⚠️ Failed to update payment ${paymentDoc.id}", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "⚠️ Failed to update payment statuses for order $orderId", e)
+                // Don't fail the order update if payment update fails
+            }
+
+            // ✅ Send delivery notification to buyer
             if (order != null) {
+                // ✅ FIXED: Fetch current seller name (not stale order name)
+                var currentSellerName = order.sellerName
+                try {
+                    val sellerDoc = FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(order.sellerId)
+                        .get()
+                        .await()
+                    if (sellerDoc.exists()) {
+                        currentSellerName = sellerDoc.getString("name") ?: order.sellerName
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch current seller name: ${e.message}, using order name")
+                }
+                
                 com.gcuf.craftoria.utils.NotificationHelper.notifyOrderDelivered(
                     buyerId = order.buyerId,
                     orderId = orderId,
-                    storeName = order.sellerName,
-                    orderNumber = orderId.take(8)
+                    storeName = currentSellerName,
+                    orderNumber = orderId.take(8),
+                    storeId = order.coSellerStoreId,
+                    memberCount = 0  // Will be fetched real-time in UI if co-seller
                 )
                 Log.d(TAG, "✅ Delivery notification sent to buyer")
             }
@@ -652,7 +894,8 @@ class OrderRepository {
                     Log.d(TAG, "💳 Updating payment status for order: $orderId")
                     
                     // Find all payments for this order
-                    val paymentsSnapshot = db.collection("seller_payments")
+                    // ✅ CRITICAL: Using correct collection name "payments" (not "seller_payments")
+                    val paymentsSnapshot = db.collection("payments")
                         .whereEqualTo("order_id", orderId)
                         .get()
                         .await()

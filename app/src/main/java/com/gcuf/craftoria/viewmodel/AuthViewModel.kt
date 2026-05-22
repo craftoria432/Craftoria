@@ -255,17 +255,212 @@ class AuthViewModel(
         }
     }
 
-    fun signInWithGoogle(idToken: String) {
+    // ── OTP-based Password Reset ──────────────────────────────────────────────
+
+    fun sendPasswordResetOtp(email: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                // Look up user by email
+                val snapshot = Firebase.firestore.collection("users")
+                    .whereEqualTo("email", email)
+                    .get().await()
+
+                if (snapshot.isEmpty) {
+                    _authState.value = AuthState.Idle
+                    onResult(false, "No account found with this email")
+                    return@launch
+                }
+
+                val userDoc = snapshot.documents.first()
+                val userName = userDoc.getString("name") ?: "User"
+
+                // Generate 6-digit OTP
+                val otp = (100000..999999).random().toString()
+                val expiresAt = System.currentTimeMillis() + 10 * 60 * 1000L // 10 min
+
+                // Store OTP in Firestore
+                Firebase.firestore.collection("password_reset_otps")
+                    .document(email)
+                    .set(mapOf(
+                        "otp" to otp,
+                        "expires_at" to expiresAt,
+                        "used" to false,
+                        "created_at" to System.currentTimeMillis()
+                    )).await()
+
+                // Send via EmailJS
+                val emailResult = com.gcuf.craftoria.services.EmailService
+                    .sendPasswordResetOtp(email, userName, otp)
+
+                _authState.value = AuthState.Idle
+                if (emailResult.isSuccess) {
+                    onResult(true, null)
+                } else {
+                    onResult(false, "Failed to send OTP email. Try again.")
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "sendPasswordResetOtp failed", e)
+                _authState.value = AuthState.Idle
+                onResult(false, e.message ?: "Something went wrong")
+            }
+        }
+    }
+    fun verifyOtpOnly(
+        email: String,
+        otp: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                val doc = Firebase.firestore.collection("password_reset_otps")
+                    .document(email).get().await()
+
+                if (!doc.exists()) {
+                    _authState.value = AuthState.Idle
+                    onResult(false, "OTP not found. Request a new one.")
+                    return@launch
+                }
+
+                val storedOtp = doc.getString("otp") ?: ""
+                val expiresAt = doc.getLong("expires_at") ?: 0L
+                val used = doc.getBoolean("used") ?: false
+
+                when {
+                    used -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "OTP already used. Request a new one.")
+                    }
+                    System.currentTimeMillis() > expiresAt -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "OTP expired. Request a new one.")
+                    }
+                    otp != storedOtp -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "Incorrect OTP. Please try again.")
+                    }
+                    else -> {
+                        _authState.value = AuthState.Idle
+                        onResult(true, null)
+                    }
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Idle
+                onResult(false, e.message ?: "Verification failed")
+            }
+        }
+    }
+    fun sendFirebaseResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                com.google.firebase.auth.FirebaseAuth.getInstance()
+                    .sendPasswordResetEmail(email).await()
+                onResult(true, null)
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "Failed to send reset email")
+            }
+        }
+    }
+    /**
+     * Verify OTP and send Firebase password reset email
+     * User will click link in email to set new password
+     */
+    fun verifyOtpAndResetPassword(
+        email: String,
+        otp: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                val doc = Firebase.firestore.collection("password_reset_otps")
+                    .document(email).get().await()
+
+                if (!doc.exists()) {
+                    _authState.value = AuthState.Idle
+                    onResult(false, "OTP not found. Request a new one.")
+                    return@launch
+                }
+
+                val storedOtp = doc.getString("otp") ?: ""
+                val expiresAt = doc.getLong("expires_at") ?: 0L
+                val used = doc.getBoolean("used") ?: false
+
+                when {
+                    used -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "OTP already used. Request a new one.")
+                    }
+                    System.currentTimeMillis() > expiresAt -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "OTP expired. Request a new one.")
+                    }
+                    otp != storedOtp -> {
+                        _authState.value = AuthState.Idle
+                        onResult(false, "Incorrect OTP. Please try again.")
+                    }
+                    else -> {
+                        // ✅ Mark OTP as used
+                        Firebase.firestore.collection("password_reset_otps")
+                            .document(email)
+                            .update("used", true).await()
+
+                        // ✅ Send Firebase official password reset email
+                        // User will click link in email to set new password
+                        com.google.firebase.auth.FirebaseAuth.getInstance()
+                            .sendPasswordResetEmail(email).await()
+
+                        _authState.value = AuthState.Idle
+                        onResult(true, null)
+                        Log.d("AuthViewModel", "✅ OTP verified, password reset email sent to $email")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "verifyOtpAndResetPassword failed", e)
+                _authState.value = AuthState.Idle
+                onResult(false, e.message ?: "Verification failed")
+            }
+        }
+    }
+
+    fun signInWithGoogle(idToken: String, onNewUser: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 
             val result = authRepository.signInWithGoogle(idToken)
 
             _authState.value = if (result.isSuccess) {
-                _currentUser.value = result.getOrNull()
-                AuthState.Success("Welcome!")
+                val signInResult = result.getOrNull()
+                if (signInResult != null) {
+                    _currentUser.value = signInResult.user
+                    onNewUser(signInResult.isNewUser)  // Notify caller if new user
+                    AuthState.Success("Welcome!")
+                } else {
+                    AuthState.Error("Sign-in failed: No user data")
+                }
             } else {
                 AuthState.Error(result.exceptionOrNull()?.message ?: "Google sign-in failed")
+            }
+        }
+    }
+
+    fun setInitialRole(userId: String, role: UserRole) {
+        viewModelScope.launch {
+            try {
+                _authState.value = AuthState.Loading
+                val result = authRepository.setInitialRole(userId, role)
+                
+                if (result.isSuccess) {
+                    // Update local user with new role
+                    _currentUser.value = _currentUser.value?.copy(role = role)
+                    _authState.value = AuthState.Success("Role set successfully!")
+                    Log.d("AuthViewModel", "✅ Role set to $role for user $userId")
+                } else {
+                    _authState.value = AuthState.Error("Failed to set role")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Failed to set role")
             }
         }
     }
@@ -324,38 +519,20 @@ class AuthViewModel(
             }
         }
     }
+    // ✅ CONSOLIDATED: Use startRealtimeUserListener() instead
+    // This method is deprecated - use startRealtimeUserListener() which is already called in observeAuthState()
+    @Deprecated("Use startRealtimeUserListener() instead - it's already active in observeAuthState()")
     fun listenToVerificationStatus() {
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance()
-            .currentUser?.uid ?: return
-
-        firestore.collection("users")
-            .document(userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-
-                val newStatus = VerificationStatus.fromString(
-                    snapshot.getString("verification_status")
-                )
-                val newVerified = snapshot.getBoolean("verified") ?: false
-                val newRole = UserRole.fromString(snapshot.getString("role"))
-                val newRejectionReason = snapshot.getString("rejection_reason") ?: ""
-                val newSellerApplicationStatus = SellerApplicationStatus.fromString(
-                    snapshot.getString("seller_application_status")
-                )
-
-                val current = _currentUser.value
-                if (current != null) {
-                    _currentUser.value = current.copy(
-                        role = newRole,
-                        verificationStatus = newStatus,
-                        verified = newVerified,
-                        rejectionReason = newRejectionReason,
-                        sellerApplicationStatus = newSellerApplicationStatus
-                    )
-                    Log.d("AuthViewModel", "Live update → role:$newRole status:$newStatus verified:$newVerified appStatus:$newSellerApplicationStatus")
-                }
-            }
+        Log.w("AuthViewModel", "⚠️ listenToVerificationStatus() is deprecated. Real-time listener is already active via startRealtimeUserListener()")
     }
+
+    // ✅ CONSOLIDATED: Use startRealtimeUserListener() instead
+    // This method is deprecated - use startRealtimeUserListener() which is already called in observeAuthState()
+    @Deprecated("Use startRealtimeUserListener() instead - it's already active in observeAuthState()")
+    fun listenToUserUpdates(userId: String) {
+        Log.w("AuthViewModel", "⚠️ listenToUserUpdates() is deprecated. Real-time listener is already active via startRealtimeUserListener()")
+    }
+
     fun upgradeToSeller(userId: String) {
         viewModelScope.launch {
             try {
@@ -478,16 +655,63 @@ class AuthViewModel(
         }
     }
 
+    // ✅ Manual refresh function to fetch latest user data (kept for backward compatibility)
+    fun refreshUserData(userId: String) {
+        viewModelScope.launch {
+            try {
+                Log.d("AuthViewModel", "🔄 Manually refreshing user data...")
+                
+                val snapshot = firestore.collection("users")
+                    .document(userId)
+                    .get()
+                    .await()
+                
+                if (snapshot.exists()) {
+                    val data = snapshot.data ?: return@launch
+                    
+                    val user = User(
+                        id = userId,
+                        email = data["email"] as? String ?: "",
+                        name = data["name"] as? String ?: "",
+                        role = UserRole.fromString(data["role"] as? String),
+                        phone = data["phone"] as? String ?: "",
+                        address = data["address"] as? String ?: "",
+                        profileImage = data["profile_image"] as? String ?: "",
+                        createdAt = (data["created_at"] as? com.google.firebase.Timestamp)?.toDate()?.time ?: (data["created_at"] as? Long) ?: 0L,
+                        storeName = data["store_name"] as? String ?: "",
+                        storeDescription = data["store_description"] as? String ?: "",
+                        verified = data["verified"] as? Boolean ?: false,
+                        verificationStatus = VerificationStatus.fromString(data["verification_status"] as? String),
+                        verificationPhotoUrl = data["verification_photo_url"] as? String ?: "",
+                        rejectionReason = data["rejection_reason"] as? String ?: "",
+                        mainSellerId = data["main_seller_id"] as? String ?: "",
+                        sellerApplicationStatus = SellerApplicationStatus.fromString(data["seller_application_status"] as? String),
+                        themePreference = data["theme_preference"] as? String ?: "rose"
+                    )
+                    
+                    _currentUser.value = user
+                    Log.d("AuthViewModel", "✅ User data refreshed: ${user.name}, status: ${user.sellerApplicationStatus}")
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "❌ Failed to refresh user data: ${e.message}")
+            }
+        }
+    }
+
     fun updateUserName(userId: String, newName: String) {
         viewModelScope.launch {
             try {
                 _authState.value = AuthState.Loading
 
-                // Update in Firestore
-                firestore.collection("users")
-                    .document(userId)
-                    .update("name", newName)
-                    .await()
+                // Get current user role for comprehensive updates
+                val currentUserRole = _currentUser.value?.role?.name ?: "BUYER"
+
+                // ✅ Use RealtimeNameUpdateManager for comprehensive updates across all screens
+                com.gcuf.craftoria.utils.RealtimeNameUpdateManager.updateUserNameEverywhere(
+                    userId = userId,
+                    newName = newName,
+                    userRole = currentUserRole
+                )
 
                 // Update Firebase Auth display name
                 com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
@@ -501,7 +725,7 @@ class AuthViewModel(
                 _currentUser.value = _currentUser.value?.copy(name = newName)
 
                 _authState.value = AuthState.Success("Name updated successfully!")
-                Log.d("AuthViewModel", "Name updated: $newName")
+                Log.d("AuthViewModel", "✅ Name updated everywhere: $newName")
 
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "Failed to update name", e)

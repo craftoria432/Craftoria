@@ -34,7 +34,7 @@ data class RefundRequest(
     // Refund Details
     @get:PropertyName("refund_type")
     @set:PropertyName("refund_type")
-    var refundType: String = RefundType.FULL.toString(), // FULL, PARTIAL, RETURN
+    var refundType: String = RefundType.FULL.toString(),
 
     @get:PropertyName("original_amount")
     @set:PropertyName("original_amount")
@@ -46,26 +46,38 @@ data class RefundRequest(
 
     @get:PropertyName("reason")
     @set:PropertyName("reason")
-    var reason: String = "", // BUYER_REQUEST, SELLER_APPROVAL, RETURN, DEFECTIVE, WRONG_ITEM, etc.
+    var reason: String = "",
 
     @get:PropertyName("reason_details")
     @set:PropertyName("reason_details")
     var reasonDetails: String = "",
 
-    // Status: requested, approved, processing, completed, rejected, failed
     var status: String = RefundStatus.REQUESTED.toString(),
 
     @get:PropertyName("initiated_by")
     @set:PropertyName("initiated_by")
-    var initiatedBy: String = "", // buyer or seller
+    var initiatedBy: String = "",
 
     @get:PropertyName("approved_by")
     @set:PropertyName("approved_by")
-    var approvedBy: String = "", // admin or seller
+    var approvedBy: String = "",
 
     @get:PropertyName("approval_notes")
     @set:PropertyName("approval_notes")
     var approvalNotes: String = "",
+
+    // ✅ NEW: Rejection tracking for request limits
+    @get:PropertyName("rejection_count")
+    @set:PropertyName("rejection_count")
+    var rejectionCount: Int = 0,
+
+    @get:PropertyName("can_resubmit")
+    @set:PropertyName("can_resubmit")
+    var canResubmit: Boolean = true,
+
+    @get:PropertyName("final_decision")
+    @set:PropertyName("final_decision")
+    var finalDecision: Boolean = false,
 
     // Payment Gateway Info
     @get:PropertyName("payment_method")
@@ -78,7 +90,7 @@ data class RefundRequest(
 
     @get:PropertyName("gateway_refund_id")
     @set:PropertyName("gateway_refund_id")
-    var gatewayRefundId: String = "", // Stripe refund ID, PayPal refund ID, etc.
+    var gatewayRefundId: String = "",
 
     // Co-Seller Refund Splits
     @get:PropertyName("refund_splits")
@@ -92,41 +104,41 @@ data class RefundRequest(
 
     @get:PropertyName("last_retry_at")
     @set:PropertyName("last_retry_at")
-    var lastRetryAt: Long? = null,
+    var lastRetryAt: Any? = null,   // ✅ Any? — Firestore may return Timestamp or Long
 
     @get:PropertyName("error_message")
     @set:PropertyName("error_message")
     var errorMessage: String = "",
 
-    // Timestamps
+    // ✅ ALL timestamps changed to Any? to safely handle both Long and Firestore Timestamp
     @get:PropertyName("requested_at")
     @set:PropertyName("requested_at")
-    var requestedAt: Long = System.currentTimeMillis(),
+    var requestedAt: Any? = System.currentTimeMillis(),
 
     @get:PropertyName("approved_at")
     @set:PropertyName("approved_at")
-    var approvedAt: Long? = null,
+    var approvedAt: Any? = null,
 
     @get:PropertyName("processed_at")
     @set:PropertyName("processed_at")
-    var processedAt: Long? = null,
+    var processedAt: Any? = null,
 
     @get:PropertyName("completed_at")
     @set:PropertyName("completed_at")
-    var completedAt: Long? = null,
+    var completedAt: Any? = null,
 
     @get:PropertyName("created_at")
     @set:PropertyName("created_at")
-    var createdAt: Long = System.currentTimeMillis(),
+    var createdAt: Any? = System.currentTimeMillis(),
 
     @get:PropertyName("updated_at")
     @set:PropertyName("updated_at")
-    var updatedAt: Long = System.currentTimeMillis(),
+    var updatedAt: Any? = System.currentTimeMillis(),
 
     // Idempotency
     @get:PropertyName("idempotency_key")
     @set:PropertyName("idempotency_key")
-    var idempotencyKey: String = "",
+    var idempotencyKey: String = "",  // ✅ FIX: Default to "" instead of UUID.randomUUID() to prevent phantom keys on deserialization
 
     // Audit Trail
     @get:PropertyName("audit_trail")
@@ -160,53 +172,63 @@ data class RefundSplit(
     var gatewayRefundId: String = ""
 )
 
+// ✅ Also changed timestamp to Any? for same reason
 data class RefundAuditEntry(
-    var action: String = "", // requested, approved, rejected, processing, completed, failed, retried
-    var actor: String = "", // user ID
+    var action: String = "",
+    var actor: String = "",
     @get:PropertyName("actor_name")
     @set:PropertyName("actor_name")
     var actorName: String = "",
     var notes: String = "",
-    var timestamp: Long = System.currentTimeMillis()
+    var timestamp: Any? = System.currentTimeMillis()  // ✅ Any? instead of Long
 )
 
 enum class RefundType {
-    FULL,      // Full refund of order
-    PARTIAL,   // Partial refund (e.g., some items)
-    RETURN;    // Refund after return
+    FULL,
+    PARTIAL,
+    RETURN;
 
     override fun toString(): String = name.lowercase()
 }
 
 enum class RefundStatus {
-    REQUESTED,   // Buyer/seller initiated refund
-    APPROVED,    // Admin/seller approved
-    PROCESSING,  // Payment gateway processing
-    COMPLETED,   // Refund successful
-    REJECTED,    // Refund denied
-    FAILED,      // Refund failed (needs retry)
-    CANCELLED;   // Refund cancelled
+    REQUESTED,
+    UNDER_REVIEW,
+    APPROVED_BY_SELLER,
+    APPROVED_BY_ADMIN,
+    REJECTED_BY_SELLER,
+    REJECTED_BY_ADMIN,
+    PROCESSING,
+    COMPLETED,
+    FAILED,
+    CANCELLED;
 
     override fun toString(): String = name.lowercase()
 
     fun getDisplayName(): String = when (this) {
         REQUESTED -> "Refund Requested"
-        APPROVED -> "Approved"
+        UNDER_REVIEW -> "Under Review"
+        APPROVED_BY_SELLER -> "Approved by Seller"
+        APPROVED_BY_ADMIN -> "Approved by Admin"
+        REJECTED_BY_SELLER -> "Rejected by Seller"
+        REJECTED_BY_ADMIN -> "Rejected by Admin"
         PROCESSING -> "Processing"
-        COMPLETED -> "Completed"
-        REJECTED -> "Rejected"
+        COMPLETED -> "Refunded Successfully"
         FAILED -> "Failed"
         CANCELLED -> "Cancelled"
     }
 
     fun getStatusColor(): String = when (this) {
-        REQUESTED -> "#FFA500"    // Orange
-        APPROVED -> "#4169E1"     // Royal Blue
-        PROCESSING -> "#1E90FF"   // Dodger Blue
-        COMPLETED -> "#28A745"    // Green
-        REJECTED -> "#DC3545"     // Red
-        FAILED -> "#FF6347"       // Tomato
-        CANCELLED -> "#6C757D"    // Gray
+        REQUESTED -> "#FFA500"           // Orange
+        UNDER_REVIEW -> "#FF9800"        // Amber
+        APPROVED_BY_SELLER -> "#4169E1"  // Royal Blue
+        APPROVED_BY_ADMIN -> "#2196F3"   // Blue
+        REJECTED_BY_SELLER -> "#DC3545"  // Red
+        REJECTED_BY_ADMIN -> "#C62828"   // Dark Red
+        PROCESSING -> "#1E90FF"          // Dodger Blue
+        COMPLETED -> "#28A745"           // Green
+        FAILED -> "#FF6347"              // Tomato
+        CANCELLED -> "#6C757D"           // Gray
     }
 }
 
@@ -242,15 +264,35 @@ enum class RefundReason {
     }
 }
 
+/* -------------------- Timestamp Converter -------------------- */
+
+/**
+ * Safely converts Any? (Long, Firestore Timestamp, Map, String) to Long milliseconds.
+ * This is the root cause of "Failed to convert com.google.firebase.Timestamp to long".
+ */
+private fun convertRefundTimestamp(value: Any?): Long = when (value) {
+    is Long -> value
+    is com.google.firebase.Timestamp -> value.toDate().time
+    is Number -> value.toLong()
+    is String -> value.toLongOrNull() ?: System.currentTimeMillis()
+    is Map<*, *> -> {
+        val seconds = (value["_seconds"] as? Long) ?: (value["seconds"] as? Long) ?: 0L
+        val nanos = (value["_nanoseconds"] as? Long) ?: (value["nanoseconds"] as? Long) ?: 0L
+        (seconds * 1000) + (nanos / 1_000_000)
+    }
+    else -> System.currentTimeMillis()
+}
+
 /* -------------------- Firestore Mappers -------------------- */
+
 fun RefundRequest.toMap(): Map<String, Any> = mapOf(
     "id" to id,
     "order_id" to orderId,
     "payment_id" to paymentId,
     "buyer_id" to buyerId,
-    "buyer_name" to buyerName,
+    "buyer_name" to buyerName,          // ✅ WEB DASHBOARD: "Buyer" column
     "seller_id" to sellerId,
-    "seller_name" to sellerName,
+    "seller_name" to sellerName,        // ✅ WEB DASHBOARD: "Seller" column
     "refund_type" to refundType,
     "original_amount" to originalAmount,
     "refund_amount" to refundAmount,
@@ -260,19 +302,22 @@ fun RefundRequest.toMap(): Map<String, Any> = mapOf(
     "initiated_by" to initiatedBy,
     "approved_by" to approvedBy,
     "approval_notes" to approvalNotes,
+    "rejection_count" to rejectionCount,
+    "can_resubmit" to canResubmit,
+    "final_decision" to finalDecision,
     "payment_method" to paymentMethod,
     "transaction_id" to transactionId,
     "gateway_refund_id" to gatewayRefundId,
     "refund_splits" to refundSplits.map { it.toMap() },
     "retry_count" to retryCount,
-    "last_retry_at" to (lastRetryAt ?: 0L),
+    "last_retry_at" to (getLastRetryAtLong()),
     "error_message" to errorMessage,
-    "requested_at" to requestedAt,
-    "approved_at" to (approvedAt ?: 0L),
-    "processed_at" to (processedAt ?: 0L),
-    "completed_at" to (completedAt ?: 0L),
-    "created_at" to createdAt,
-    "updated_at" to updatedAt,
+    "requested_at" to getRequestedAtLong(),   // ✅ WEB DASHBOARD: "Requested" column (payment date)
+    "approved_at" to (getApprovedAtLong()),
+    "processed_at" to (getProcessedAtLong()),
+    "completed_at" to (getCompletedAtLong()),
+    "created_at" to getCreatedAtLong(),
+    "updated_at" to getUpdatedAtLong(),
     "idempotency_key" to idempotencyKey,
     "audit_trail" to auditTrail.map { it.toMap() }
 )
@@ -291,30 +336,31 @@ fun RefundAuditEntry.toMap(): Map<String, Any> = mapOf(
     "actor" to actor,
     "actor_name" to actorName,
     "notes" to notes,
-    "timestamp" to timestamp
+    "timestamp" to convertRefundTimestamp(timestamp)
 )
 
+/* -------------------- Timestamp Helpers -------------------- */
+
+fun RefundRequest.getRequestedAtLong(): Long = convertRefundTimestamp(requestedAt)
+fun RefundRequest.getCreatedAtLong(): Long = convertRefundTimestamp(createdAt)
+fun RefundRequest.getUpdatedAtLong(): Long = convertRefundTimestamp(updatedAt)
+fun RefundRequest.getApprovedAtLong(): Long = convertRefundTimestamp(approvedAt).let { if (approvedAt == null) 0L else it }
+fun RefundRequest.getProcessedAtLong(): Long = convertRefundTimestamp(processedAt).let { if (processedAt == null) 0L else it }
+fun RefundRequest.getCompletedAtLong(): Long = convertRefundTimestamp(completedAt).let { if (completedAt == null) 0L else it }
+fun RefundRequest.getLastRetryAtLong(): Long = convertRefundTimestamp(lastRetryAt).let { if (lastRetryAt == null) 0L else it }
+
 /* -------------------- Helpers -------------------- */
+
 fun RefundRequest.getStatusEnum(): RefundStatus =
-    try {
-        RefundStatus.valueOf(status.uppercase())
-    } catch (e: Exception) {
-        RefundStatus.REQUESTED
-    }
+    try { RefundStatus.valueOf(status.uppercase()) } catch (e: Exception) { RefundStatus.REQUESTED }
 
 fun RefundRequest.getTypeEnum(): RefundType =
-    try {
-        RefundType.valueOf(refundType.uppercase())
-    } catch (e: Exception) {
-        RefundType.FULL
-    }
+    try { RefundType.valueOf(refundType.uppercase()) } catch (e: Exception) { RefundType.FULL }
 
 fun RefundRequest.isEligibleForAutoApproval(): Boolean {
-    // Auto-approve if within grace period (24 hours) and buyer-initiated
-    val hoursSinceOrder = (System.currentTimeMillis() - requestedAt) / (1000 * 60 * 60)
+    val hoursSinceOrder = (System.currentTimeMillis() - getRequestedAtLong()) / (1000 * 60 * 60)
     return initiatedBy == "buyer" && hoursSinceOrder <= 24
 }
 
-fun RefundRequest.canRetry(): Boolean {
-    return status == RefundStatus.FAILED.toString() && retryCount < 3
-}
+fun RefundRequest.canRetry(): Boolean =
+    status == RefundStatus.FAILED.toString() && retryCount < 3

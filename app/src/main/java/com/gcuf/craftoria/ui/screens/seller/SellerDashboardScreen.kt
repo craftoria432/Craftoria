@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -92,6 +94,8 @@ import com.gcuf.craftoria.ui.theme.TextLight
 import com.gcuf.craftoria.ui.theme.TextPrimary
 import com.gcuf.craftoria.ui.theme.TextSecondary
 import com.gcuf.craftoria.viewmodel.DashboardViewModel
+import com.gcuf.craftoria.data.model.RefundStatus
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -113,6 +117,7 @@ fun SellerDashboardScreen(
     onNavigateToActivity: () -> Unit,
     onNavigateToMessages: () -> Unit,
     onNavigateToPayments: () -> Unit = {},
+    onNavigateToRefunds: () -> Unit = {},
     dashboardViewModel: DashboardViewModel = viewModel(),
     notificationViewModel: com.gcuf.craftoria.viewmodel.NotificationViewModel = viewModel(),
     unreadMessagesCount: Int = 0
@@ -121,12 +126,18 @@ fun SellerDashboardScreen(
     val recentActivities by dashboardViewModel.recentActivities.collectAsState()
     val isLoading by dashboardViewModel.isLoading.collectAsState()
     val unreadNotificationCount by notificationViewModel.unreadCount.collectAsState()
+    
+    // ✅ NEW: Collect real-time metrics
+    val productCount by dashboardViewModel.productCount.collectAsState()
+    val totalOrdersCount by dashboardViewModel.totalOrdersCount.collectAsState()  // ✅ Changed from pendingOrdersCount
+    val totalEarnings by dashboardViewModel.totalEarnings.collectAsState()
+    val newOrdersCount by dashboardViewModel.newOrdersCount.collectAsState() // For badge
 
-    var newOrdersCount by remember { mutableStateOf(0) }
     var pendingNegotiationsCount by remember { mutableStateOf(0) }
     var pendingInvitationsCount by remember { mutableStateOf(0) }
     var pendingApprovalsCount by remember { mutableStateOf(0) }
     var pendingPayoutsCount by remember { mutableStateOf(0) }
+    var pendingRefundsCount by remember { mutableStateOf(0) }
     var selectedRoute by remember { mutableStateOf("seller_dashboard") }
     var isRefreshing by remember { mutableStateOf(false) }
 
@@ -140,19 +151,10 @@ fun SellerDashboardScreen(
 
         launch {
             try {
-                val paymentSnapshot = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("seller_payments")
-                    .whereEqualTo("seller_id", user.id)
-                    .limit(1)
-                    .get()
-                    .await()
-
-                if (paymentSnapshot.isEmpty) {
-                    Log.d("SellerDashboard", "No payment data found, adding sample data...")
-                    com.gcuf.craftoria.utils.DashboardDataHelper.setupPaymentDataOnly(user.id, user.name)
-                    dashboardViewModel.loadDashboardData(user.id)
-                }
-
+                // ✅ REMOVED: Auto-adding fake payment data
+                // This was causing deleted payments to reappear with new IDs
+                // Payments should only be created from actual orders, not sample data
+                
                 val productSnapshot = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                     .collection("products")
                     .whereEqualTo("seller_id", user.id)
@@ -170,19 +172,6 @@ fun SellerDashboardScreen(
             }
         }
 
-        val ordersListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            .collection("orders")
-            .whereEqualTo("seller_id", user.id)
-            .whereIn("status", listOf("pending", "confirmed"))
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                if (snapshot != null) {
-                    newOrdersCount = snapshot.documents.count { doc ->
-                        doc.getBoolean("is_viewed") != true
-                    }
-                }
-            }
-
         val negotiationsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("negotiations")
             .whereEqualTo("seller_id", user.id)
@@ -192,26 +181,8 @@ fun SellerDashboardScreen(
                 if (snapshot != null) pendingNegotiationsCount = snapshot.size()
             }
 
-        val invitationsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            .collection("store_invitations")
-            .whereEqualTo("invitee_id", user.id)
-            .whereEqualTo("status", "PENDING")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                if (snapshot != null) pendingInvitationsCount = snapshot.size()
-            }
-
-        val approvalsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            .collection("products")
-            .whereEqualTo("seller_id", user.id)
-            .whereEqualTo("approval_status", "pending")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                if (snapshot != null) pendingApprovalsCount = snapshot.size()
-            }
-
         val payoutsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            .collection("seller_payments")
+            .collection("payments")  // ✅ FIXED: Changed from "seller_payments" to "payments"
             .whereEqualTo("seller_id", user.id)
             .whereEqualTo("status", "processing")
             .addSnapshotListener { snapshot, error ->
@@ -219,20 +190,28 @@ fun SellerDashboardScreen(
                 if (snapshot != null) pendingPayoutsCount = snapshot.size()
             }
 
+        // ✅ Real-time pending refunds count listener
+        val refundsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("refunds")
+            .whereEqualTo("seller_id", user.id)
+            .whereEqualTo("status", RefundStatus.REQUESTED.toString())
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot != null) pendingRefundsCount = snapshot.size()
+            }
+
         try {
             kotlinx.coroutines.awaitCancellation()
         } finally {
-            ordersListener.remove()
             negotiationsListener.remove()
-            invitationsListener.remove()
-            approvalsListener.remove()
             payoutsListener.remove()
+            refundsListener.remove()
         }
     }
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
-            dashboardViewModel.loadDashboardData(user.id)
+            dashboardViewModel.refreshDashboard(user.id)
             isRefreshing = false
         }
     }
@@ -378,16 +357,20 @@ fun SellerDashboardScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = 16.dp,
+                    top = 0.dp,
                     bottom = 80.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
                     WelcomeBanner(
+                        sellerId = user.id,
                         sellerName = user.name,
                         isVerified = user.verified,
-                        onNavigateToPayments = onNavigateToPayments
+                        onNavigateToPayments = onNavigateToPayments,
+                        productCount = productCount,
+                        totalOrdersCount = totalOrdersCount,  // ✅ Changed from pendingOrdersCount
+                        totalEarnings = totalEarnings
                     )
                 }
                 item {
@@ -397,7 +380,9 @@ fun SellerDashboardScreen(
                         onCoSeller = onNavigateToCoSeller,
                         onLearning = onNavigateToLearning,
                         onPayments = onNavigateToPayments,
-                        pendingNegotiationsCount = pendingNegotiationsCount
+                        onRefunds = onNavigateToRefunds,
+                        pendingNegotiationsCount = pendingNegotiationsCount,
+                        pendingRefundsCount = pendingRefundsCount
                     )
                 }
                 item {
@@ -410,19 +395,11 @@ fun SellerDashboardScreen(
                         ) {
                             CircularProgressIndicator(color = Primary)
                         }
-                    } else {
-                        val stats = dashboardStats ?: DashboardStats(
-                            totalSales = 0.0,
-                            activeOrders = 0,
-                            pendingOrders = 0,
-                            processingOrders = 0,
-                            totalProducts = 0,
-                            monthSales = 0.0,
-                            salesGrowth = 0.0,
-                            productsThisWeek = 0
-                        )
-                        SalesOverview(stats = stats)
                     }
+                    // ✅ REMOVED: Sales Overview section is redundant with Welcome Banner
+                    // The Welcome Banner now displays real-time metrics (Products, Orders, This Month's Sales)
+                    // which are the same metrics shown in Sales Overview. Removing this section reduces
+                    // visual clutter and eliminates the real-time update lag issue.
                 }
                 item {
                     RecentActivitySection(
@@ -437,10 +414,13 @@ fun SellerDashboardScreen(
 
 @Composable
 fun WelcomeBanner(
+    sellerId: String = "",
     sellerName: String,
     isVerified: Boolean,
-    stats: DashboardStats? = null,
-    onNavigateToPayments: () -> Unit = {}
+    onNavigateToPayments: () -> Unit = {},
+    productCount: Int = 0,
+    totalOrdersCount: Int = 0,  // ✅ Changed from pendingOrdersCount
+    totalEarnings: Double = 0.0
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -498,118 +478,200 @@ fun WelcomeBanner(
             )
 
             Column(modifier = Modifier.padding(18.dp)) {
-                // ── Top row: greeting + store icon ────────────────────────────
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column {
-                        Text(
-                            text = "Welcome back,",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.82f),
-                            modifier = Modifier.padding(bottom = 3.dp)
+                // ── Top row: greeting only (no store icon) ────────────────────
+                Column {
+                    Text(
+                        text = "Welcome back,",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.82f),
+                        modifier = Modifier.padding(bottom = 3.dp)
+                    )
+                    // ✅ Display real-time name
+                    if (sellerId.isNotEmpty()) {
+                        com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                            userId = sellerId,
+                            fallbackName = sellerName,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
+                    } else {
                         Text(
                             text = sellerName,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        if (isVerified) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color.White.copy(alpha = 0.20f)
+                    }
+                    if (isVerified) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.White.copy(alpha = 0.20f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
-                                    Text(text = "Verified Seller", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
-                                }
+                                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                Text(text = "Verified Seller", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // ── Stats row — all 3 cards forced to same fixed height ────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Products
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.White.copy(alpha = 0.18f),
-                        modifier = Modifier.size(52.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        modifier = Modifier.weight(1f).height(80.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Icon(imageVector = Icons.Default.Store, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = productCount.toString(),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "Products",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // Orders
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        modifier = Modifier.weight(1f).height(80.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = totalOrdersCount.toString(),  // ✅ Changed from pendingOrdersCount
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "Orders",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // Earnings — PKR as micro-label above number, same height as others
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        modifier = Modifier.weight(1f).height(80.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "PKR",
+                                fontSize = 9.sp,
+                                color = Color.White.copy(alpha = 0.70f),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = formatPrice(totalEarnings),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "Total",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // ── Stats mini-cards row — 3 columns ─────────────────────────
-                if (stats != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
-                        listOf(
-                            Triple("Orders",   stats.activeOrders.toString(),   Icons.Default.ShoppingCart),
-                            Triple("Products", stats.totalProducts.toString(),  Icons.Default.Inventory),
-                            Triple("This Mo.", "PKR ${formatPrice(stats.monthSales)}", Icons.Default.Payment)
-                        ).forEach { (label, value, icon) ->
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 9.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                    Text(text = label, fontSize = 9.sp, color = Color.White.copy(alpha = 0.78f))
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                // ── Payments CTA ──────────────────────────────────────────────
+                // ── Payments CTA — white outline style ────────────────────────
                 Surface(
                     onClick = onNavigateToPayments,
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.15f),
-                    modifier = Modifier.fillMaxWidth()
+                    color = Color.White.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        0.5.dp, Color.White.copy(alpha = 0.30f)
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.20f),
-                            modifier = Modifier.size(38.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                Icon(imageVector = Icons.AutoMirrored.Filled.Assignment, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Assignment,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Payments & Earnings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                            Text(text = "View payment history and earnings", fontSize = 11.sp, color = Color.White.copy(alpha = 0.80f))
+                            Text(
+                                text = "Payments & Earnings",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "View your payment history",
+                                fontSize = 10.sp,
+                                color = Color.White.copy(alpha = 0.75f)
+                            )
                         }
-                        // Correct direction: use rotate instead of wrong ArrowBack
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.70f),
-                            modifier = Modifier.size(16.dp).rotate(180f)
+                            tint = Color.White.copy(alpha = 0.60f),
+                            modifier = Modifier.size(14.dp).rotate(180f)
                         )
                     }
                 }
+
+
             }
         }
     }
@@ -625,7 +687,9 @@ fun QuickAccessMenu(
     onCoSeller: () -> Unit,
     onLearning: () -> Unit,
     onPayments: () -> Unit = {},
-    pendingNegotiationsCount: Int = 0
+    onRefunds: () -> Unit = {},
+    pendingNegotiationsCount: Int = 0,
+    pendingRefundsCount: Int = 0
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -673,55 +737,90 @@ fun QuickAccessMenu(
                 modifier = Modifier.weight(1f)
             )
         }
-    }
-}
-
-@Composable
-fun QuickAccessCard(
-    icon: String,
-    text: String,
-    color: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor = when (color) {
-        "pink" -> Color(0xFFFFF5F8)
-        "cream" -> Color(0xFFFFF8E1)
-        "gold" -> Color(0xFFFFF9C4)
-        "blue" -> Color(0xFFE3F2FD)
-        else -> Color.White
-    }
-    val borderColor = when (color) {
-        "pink" -> Color(0xFFFCE4EC)
-        "cream" -> Color(0xFFFFECB3)
-        "gold" -> Color(0xFFFFF176)
-        "blue" -> Color(0xFFBBDEFB)
-        else -> BorderColor
-    }
-    Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = modifier.height(96.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        
+        // ══════════════════════════════════════════════════════════════════════════════
+        // Refund Management Card
+        // ══════════════════════════════════════════════════════════════════════════════
+        Card(
+            onClick = onRefunds,
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = icon, fontSize = 28.sp, modifier = Modifier.padding(bottom = 6.dp))
-            Text(
-                text = text,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary,
-                textAlign = TextAlign.Center,
-                lineHeight = 16.sp
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(
+                                if (pendingRefundsCount > 0) Error.copy(alpha = 0.10f)
+                                else Primary.copy(alpha = 0.08f),
+                                RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            tint = if (pendingRefundsCount > 0) Error else Primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Refund Requests",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = if (pendingRefundsCount > 0)
+                                if (pendingRefundsCount == 1) "$pendingRefundsCount Pending Action" else "$pendingRefundsCount Pending Actions"
+                            else "No pending requests",
+                            fontSize = 12.sp,
+                            color = if (pendingRefundsCount > 0) Error else TextSecondary
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Red badge - only shown when there are pending refunds
+                    if (pendingRefundsCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(Error, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = pendingRefundsCount.toString(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -823,101 +922,6 @@ fun QuickAccessCardWithIcon(
     }
 }
 
-// ── Sales Overview ────────────────────────────────────────────────────────────
-
-@Composable
-fun SalesOverview(stats: DashboardStats) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = "Sales Overview",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            item {
-                SalesCard(
-                    label = "Total Sales",
-                    value = "PKR ${formatPrice(stats.totalSales)}",
-                    indicator = "↑ ${stats.salesGrowth.toInt()}% vs last month",
-                    indicatorType = "positive"
-                )
-            }
-            item {
-                SalesCard(
-                    label = "Active Orders",
-                    value = stats.activeOrders.toString(),
-                    indicator = "${stats.pendingOrders} pending, ${stats.processingOrders} processing",
-                    indicatorType = "neutral"
-                )
-            }
-            item {
-                SalesCard(
-                    label = "Total Products",
-                    value = stats.totalProducts.toString(),
-                    indicator = "↑ ${stats.productsThisWeek} added this week",
-                    indicatorType = if (stats.productsThisWeek > 0) "positive" else "neutral"
-                )
-            }
-            item {
-                SalesCard(
-                    label = "This Month's Sale",
-                    value = "PKR ${formatPrice(stats.monthSales)}",
-                    indicator = "↑ 18% growth",
-                    indicatorType = "positive"
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SalesCard(
-    label: String,
-    value: String,
-    indicator: String,
-    indicatorType: String
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier
-            .width(148.dp)
-            .heightIn(min = 108.dp)
-    ) {
-        Column(modifier = Modifier.padding(13.dp)) {
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                color = TextSecondary,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-            Text(
-                text = value,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                modifier = Modifier.padding(bottom = 5.dp)
-            )
-            HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(bottom = 6.dp))
-            Text(
-                text = indicator,
-                fontSize = 11.sp,
-                color = when (indicatorType) {
-                    "positive" -> Success
-                    "negative" -> Error
-                    else -> TextSecondary
-                },
-                lineHeight = 14.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
 // ── Recent Activity ───────────────────────────────────────────────────────────
 
 @Composable
@@ -1012,45 +1016,45 @@ fun RecentActivitySection(activities: List<Activity>, onViewAll: () -> Unit) {
 
 @Composable
 fun ActivityItem(activity: Activity) {
-    val (bgColor, iconColor, icon, emoji) = when (activity.type) {
-        "NEW_ORDER", "ORDER_CONFIRMED" -> Quadruple(
-            Color(0xFFE3F2FD), Color(0xFF1976D2), Icons.Default.ShoppingCart, "🛒"
+    val (bgColor, iconColor, icon) = when (activity.type) {
+        "NEW_ORDER", "ORDER_CONFIRMED" -> Triple(
+            Color(0xFFE3F2FD), Color(0xFF1976D2), Icons.Default.ShoppingCart
         )
-        "PRODUCT_ADDED", "PRODUCT_UPDATED", "PRODUCT_APPROVED" -> Quadruple(
-            Color(0xFFE8F5E8), Color(0xFF388E3C), Icons.Default.Inventory, "📦"
+        "PRODUCT_ADDED", "PRODUCT_UPDATED", "PRODUCT_APPROVED" -> Triple(
+            Color(0xFFE8F5E8), Color(0xFF388E3C), Icons.Default.Inventory
         )
-        "ORDER_SHIPPED", "ORDER_OUT_FOR_DELIVERY" -> Quadruple(
-            Color(0xFFF3E5F5), Color(0xFF7B1FA2), Icons.Default.LocalShipping, "🚚"
+        "ORDER_SHIPPED", "ORDER_OUT_FOR_DELIVERY" -> Triple(
+            Color(0xFFF3E5F5), Color(0xFF7B1FA2), Icons.Default.LocalShipping
         )
-        "ORDER_PROCESSING" -> Quadruple(
-            Color(0xFFFFF3E0), Color(0xFFFF9800), Icons.Default.Settings, "⚙️"
+        "ORDER_PROCESSING" -> Triple(
+            Color(0xFFFFF3E0), Color(0xFFFF9800), Icons.Default.Settings
         )
-        "ORDER_DELIVERED" -> Quadruple(
-            Color(0xFFE8F5E8), Color(0xFF4CAF50), Icons.Default.CheckCircle, "✅"
+        "ORDER_DELIVERED" -> Triple(
+            Color(0xFFE8F5E8), Color(0xFF4CAF50), Icons.Default.CheckCircle
         )
-        "PAYMENT_RECEIVED", "PAYOUT_PROCESSED" -> Quadruple(
-            Color(0xFFE0F2F1), Color(0xFF00796B), Icons.Default.Payment, "💰"
+        "PAYMENT_RECEIVED", "PAYOUT_PROCESSED" -> Triple(
+            Color(0xFFE0F2F1), Color(0xFF00796B), Icons.Default.Payment
         )
-        "STORE_RATING_RECEIVED" -> Quadruple(
-            Color(0xFFFFFDE7), Color(0xFFF57F17), Icons.Default.Star, "⭐"
+        "STORE_RATING_RECEIVED" -> Triple(
+            Color(0xFFFFFDE7), Color(0xFFF57F17), Icons.Default.Star
         )
-        "NEGOTIATION_REQUEST" -> Quadruple(
-            Color(0xFFE1F5FE), Color(0xFF0277BD), Icons.Default.LocalOffer, "💬"
+        "NEGOTIATION_REQUEST" -> Triple(
+            Color(0xFFE1F5FE), Color(0xFF0277BD), Icons.Default.LocalOffer
         )
-        "PRODUCT_SOLD_OUT", "LOW_STOCK_ALERT" -> Quadruple(
-            Color(0xFFFFF3E0), Color(0xFFFF9800), Icons.Default.Warning, "⚠️"
+        "PRODUCT_SOLD_OUT", "LOW_STOCK_ALERT" -> Triple(
+            Color(0xFFFFF3E0), Color(0xFFFF9800), Icons.Default.Warning
         )
-        "STOCK_REPLENISHED" -> Quadruple(
-            Color(0xFFE8F5E8), Color(0xFF4CAF50), Icons.Default.AddCircle, "➕"
+        "STOCK_REPLENISHED" -> Triple(
+            Color(0xFFE8F5E8), Color(0xFF4CAF50), Icons.Default.AddCircle
         )
-        "PRODUCT_REJECTED" -> Quadruple(
-            Color(0xFFFFEBEE), Color(0xFFD32F2F), Icons.Default.Cancel, "❌"
+        "PRODUCT_REJECTED" -> Triple(
+            Color(0xFFFFEBEE), Color(0xFFD32F2F), Icons.Default.Cancel
         )
-        "ACCOUNT_VERIFIED", "PROFILE_UPDATED", "SETTINGS_CHANGED" -> Quadruple(
-            Color(0xFFF5F5F5), Color(0xFF757575), Icons.Default.Info, "ℹ️"
+        "ACCOUNT_VERIFIED", "PROFILE_UPDATED", "SETTINGS_CHANGED" -> Triple(
+            Color(0xFFF5F5F5), Color(0xFF757575), Icons.Default.Info
         )
-        else -> Quadruple(
-            Color(0xFFF5F5F5), Color(0xFF757575), Icons.Default.Info, "ℹ️"
+        else -> Triple(
+            Color(0xFFF5F5F5), Color(0xFF757575), Icons.Default.Info
         )
     }
 
@@ -1109,13 +1113,6 @@ fun ActivityItem(activity: Activity) {
         }
     }
 }
-
-private data class Quadruple<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D
-)
 
 fun formatActivityTime(timestampMillis: Long): String {
     val now = System.currentTimeMillis()

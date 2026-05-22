@@ -437,6 +437,14 @@ object DashboardDataHelper {
     /**
      * Adds sample payment data for testing payment history
      */
+    /**
+     * ⚠️ DEPRECATED: This function should NOT be used in production.
+     * It was causing deleted payments to reappear with new IDs.
+     * Payments should only be created from actual orders, not sample data.
+     * 
+     * Kept for reference only - do not call this function.
+     */
+    @Deprecated("Do not use - causes fake payments to reappear. Payments should only come from real orders.")
     suspend fun addSamplePaymentData(sellerId: String, sellerName: String) {
         val db = FirebaseFirestore.getInstance()
         
@@ -601,6 +609,7 @@ object DashboardDataHelper {
     }
     /**
      * Convenience function to add both products and activities
+     * ⚠️ NOTE: Removed addSamplePaymentData() call - payments should only come from real orders
      */
     suspend fun setupSellerDashboard(
         sellerId: String,
@@ -613,7 +622,7 @@ object DashboardDataHelper {
 
         addSellerProducts(sellerId, sellerName, isVerified)
         addSellerActivities(sellerId)
-        addSamplePaymentData(sellerId, sellerName)  // ✅ NEW: Add payment data
+        // ✅ REMOVED: addSamplePaymentData(sellerId, sellerName) - payments should only come from real orders
 
         Log.d("DashboardData", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         Log.d("DashboardData", "✅ Dashboard setup completed!")
@@ -621,8 +630,13 @@ object DashboardDataHelper {
     }
 
     /**
-     * Setup payment data only (for existing sellers)
+     * ⚠️ DEPRECATED: This function should NOT be used in production.
+     * It was causing deleted payments to reappear with new IDs.
+     * Payments should only be created from actual orders, not sample data.
+     * 
+     * Kept for reference only - do not call this function.
      */
+    @Deprecated("Do not use - causes fake payments to reappear. Payments should only come from real orders.")
     suspend fun setupPaymentDataOnly(sellerId: String, sellerName: String) {
         Log.d("DashboardData", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         Log.d("DashboardData", "💳 Setting up payment data for: $sellerName")

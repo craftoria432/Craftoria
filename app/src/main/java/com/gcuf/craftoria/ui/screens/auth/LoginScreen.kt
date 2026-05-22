@@ -35,6 +35,7 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import com.gcuf.craftoria.R
@@ -56,6 +57,7 @@ import com.google.android.gms.common.api.ApiException
 fun LoginScreen(
     onNavigateToVerification: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToRoleSelection: (userId: String, userName: String) -> Unit,
     onNavigateToLoginTab: () -> Unit,
     onNavigateToSignUpTab: () -> Unit,
     viewModel: AuthViewModel? = null
@@ -66,6 +68,7 @@ fun LoginScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val authState = vm?.authState?.collectAsState()?.value ?: AuthState.Idle
+    var isNewUser by remember { mutableStateOf(false) }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -73,7 +76,11 @@ fun LoginScreen(
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
-            account?.idToken?.let { idToken -> vm?.signInWithGoogle(idToken) }
+            account?.idToken?.let { idToken ->
+                vm?.signInWithGoogle(idToken) { newUser ->
+                    isNewUser = newUser
+                }
+            }
         } catch (e: ApiException) {
             vm?.setAuthError("Google Sign-In failed: ${e.message}")
         }
@@ -86,7 +93,12 @@ fun LoginScreen(
                     val user = vm.currentUser.value
                     if (user != null) {
                         vm.resetAuthState()
-                        if (user.role == UserRole.SELLER &&
+                        
+                        // ✅ NEW: If this is a new Google user, show role selection
+                        if (isNewUser) {
+                            isNewUser = false  // Reset flag
+                            onNavigateToRoleSelection(user.id, user.name)
+                        } else if (user.role == UserRole.SELLER &&
                             user.verificationStatus != VerificationStatus.APPROVED
                         ) {
                             onNavigateToVerification()
@@ -252,8 +264,8 @@ fun SignUpForm(
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
 
         when (authState) {
-            is AuthState.Success -> MessageCard(message = authState.message, type = MessageType.SUCCESS)
-            is AuthState.Error -> MessageCard(message = authState.message, type = MessageType.ERROR)
+            is AuthState.Success -> MessageCard(message = authState.message, type = UIMessageType.SUCCESS)
+            is AuthState.Error -> MessageCard(message = authState.message, type = UIMessageType.ERROR)
             else -> {}
         }
 
@@ -519,11 +531,11 @@ fun LoginForm(
 
         when (authState) {
             is AuthState.Success -> {
-                MessageCard(authState.message, MessageType.SUCCESS)
+                MessageCard(authState.message, UIMessageType.SUCCESS)
                 Spacer(modifier = Modifier.height(12.dp))
             }
             is AuthState.Error -> {
-                MessageCard(authState.message, MessageType.ERROR)
+                MessageCard(authState.message, UIMessageType.ERROR)
                 Spacer(modifier = Modifier.height(12.dp))
             }
             else -> {}
@@ -651,40 +663,59 @@ fun LoginForm(
     }
 }
 
-// ── Forgot Password Dialog ────────────────────────────────────────────────────
+// ── Forgot Password Dialog (3-step OTP flow) ─────────────────────────────────
 
 @Composable
 fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
+    // Step 0 = enter email, Step 1 = enter OTP, Step 2 = enter new password, Step 3 = success
+    var step by remember { mutableIntStateOf(0) }
     var email by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var resendCountdown by remember { mutableIntStateOf(0) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    // Countdown timer for resend OTP
+    LaunchedEffect(resendCountdown) {
+        if (resendCountdown > 0) {
+            kotlinx.coroutines.delay(1000L)
+            resendCountdown--
+        }
+    }
+
+    Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Gradient header band
+                // Gradient header
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(listOf(Primary, PrimaryLight))
-                        )
+                        .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
                         .padding(18.dp)
                 ) {
                     Column {
                         Text(
-                            text = "Reset Password",
+                            text = when (step) {
+                                0 -> "Reset Password"
+                                1 -> "Enter OTP"
+                                else -> "Password Reset Complete"
+                            },
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = "We'll send a reset link to your email",
+                            text = when (step) {
+                                0 -> "We'll send a 6-digit OTP to your email"
+                                1 -> "OTP sent to $email"
+                                else -> "Check your email to complete reset"
+                            },
                             fontSize = 11.sp,
                             color = Color.White.copy(alpha = 0.80f)
                         )
@@ -695,90 +726,223 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    successMessage?.let { MessageCard(message = it, type = MessageType.SUCCESS) }
-                    errorMessage?.let { MessageCard(message = it, type = MessageType.ERROR) }
+                    errorMessage?.let { MessageCard(message = it, type = UIMessageType.ERROR) }
 
-                    CraftoriaTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = "Email Address",
-                        required = true,
-                        placeholder = "Enter your email",
-                        keyboardType = KeyboardType.Email,
-                        leadingIconVector = Icons.Default.Email
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            border = BorderStroke(0.5.dp, BorderColor),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                        ) {
-                            Text(
-                                "Cancel",
-                                fontSize = 13.sp,
-                                color = TextSecondary,
-                                fontWeight = FontWeight.SemiBold
+                    when (step) {
+                        // ── Step 0: Email input ───────────────────────────────
+                        0 -> {
+                            CraftoriaTextField(
+                                value = email,
+                                onValueChange = { email = it; errorMessage = null },
+                                label = "Email Address",
+                                required = true,
+                                placeholder = "Enter your registered email",
+                                keyboardType = KeyboardType.Email,
+                                leadingIconVector = Icons.Default.Email
                             )
-                        }
 
-                        Button(
-                            onClick = {
-                                if (email.isNotBlank()) {
-                                    isLoading = true
-                                    successMessage = null; errorMessage = null
-                                    viewModel?.resetPassword(email) { success, error ->
-                                        isLoading = false
-                                        if (success) {
-                                            successMessage = "Reset email sent! Check your inbox."
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = onDismiss,
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    border = BorderStroke(0.5.dp, BorderColor),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                                ) {
+                                    Text("Cancel", fontSize = 13.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        if (email.isNotBlank()) {
+                                            isLoading = true
                                             errorMessage = null
-                                        } else {
-                                            errorMessage = error ?: "Failed to send reset email"
-                                            successMessage = null
+                                            viewModel?.sendPasswordResetOtp(email.trim()) { success, error ->
+                                                isLoading = false
+                                                if (success) {
+                                                    step = 1
+                                                    resendCountdown = 60 // Start 60s countdown
+                                                } else {
+                                                    errorMessage = error
+                                                }
+                                            }
                                         }
+                                    },
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    enabled = email.isNotBlank() && !isLoading,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                    contentPadding = PaddingValues(0.dp),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                if (email.isNotBlank() && !isLoading)
+                                                    Brush.horizontalGradient(listOf(Primary, PrimaryLight))
+                                                else Brush.horizontalGradient(listOf(TextLight, TextLight)),
+                                                RoundedCornerShape(10.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                        else Text("Send OTP", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                                     }
                                 }
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            enabled = email.isNotBlank() && !isLoading,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            contentPadding = PaddingValues(0.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        if (email.isNotBlank() && !isLoading)
-                                            Brush.horizontalGradient(listOf(Primary, PrimaryLight))
-                                        else
-                                            Brush.horizontalGradient(listOf(TextLight, TextLight)),
-                                        RoundedCornerShape(10.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
+                            }
+                        }
+
+                        // ── Step 1: OTP input ─────────────────────────────────
+                        1 -> {
+                            CraftoriaTextField(
+                                value = otp,
+                                onValueChange = { if (it.length <= 6) { otp = it; errorMessage = null } },
+                                label = "6-Digit OTP",
+                                required = true,
+                                placeholder = "Enter the OTP from your email",
+                                keyboardType = KeyboardType.Number,
+                                leadingIconVector = Icons.Default.Lock
+                            )
+
+                            // Resend OTP link with countdown
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (isLoading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
+                                Text(
+                                    text = "Didn't receive it? ",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                                if (resendCountdown > 0) {
+                                    Text(
+                                        text = "Resend in ${resendCountdown}s",
+                                        fontSize = 12.sp,
+                                        color = TextLight,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 } else {
                                     Text(
-                                        "Send Link",
-                                        fontSize = 13.sp,
+                                        text = "Resend OTP",
+                                        fontSize = 12.sp,
+                                        color = Primary,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
+                                        modifier = Modifier
+                                            .clickable(enabled = !isLoading) {
+                                                isLoading = true
+                                                errorMessage = null
+                                                otp = ""
+                                                viewModel?.sendPasswordResetOtp(email.trim()) { success, error ->
+                                                    isLoading = false
+                                                    if (success) {
+                                                        resendCountdown = 60 // Restart countdown
+                                                        errorMessage = "✓ OTP resent successfully"
+                                                    } else {
+                                                        errorMessage = error
+                                                    }
+                                                }
+                                            }
+                                            .padding(4.dp),
+                                        textDecoration = TextDecoration.Underline
                                     )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        step = 0
+                                        otp = ""
+                                        errorMessage = null
+                                        resendCountdown = 0
+                                    },
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    border = BorderStroke(0.5.dp, BorderColor),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                                ) {
+                                    Text("Back", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        if (otp.length == 6) {
+                                            isLoading = true
+                                            errorMessage = null
+                                            viewModel?.verifyOtpOnly(email.trim(), otp) { success, error ->
+                                                isLoading = false
+                                                if (success) {
+                                                    // OTP verified — now send Firebase reset email
+                                                    viewModel.sendFirebaseResetEmail(email.trim()) { sent, sendError ->
+                                                        isLoading = false
+                                                        if (sent) step = 3
+                                                        else errorMessage = sendError
+                                                    }
+                                                } else {
+                                                    errorMessage = error
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    enabled = otp.length == 6 && !isLoading,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                    contentPadding = PaddingValues(0.dp),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                if (otp.length == 6 && !isLoading)
+                                                    Brush.horizontalGradient(listOf(Primary, PrimaryLight))
+                                                else Brush.horizontalGradient(listOf(TextLight, TextLight)),
+                                                RoundedCornerShape(10.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                        else Text("Verify", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                        // ── Step 3: Success ───────────────────────────────────
+                        else -> {
+                            MessageCard(
+                                message = "✓ Identity verified! A password reset link has been sent to $email.\n\n" +
+                                        "📧 Check your inbox for the reset email. If you don't see it within a few minutes, " +
+                                        "please check your Spam/Junk folder.\n\n" +
+                                        "Click the link in the email to set your new password, then come back here to login.",
+                                type = UIMessageType.SUCCESS
+                            )
+
+                            Button(
+                                onClick = onDismiss,
+                                modifier = Modifier.fillMaxWidth().height(46.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                contentPadding = PaddingValues(0.dp),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)), RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Done", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                                 }
                             }
                         }
@@ -788,16 +952,15 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
         }
     }
 }
-
 // ── Message Card ──────────────────────────────────────────────────────────────
 
-enum class MessageType { SUCCESS, ERROR, INFO }
+enum class UIMessageType { SUCCESS, ERROR, INFO }
 
 @Composable
-fun MessageCard(message: String, type: MessageType) {
+fun MessageCard(message: String, type: UIMessageType) {
     val (bgColor, borderColor, textColor) = when (type) {
-        MessageType.SUCCESS -> Triple(Color(0xFFE8F5E8), Success, Color(0xFF2E7D2E))
-        MessageType.ERROR -> Triple(Color(0xFFF8D7DA), Error, Color(0xFF721C24))
+        UIMessageType.SUCCESS -> Triple(Color(0xFFE8F5E8), Success, Color(0xFF2E7D2E))
+        UIMessageType.ERROR -> Triple(Color(0xFFF8D7DA), Error, Color(0xFF721C24))
         else -> Triple(Color(0xFFE3F2FD), Color(0xFF2196F3), Color(0xFF1976D2))
     }
     Surface(
@@ -823,6 +986,7 @@ fun LoginScreenPreview() {
         LoginScreen(
             onNavigateToVerification = {},
             onNavigateToHome = {},
+            onNavigateToRoleSelection = { _, _ -> },
             onNavigateToLoginTab = {},
             onNavigateToSignUpTab = {}
         )

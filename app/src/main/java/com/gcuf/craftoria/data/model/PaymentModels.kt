@@ -63,6 +63,11 @@ data class SellerPayment(
     @set:PropertyName("payment_date")
     var paymentDate: Long? = null,
 
+    // ✅ NEW: Original order/transaction date for accurate history display
+    @get:PropertyName("original_transaction_date")
+    @set:PropertyName("original_transaction_date")
+    var originalTransactionDate: Long? = null,
+
     @get:PropertyName("items_count")
     @set:PropertyName("items_count")
     var itemsCount: Int = 0,
@@ -72,13 +77,31 @@ data class SellerPayment(
     var itemsDetails: List<PaymentItemDetail> = emptyList(),
 
     // Timestamps
+    // ✅ DESIGN NOTE: createdAt and updatedAt are typed as Any? to serve as a safety net
+    // for mixed timestamp formats (Long, Firestore Timestamp, Map, String). However,
+    // this is NOT the primary deserialization path.
+    //
+    // PRIMARY PATH: PaymentRepository.parsePayment() reads these fields manually and
+    // converts them to Long via anyToMillis(). This is the ONLY safe way to deserialize
+    // SellerPayment from Firestore. Never use toObject() or toObjects() — they will
+    // crash with mixed timestamp types.
+    //
+    // The Any? type is a defensive measure: if code somehow bypasses parsePayment()
+    // and calls toObject() directly, the Any? type prevents the reflective deserializer
+    // from crashing. But this should never happen in production — all deserialization
+    // must go through parsePayment().
+    //
+    // Helper functions (getCreatedAtLong(), getUpdatedAtLong()) exist for code that
+    // needs to convert the Any? value to Long, but they duplicate the logic in
+    // parsePayment(). Ideally, all code should use parsePayment() and never need these
+    // helpers. They exist only for defensive compatibility.
     @get:PropertyName("created_at")
     @set:PropertyName("created_at")
-    var createdAt: Long = System.currentTimeMillis(),
+    var createdAt: Any? = System.currentTimeMillis(),
 
     @get:PropertyName("updated_at")
     @set:PropertyName("updated_at")
-    var updatedAt: Long = System.currentTimeMillis(),
+    var updatedAt: Any? = System.currentTimeMillis(),
 
     // Refund info
     @get:PropertyName("refund_amount")
@@ -91,7 +114,7 @@ data class SellerPayment(
 
     @get:PropertyName("refund_date")
     @set:PropertyName("refund_date")
-    var refundDate: Long? = null,
+    var refundDate: Any? = null,  // ✅ Changed to Any? to safely handle both Long and Firestore Timestamp
 
     // Idempotency & Request Tracking
     @get:PropertyName("idempotency_key")
@@ -148,7 +171,10 @@ enum class PaymentStatus {
     PROCESSING,
     COMPLETED,
     FAILED,
-    REFUNDED;
+    REFUND_PENDING,      // ✅ NEW: Buyer submitted refund request
+    REFUND_PROCESSING,   // ✅ NEW: Seller/admin approved, processing
+    REFUNDED,            // ✅ NEW: Refund completed
+    REFUND_REJECTED;     // ✅ NEW: Refund rejected
 
     override fun toString(): String = name.lowercase()
 
@@ -157,15 +183,21 @@ enum class PaymentStatus {
         PROCESSING -> "Processing"
         COMPLETED -> "Completed"
         FAILED -> "Failed"
+        REFUND_PENDING -> "Refund Pending"
+        REFUND_PROCESSING -> "Refund Processing"
         REFUNDED -> "Refunded"
+        REFUND_REJECTED -> "Refund Rejected"
     }
 
     fun getStatusColor(): String = when (this) {
-        PENDING -> "#FFA500"      // Orange
-        PROCESSING -> "#4169E1"   // Royal Blue
-        COMPLETED -> "#28A745"    // Green
-        FAILED -> "#DC3545"       // Red
-        REFUNDED -> "#6C757D"     // Gray
+        PENDING -> "#FFA500"           // Orange
+        PROCESSING -> "#4169E1"        // Royal Blue
+        COMPLETED -> "#28A745"         // Green
+        FAILED -> "#DC3545"            // Red
+        REFUND_PENDING -> "#FFA500"    // Orange
+        REFUND_PROCESSING -> "#2196F3" // Blue
+        REFUNDED -> "#9C27B0"          // Purple
+        REFUND_REJECTED -> "#757575"   // Gray
     }
 }
 
@@ -184,13 +216,14 @@ fun SellerPayment.toMap(): Map<String, Any> = mapOf(
     "transaction_id" to transactionId,
     "status" to status,
     "payment_date" to (paymentDate ?: 0L),
+    "original_transaction_date" to (originalTransactionDate ?: getCreatedAtLong()),
     "items_count" to itemsCount,
     "items_details" to itemsDetails.map { it.toMap() },
-    "created_at" to createdAt,
-    "updated_at" to updatedAt,
+    "created_at" to getCreatedAtLong(),
+    "updated_at" to getUpdatedAtLong(),
     "refund_amount" to refundAmount,
     "refund_reason" to refundReason,
-    "refund_date" to (refundDate ?: 0L),
+    "refund_date" to getRefundDateLong(),  // ✅ Use safe conversion helper
     "involved_seller_ids" to involvedSellerIds,
     "payment_splits" to paymentSplits.map { it.toMap() },
     "idempotency_key" to idempotencyKey,
@@ -213,6 +246,21 @@ fun PaymentSplit.toMap(): Map<String, Any> = mapOf(
     "status" to status
 )
 
+// ✅ Extension function for PaymentSplit.copy() to support immutable updates
+fun PaymentSplit.copy(
+    sellerId: String = this.sellerId,
+    sellerName: String = this.sellerName,
+    splitPercentage: Double = this.splitPercentage,
+    splitAmount: Double = this.splitAmount,
+    status: String = this.status
+): PaymentSplit = PaymentSplit(
+    sellerId = sellerId,
+    sellerName = sellerName,
+    splitPercentage = splitPercentage,
+    splitAmount = splitAmount,
+    status = status
+)
+
 /* -------------------- Helpers -------------------- */
 fun SellerPayment.getStatusEnum(): PaymentStatus =
     try {
@@ -221,8 +269,85 @@ fun SellerPayment.getStatusEnum(): PaymentStatus =
         PaymentStatus.PENDING
     }
 
-fun SellerPayment.getCreatedAtLong(): Long = createdAt
+fun SellerPayment.getCreatedAtLong(): Long = when (createdAt) {
+    is Long -> createdAt as Long
+    is com.google.firebase.Timestamp -> (createdAt as com.google.firebase.Timestamp).toDate().time
+    is Number -> (createdAt as Number).toLong()
+    is String -> (createdAt as String).toLongOrNull() ?: 0L
+    is Map<*, *> -> {
+        val map = createdAt as Map<*, *>
+        val seconds = (map["_seconds"] as? Long) ?: (map["seconds"] as? Long) ?: 0L
+        val nanos = (map["_nanoseconds"] as? Long) ?: (map["nanoseconds"] as? Long) ?: 0L
+        (seconds * 1000) + (nanos / 1_000_000)
+    }
+    null -> System.currentTimeMillis()
+    else -> 0L
+}
 
-fun SellerPayment.getUpdatedAtLong(): Long = updatedAt
+fun SellerPayment.getUpdatedAtLong(): Long = when (updatedAt) {
+    is Long -> updatedAt as Long
+    is com.google.firebase.Timestamp -> (updatedAt as com.google.firebase.Timestamp).toDate().time
+    is Number -> (updatedAt as Number).toLong()
+    is String -> (updatedAt as String).toLongOrNull() ?: 0L
+    is Map<*, *> -> {
+        val map = updatedAt as Map<*, *>
+        val seconds = (map["_seconds"] as? Long) ?: (map["seconds"] as? Long) ?: 0L
+        val nanos = (map["_nanoseconds"] as? Long) ?: (map["nanoseconds"] as? Long) ?: 0L
+        (seconds * 1000) + (nanos / 1_000_000)
+    }
+    null -> System.currentTimeMillis()
+    else -> 0L
+}
 
 fun SellerPayment.getPaymentDateLong(): Long = paymentDate ?: 0L
+
+// ✅ NEW: Get the most accurate transaction date for display (SELLER-CENTRIC)
+// Priority: payment_date > original_transaction_date > created_at
+// 
+// Rationale for sellers:
+//   - payment_date: When payment was actually confirmed/completed (most relevant for sellers)
+//   - original_transaction_date: When order was placed (useful for historical context)
+//   - created_at: When payment record was created (fallback)
+//
+// Sellers care about when they actually received/confirmed the payment, not when the
+// order was originally placed.
+fun SellerPayment.getDisplayDate(): Long {
+    return when {
+        paymentDate != null -> paymentDate!!
+        originalTransactionDate != null -> originalTransactionDate!!
+        else -> getCreatedAtLong()
+    }
+}
+
+// ✅ NEW: Get the most accurate transaction date for display (BUYER-CENTRIC)
+// Priority: original_transaction_date > payment_date > created_at
+//
+// Rationale for buyers:
+//   - original_transaction_date: When order was placed (most relevant for buyers)
+//   - payment_date: When payment was confirmed (useful for payment tracking)
+//   - created_at: When payment record was created (fallback)
+//
+// Buyers typically care about when they placed the order, not the payment processing date.
+fun SellerPayment.getBuyerDisplayDate(): Long {
+    return when {
+        originalTransactionDate != null -> originalTransactionDate!!
+        paymentDate != null -> paymentDate!!
+        else -> getCreatedAtLong()
+    }
+}
+
+// ✅ NEW: Safely convert refundDate (Any?) to Long
+fun SellerPayment.getRefundDateLong(): Long = when (refundDate) {
+    is Long -> refundDate as Long
+    is com.google.firebase.Timestamp -> (refundDate as com.google.firebase.Timestamp).toDate().time
+    is Number -> (refundDate as Number).toLong()
+    is String -> (refundDate as String).toLongOrNull() ?: 0L
+    is Map<*, *> -> {
+        val map = refundDate as Map<*, *>
+        val seconds = (map["_seconds"] as? Long) ?: (map["seconds"] as? Long) ?: 0L
+        val nanos = (map["_nanoseconds"] as? Long) ?: (map["nanoseconds"] as? Long) ?: 0L
+        (seconds * 1000) + (nanos / 1_000_000)
+    }
+    null -> 0L
+    else -> 0L
+}

@@ -33,6 +33,7 @@ import com.gcuf.craftoria.ui.screens.auth.LoginScreen
 import com.gcuf.craftoria.ui.screens.auth.ProfileScreen
 import com.gcuf.craftoria.ui.screens.auth.SettingsScreen
 import com.gcuf.craftoria.ui.screens.auth.SellerVerificationScreen
+import com.gcuf.craftoria.ui.screens.auth.RoleSelectionScreen
 import com.gcuf.craftoria.ui.screens.buyer.MyChatsScreen
 import com.gcuf.craftoria.ui.screens.buyer.*
 import com.gcuf.craftoria.ui.screens.seller.AddProductScreen
@@ -62,13 +63,17 @@ import com.gcuf.craftoria.ui.screens.info.HelpSupportScreen
 import com.gcuf.craftoria.ui.screens.info.PrivacyPolicyScreen
 import com.gcuf.craftoria.ui.screens.info.TermsConditionsScreen
 import com.gcuf.craftoria.ui.screens.seller.SellerPaymentsScreen
+import com.gcuf.craftoria.ui.screens.seller.PaymentDetailScreen
 import com.gcuf.craftoria.ui.screens.buyer.PaymentHistoryScreen
+import com.gcuf.craftoria.ui.screens.seller.SellerRefundManagementScreen
+import com.gcuf.craftoria.ui.screens.seller.SellerRefundDetailScreen
 import com.gcuf.craftoria.viewmodel.WishlistViewModel
 import com.gcuf.craftoria.viewmodel.UnreadMessageViewModel
 import com.gcuf.craftoria.data.repository.PaymentRepository
 import com.gcuf.craftoria.data.model.SellerPayment
 import com.gcuf.craftoria.viewmodel.CoSellerStoreViewModel
 import com.gcuf.craftoria.ui.screens.coseller.CoSellerStorePaymentScreen
+import com.gcuf.craftoria.ui.screens.coseller.CoSellerOrderDetailScreen
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -77,6 +82,9 @@ import kotlinx.coroutines.tasks.await
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Login : Screen("login")
+    object RoleSelection : Screen("role_selection/{userId}/{userName}") {
+        fun createRoute(userId: String, userName: String) = "role_selection/$userId/$userName"
+    }
     object Verification : Screen("verification")
     object Home : Screen("home")
     object Profile : Screen("profile")
@@ -109,6 +117,14 @@ sealed class Screen(val route: String) {
             if (highlightOrderId.isEmpty()) "my_orders" else "my_orders?highlightOrderId=$highlightOrderId"
     }
 
+    object RefundRequest : Screen("refund_request/{orderId}") {
+        fun createRoute(orderId: String) = "refund_request/$orderId"
+    }
+
+    object RefundDetails : Screen("refund_details/{refundId}") {
+        fun createRoute(refundId: String) = "refund_details/$refundId"
+    }
+
     object SellerOrders : Screen("seller_orders?highlightOrderId={highlightOrderId}") {
         fun createRoute(highlightOrderId: String = "") =
             if (highlightOrderId.isEmpty()) "seller_orders" else "seller_orders?highlightOrderId=$highlightOrderId"
@@ -124,10 +140,22 @@ sealed class Screen(val route: String) {
     object AddProduct : Screen("add_product")
     object ManageProducts : Screen("manage_products")
     object NegotiationRequests : Screen("negotiation_requests")
-    object SellerPayments : Screen("seller_payments")  // ✅ Add payments route
+    object SellerPayments : Screen("seller_payments")
+    object SellerPaymentDetail : Screen("seller_payment_detail/{paymentId}") {
+        fun createRoute(paymentId: String) = "seller_payment_detail/$paymentId"
+    }
+
+    // Seller Refund Management
+    object SellerRefundManagement : Screen("seller_refund_management")
+    object SellerRefundDetail : Screen("seller_refund_detail/{refundId}") {
+        fun createRoute(refundId: String) = "seller_refund_detail/$refundId"
+    }
     object CoSellerStorePayments : Screen("coseller_store_payments/{storeId}/{storeName}") {
         fun createRoute(storeId: String, storeName: String) =
             "coseller_store_payments/$storeId/$storeName"
+    }
+    object CoSellerOrderDetail : Screen("coseller_order_detail/{paymentId}") {
+        fun createRoute(paymentId: String) = "coseller_order_detail/$paymentId"
     }
 
     object MyCoSellerStores : Screen("my_coseller_stores")
@@ -224,11 +252,48 @@ fun NavGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onNavigateToRoleSelection = { userId, userName ->
+                    navController.navigate(Screen.RoleSelection.createRoute(userId, userName)) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToLoginTab = {
                     navController.navigate(Screen.Login.route) { launchSingleTop = true }
                 },
                 onNavigateToSignUpTab = {
                     navController.navigate(Screen.Login.route) { launchSingleTop = true }
+                },
+                viewModel = authViewModel
+            )
+        }
+
+        /* ---------------------- ROLE SELECTION (First-time Google users) ---------------------- */
+        composable(
+            route = Screen.RoleSelection.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("userName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            val userName = backStackEntry.arguments?.getString("userName") ?: ""
+
+            RoleSelectionScreen(
+                userId = userId,
+                userName = userName,
+                onRoleSelected = { selectedRole ->
+                    // After role selection, navigate based on role
+                    val destination = if (selectedRole == UserRole.SELLER) {
+                        Screen.Verification.route
+                    } else {
+                        Screen.Home.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.RoleSelection.route) { inclusive = true }
+                    }
+                },
+                onBackClick = {
+                    navController.popBackStack()
                 },
                 viewModel = authViewModel
             )
@@ -398,6 +463,9 @@ fun NavGraph(
                     onNavigateToPayments = {  // ✅ Add payments navigation
                         navController.navigate(Screen.SellerPayments.route)
                     },
+                    onNavigateToRefunds = {  // ✅ Add refunds navigation
+                        navController.navigate(Screen.SellerRefundManagement.route)
+                    },
                     dashboardViewModel = dashboardViewModel
                 )
             }
@@ -438,7 +506,8 @@ fun NavGraph(
                     navController.navigate(Screen.Cart.route)
                 },
                 onChatWithSeller = { sellerId, sellerName ->
-                    navController.navigate("${Screen.Chat.route}/$sellerId/$sellerName")
+                    // Pass productId to chat for product context
+                    navController.navigate("${Screen.Chat.route}/$sellerId/$sellerName?productId=$productId")
                 },
                 onNavigateToStore = { storeId ->
                     navController.navigate("${Screen.StorePublicView.route}/$storeId")
@@ -660,9 +729,47 @@ fun NavGraph(
                 },
                 onNavigateToCart = {
                     navController.navigate(Screen.Cart.route)
+                },
+                onNavigateToRefundRequest = { orderId ->
+                    navController.navigate(Screen.RefundRequest.createRoute(orderId))
                 }
             )
         }
+
+        /* ---------------------- REFUND REQUEST ---------------------- */
+        composable(
+            route = Screen.RefundRequest.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            BuyerRefundRequestScreen(
+                orderId = orderId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        /* ---------------------- REFUND DETAILS ---------------------- */
+        composable(
+            route = Screen.RefundDetails.route,
+            arguments = listOf(
+                navArgument("refundId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val refundId = backStackEntry.arguments?.getString("refundId") ?: ""
+            RefundDetailsScreen(
+                refundId = refundId,
+                onBackClick = { navController.popBackStack() },
+                onContactSupport = {
+                    navController.navigate(Screen.HelpSupport.route)
+                },
+                onViewOrderDetails = { orderId ->
+                    navController.navigate(Screen.OrderDetails.createRoute(orderId))
+                }
+            )
+        }
+
         /* ---------------------- SELLER PROFILE (View Other User's Profile) ---------------------- */
         composable(
             route = Screen.SellerProfile.route,
@@ -740,12 +847,9 @@ fun NavGraph(
                 if (user.role == UserRole.SELLER) {
                     SellerPaymentsScreen(
                         sellerId = user.id,
-                        onBackClick = {
-                            navController.popBackStack()
-                        },
+                        onBackClick = { navController.popBackStack() },
                         onPaymentClick = { paymentId ->
-                            // Navigate to payment details if needed
-                            Log.d("NavGraph", "Payment clicked: $paymentId")
+                            navController.navigate(Screen.SellerPaymentDetail.createRoute(paymentId))
                         }
                     )
                 } else {
@@ -755,6 +859,59 @@ fun NavGraph(
                         }
                     }
                 }
+            }
+        }
+
+        /* ---------------------- SELLER PAYMENT DETAIL ---------------------- */
+        composable(
+            route = Screen.SellerPaymentDetail.route,
+            arguments = listOf(navArgument("paymentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paymentId = backStackEntry.arguments?.getString("paymentId") ?: ""
+            currentUser?.let { user ->
+                if (user.role == UserRole.SELLER) {
+                    PaymentDetailScreen(
+                        paymentId = paymentId,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════════════════════════════ */
+        /* Seller Refund Management                                                        */
+        /* ══════════════════════════════════════════════════════════════════════════════ */
+        composable(Screen.SellerRefundManagement.route) {
+            // Guard: only sellers can access
+            if (currentUser?.role == UserRole.SELLER) {
+                SellerRefundManagementScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onRefundClick = { refundId ->
+                        navController.navigate(Screen.SellerRefundDetail.createRoute(refundId))
+                    }
+                )
+            } else {
+                // Redirect unauthorized users
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            }
+        }
+
+        composable(
+            route = Screen.SellerRefundDetail.route,
+            arguments = listOf(navArgument("refundId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val refundId = backStackEntry.arguments?.getString("refundId") ?: return@composable
+            if (currentUser?.role == UserRole.SELLER) {
+                SellerRefundDetailScreen(
+                    refundId = refundId,
+                    onBackClick = { navController.popBackStack() },
+                    onContactBuyer = { buyerId ->
+                        // Navigate to chat with buyer
+                        navController.navigate("${Screen.Chat.route}/$buyerId/Buyer")
+                    }
+                )
+            } else {
+                LaunchedEffect(Unit) { navController.popBackStack() }
             }
         }
 
@@ -774,10 +931,24 @@ fun NavGraph(
                 storeName = storeName,
                 onBackClick = { navController.popBackStack() },
                 onPaymentClick = { paymentId ->
-                    Log.d("NavGraph", "Payment clicked: $paymentId")
-                    // Navigate to payment details if needed
+                    navController.navigate(Screen.CoSellerOrderDetail.createRoute(paymentId))
                 }
             )
+        }
+
+        /* ---------------------- CO-SELLER ORDER DETAIL ---------------------- */
+        composable(
+            route = Screen.CoSellerOrderDetail.route,
+            arguments = listOf(navArgument("paymentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paymentId = backStackEntry.arguments?.getString("paymentId") ?: ""
+            currentUser?.let { user ->
+                CoSellerOrderDetailScreen(
+                    paymentId = paymentId,
+                    currentUserId = user.id,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
         }
 
         /* ---------------------- NEGOTIATION REQUESTS ---------------------- */
@@ -919,7 +1090,8 @@ fun NavGraph(
                         navController.popBackStack()
                     },
                     onProductClick = { product ->
-                        navController.navigate(Screen.ProductDetails.createRoute(product.id))
+                        // ✅ Use seller preview mode for co-sellers viewing their store products
+                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(product.id))
                     },
                     onAddProductClick = {
                         navController.navigate(Screen.AddProduct.route)
@@ -982,6 +1154,8 @@ fun NavGraph(
         composable(Screen.Notifications.route) {
             currentUser?.let { user ->
                 val coSellerStoreViewModel: com.gcuf.craftoria.viewmodel.CoSellerStoreViewModel =
+                    viewModel()
+                val notificationViewModel: com.gcuf.craftoria.viewmodel.NotificationViewModel =
                     viewModel()
                 val coroutineScope = rememberCoroutineScope()
 
@@ -1163,6 +1337,33 @@ fun NavGraph(
                                 navController.navigate(Screen.Home.route)
                             }
 
+                            NotificationActionType.VIEW_RATING -> {
+                                // Different navigation based on user role
+                                if (user.role == UserRole.SELLER) {
+                                    // Seller: Navigate to store ratings view
+                                    // Shows all ratings received for this store
+                                    val storeId = notification.storeId
+                                    if (storeId.isNotEmpty()) {
+                                        navController.navigate("store_ratings/$storeId")
+                                    }
+                                } else {
+                                    // Buyer: Navigate to rate store dialog
+                                    // Opens dialog to submit rating
+                                    val storeId = notification.storeId
+                                    val orderId = notification.orderId
+                                    if (storeId.isNotEmpty() && orderId.isNotEmpty()) {
+                                        navController.navigate("rate_store/$storeId/$orderId")
+                                    } else if (storeId.isNotEmpty()) {
+                                        navController.navigate("rate_store/$storeId/")
+                                    }
+                                }
+                                
+                                // Mark notification as read
+                                if (!notification.isRead) {
+                                    notificationViewModel.markAsRead(notification.id, user.id)
+                                }
+                            }
+
                             else -> {}
                         }
                     }
@@ -1188,20 +1389,27 @@ fun NavGraph(
 
         /* ---------------------- CHAT ---------------------- */
         composable(
-            route = "${Screen.Chat.route}/{otherUserId}/{otherUserName}",
+            route = "${Screen.Chat.route}/{otherUserId}/{otherUserName}?productId={productId}",
             arguments = listOf(
                 navArgument("otherUserId") { type = NavType.StringType },
-                navArgument("otherUserName") { type = NavType.StringType }
+                navArgument("otherUserName") { type = NavType.StringType },
+                navArgument("productId") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) { backStackEntry ->
             val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
             val otherUserName = backStackEntry.arguments?.getString("otherUserName") ?: ""
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
 
             currentUser?.let { user ->
                 ChatScreen(
                     currentUser = user,
                     otherUserId = otherUserId,
                     otherUserName = otherUserName,
+                    productId = productId,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -1215,6 +1423,54 @@ fun NavGraph(
                         navController.navigate(Screen.OrderDetails.createRoute(orderId))
                     }
                 )
+            }
+        }
+
+        /* ---------------------- STORE RATINGS (Seller View) ---------------------- */
+        composable(
+            route = "store_ratings/{storeId}",
+            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            currentUser?.let { user ->
+                if (user.role == UserRole.SELLER) {
+                    // Placeholder for StoreRatingsScreen
+                    // TODO: Implement StoreRatingsScreen to display all ratings for this store
+                    PlaceholderScreen(
+                        title = "Store Ratings",
+                        onBackClick = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                }
+            }
+        }
+
+        /* ---------------------- RATE STORE (Buyer Dialog) ---------------------- */
+        composable(
+            route = "rate_store/{storeId}/{orderId}",
+            arguments = listOf(
+                navArgument("storeId") { type = NavType.StringType },
+                navArgument("orderId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            currentUser?.let { user ->
+                if (user.role != UserRole.SELLER) {
+                    // Placeholder for RateStoreDialog
+                    // TODO: Implement RateStoreDialog for buyers to submit ratings
+                    PlaceholderScreen(
+                        title = "Rate Store",
+                        onBackClick = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                }
             }
         }
 

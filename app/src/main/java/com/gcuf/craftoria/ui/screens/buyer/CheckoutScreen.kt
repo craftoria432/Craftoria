@@ -69,6 +69,16 @@ fun CheckoutScreen(
     LaunchedEffect(orderState) {
         when (val state = orderState) {
             is OrderState.Success -> {
+                // ✅ Navigate IMMEDIATELY to prevent showing empty cart data
+                onOrderSuccess(state.orderId)
+                
+                // Then clear data and send email in background
+                checkoutViewModel.clearCheckoutData()
+                cartViewModel.resetOrderState()
+                
+                // Clear cart after navigation
+                cartViewModel.clearCartAfterOrder()
+                
                 // Send confirmation email (non-blocking)
                 try {
                     com.gcuf.craftoria.services.EmailService.sendOrderConfirmationEmail(
@@ -82,9 +92,6 @@ fun CheckoutScreen(
                 } catch (e: Exception) {
                     android.util.Log.e("Email", "Failed to send email: ${e.message}")
                 }
-                onOrderSuccess(state.orderId)
-                checkoutViewModel.clearCheckoutData()
-                cartViewModel.resetOrderState()
             }
             is OrderState.Error -> { android.widget.Toast.makeText(context, "Error: ${state.message}", android.widget.Toast.LENGTH_LONG).show() }
             else -> {}
@@ -215,12 +222,6 @@ fun CheckoutScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = "Confirm & Place Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, letterSpacing = 0.3.sp)
                         }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = TextLight, modifier = Modifier.size(11.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Secure & encrypted checkout", fontSize = 11.sp, color = TextLight, textAlign = TextAlign.Center)
                     }
                 }
             }

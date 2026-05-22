@@ -29,7 +29,7 @@ class CoSellerStoreViewModel(
     private var userStoresListener: ListenerRegistration? = null
     private var activeStoresListener: ListenerRegistration? = null
 
-    private val _uiState = MutableStateFlow<CoSellerStoreState>(CoSellerStoreState.Loading)
+    private val _uiState = MutableStateFlow<CoSellerStoreState>(CoSellerStoreState.Idle)
     val uiState: StateFlow<CoSellerStoreState> = _uiState.asStateFlow()
 
     private val _stores = MutableStateFlow<List<CoSellerStore>>(emptyList())
@@ -291,6 +291,20 @@ class CoSellerStoreViewModel(
         }
     }
 
+    fun updatePaymentSplitConfig(storeId: String, splitConfig: Map<String, Double>) {
+        viewModelScope.launch {
+            val result = storeRepository.updatePaymentSplitConfig(storeId, splitConfig)
+            if (result.isSuccess) {
+                _uiState.value = CoSellerStoreState.ActionSuccess("Earnings split saved successfully", storeId)
+                loadStoreDetails(storeId)
+            } else {
+                _uiState.value = CoSellerStoreState.Error(
+                    result.exceptionOrNull()?.message ?: "Failed to save split config"
+                )
+            }
+        }
+    }
+
     fun deleteProduct(productId: String, storeId: String) {
         viewModelScope.launch {
             try {
@@ -331,7 +345,7 @@ class CoSellerStoreViewModel(
     }
 
     fun resetState() {
-        _uiState.value = CoSellerStoreState.Success
+        _uiState.value = CoSellerStoreState.Idle
     }
 
     override fun onCleared() {
@@ -344,6 +358,7 @@ class CoSellerStoreViewModel(
 
 sealed class CoSellerStoreState
 {
+    object Idle : CoSellerStoreState()
     object Loading : CoSellerStoreState()
     object Success : CoSellerStoreState()
     object Empty : CoSellerStoreState()

@@ -13,8 +13,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -40,15 +47,20 @@ import com.gcuf.craftoria.viewmodel.CartViewModel
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
+import com.gcuf.craftoria.data.model.OrderRefundStatus
 import com.gcuf.craftoria.ui.components.OrderDetailsDialog
 import com.gcuf.craftoria.ui.components.CancelOrderDialog
+import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.components.OrderTrackingDialog
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
 import com.gcuf.craftoria.data.model.getStatusEnum
+import com.gcuf.craftoria.data.model.getRefundStatusEnum
 import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.gcuf.craftoria.data.model.getDeliveredAtLong
 import com.gcuf.craftoria.ui.theme.*
-import com.gcuf.craftoria.ui.theme.BorderStyles
 import com.gcuf.craftoria.utils.CloudinaryManager
+import com.gcuf.craftoria.utils.OrderRefundState
+import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.viewmodel.OrderViewModel
 import com.gcuf.craftoria.viewmodel.OrderActionState
 import java.text.SimpleDateFormat
@@ -64,6 +76,7 @@ fun MyOrdersScreen(
     onBackClick: () -> Unit,
     onNavigateToProduct: (String) -> Unit,
     onNavigateToCart: () -> Unit,
+    onNavigateToRefundRequest: (String) -> Unit = {},
     orderViewModel: OrderViewModel = viewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -86,7 +99,7 @@ fun MyOrdersScreen(
 
     var highlightedOrderId by remember { mutableStateOf(highlightOrderId) }
     var shouldScrollToHighlighted by remember { mutableStateOf(highlightOrderId.isNotEmpty()) }
-    
+
     // ✅ LazyListState for autoscroll functionality
     val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
 
@@ -129,7 +142,6 @@ fun MyOrdersScreen(
                 showCancelDialog = false
                 selectedOrder = null
                 orderViewModel.resetActionState()
-                if (userId.isNotEmpty()) orderViewModel.loadUserOrders(userId)
             }
             is OrderActionState.Error -> {
                 showCancelDialog = false
@@ -278,7 +290,7 @@ fun MyOrdersScreen(
                                         }
                                     }
                                 },
-                                onTrackOrder = { 
+                                onTrackOrder = {
                                     selectedOrder = order
                                     showTrackingDialog = true
                                     // ✅ Autoscroll to this order
@@ -293,6 +305,10 @@ fun MyOrdersScreen(
                                 onReorder = {
                                     coroutineScope.launch { cartViewModel.reorder(userId, order) }
                                     onNavigateToCart()
+                                },
+                                onRequestRefund = {
+                                    // ✅ Navigate to refund request screen
+                                    onNavigateToRefundRequest(order.id)
                                 }
                             )
                         }
@@ -415,6 +431,7 @@ fun OrderFilterTabs(
         Pair(OrderStatus.PROCESSING, "Processing"),
         Pair(OrderStatus.SHIPPED, "Shipped"),
         Pair(OrderStatus.DELIVERED, "Delivered"),
+        Pair(OrderStatus.COMPLETED, "Completed"),
         Pair(OrderStatus.CANCELLED, "Cancelled")
     )
 
@@ -466,9 +483,69 @@ fun OrderCard(
     onViewDetails: () -> Unit,
     onTrackOrder: () -> Unit,
     onCancelOrder: () -> Unit,
-    onReorder: () -> Unit
+    onReorder: () -> Unit,
+    onRequestRefund: () -> Unit = {}
 ) {
     val status = order.getStatusEnum()
+    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+    // ✅ FIX: Start with null (loading) so no button flashes
+    // Once listener fires, update to actual state (NONE, REQUESTED, etc.)
+    // This eliminates the 200ms flash of "Request Refund" before real state loads
+    var refundState by remember(order.id) {
+        mutableStateOf<OrderRefundState?>(null)
+    }
+
+    DisposableEffect(order.id, currentUserId) {
+        if (currentUserId.isEmpty()) {
+            refundState = OrderRefundState.NONE
+            return@DisposableEffect onDispose { }
+        }
+
+        val orderStatus = order.getStatusEnum()
+        if (orderStatus !in listOf(OrderStatus.DELIVERED, OrderStatus.COMPLETED)) {
+            refundState = OrderRefundState.NONE
+            return@DisposableEffect onDispose { }
+        }
+
+        // ✅ FIX: Use real-time listener instead of one-shot query
+        // This ensures the button updates immediately when seller approves/rejects
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val query = db.collection("refunds")
+            .whereEqualTo("order_id", order.id)
+            .whereEqualTo("buyer_id", currentUserId)
+            .limit(5)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.e("OrderCard", "Error listening to refunds", error)
+                refundState = OrderRefundState.NONE
+                return@addSnapshotListener
+            }
+
+            try {
+                refundState = if (snapshot == null || snapshot.documents.isEmpty()) {
+                    OrderRefundState.NONE
+                } else {
+                    // ✅ FIX: Pick the document with the best terminal state, not just the latest timestamp.
+                    // When multiple refund docs exist (e.g. a completed refund + a later-rejected resubmission),
+                    // maxByOrNull { timestamp } picks the wrong one. Instead, rank by status priority.
+                    val best = snapshot.documents.maxByOrNull { com.gcuf.craftoria.utils.docPriority(it) }
+                    if (best == null) OrderRefundState.NONE else {
+                        com.gcuf.craftoria.utils.docToRefundState(best)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("OrderCard", "Error processing refund snapshot", e)
+                refundState = OrderRefundState.NONE
+            }
+        }
+
+        // ✅ Clean up listener when composable is disposed
+        onDispose {
+            listener.remove()
+        }
+    }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -486,6 +563,9 @@ fun OrderCard(
         onClick = {
             if (isSelectionMode && status in listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.SHIPPED, OrderStatus.PROCESSING)) {
                 onSelectionToggle()
+            } else {
+                // ✅ Allow clicking the card to view details in normal mode
+                onViewDetails()
             }
         }
     ) {
@@ -512,10 +592,43 @@ fun OrderCard(
                     }
                     Column {
                         Text(text = "#${order.id.take(8).uppercase()}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1)
-                        Text(text = "Placed on ${formatDate(order.getCreatedAtLong())}", fontSize = 11.sp, color = TextLight, modifier = Modifier.padding(top = 1.dp), maxLines = 1)
+                        Text(text = "Placed on ${formatMyOrdersDate(order.getCreatedAtLong())}", fontSize = 11.sp, color = TextLight, modifier = Modifier.padding(top = 1.dp), maxLines = 1)
                     }
                 }
-                OrderStatusBadge(status = status)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // ✅ Check refund_status directly from order model — no listener needed
+                    val refundStatusEnum = order.getRefundStatusEnum()
+                    
+                    if (refundStatusEnum == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                        // Show ONLY the refunded badge when refund is completed
+                        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Undo,
+                                    contentDescription = "Refunded",
+                                    tint = Color(0xFF9C27B0),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Refunded",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF9C27B0)
+                                )
+                            }
+                        }
+                    } else {
+                        // Show order status badge when NOT refunded
+                        OrderStatusBadge(status = status)
+                    }
+                }
             }
 
             HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
@@ -640,13 +753,17 @@ fun OrderCard(
                 Text(text = "PKR ${order.totalPrice.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             }
 
+            // ✅ Always render action buttons with proper state
+            // Show actual button state immediately without placeholder flicker
             OrderActionButtons(
                 order = order,
                 isHighlighted = isHighlighted,
+                refundState = refundState,
                 onViewDetails = onViewDetails,
                 onTrackOrder = onTrackOrder,
                 onCancelOrder = onCancelOrder,
-                onReorder = onReorder
+                onReorder = onReorder,
+                onRequestRefund = onRequestRefund
             )
         }
     }
@@ -655,7 +772,7 @@ fun OrderCard(
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
 @Composable
-fun OrderStatusBadge(status: OrderStatus) {
+private fun LegacyOrderStatusBadge(status: OrderStatus) {
     val (backgroundColor, textColor) = when (status) {
         OrderStatus.PENDING -> Pair(Color(0xFFFFF3CD), Color(0xFF856404))
         OrderStatus.PROCESSING, OrderStatus.CONFIRMED -> Pair(Color(0xFFE3F2FD), Color(0xFF1976D2))
@@ -684,10 +801,12 @@ fun OrderStatusBadge(status: OrderStatus) {
 fun OrderActionButtons(
     order: Order,
     isHighlighted: Boolean = false,
+    refundState: OrderRefundState?,
     onViewDetails: () -> Unit,
     onTrackOrder: () -> Unit,
     onCancelOrder: () -> Unit,
-    onReorder: () -> Unit
+    onReorder: () -> Unit,
+    onRequestRefund: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -744,18 +863,161 @@ fun OrderActionButtons(
             }
 
             OrderStatus.DELIVERED, OrderStatus.COMPLETED -> {
-                TrackOrderButton(
-                    onClick = onTrackOrder,
-                    modifier = Modifier.weight(1f).height(38.dp),
-                    isHighlighted = isHighlighted
-                )
+                val deliveredAt = order.getDeliveredAtLong()
+                val effectiveDate = if (deliveredAt > 0) deliveredAt else order.getCreatedAtLong()
+                val withinWindow = (System.currentTimeMillis() - effectiveDate) / 86_400_000L <= 30
+                
+                // ── Left button — driven by refundState ──────────────────────────────────
+                // ✅ FIX: Start with null (loading) so no button shows until listener fires.
+                // Once listener fires, show actual state (NONE, REQUESTED, APPROVED, etc).
+                // This eliminates the 200ms flash of "Request Refund" before real state loads.
+                if (refundState != null) {
+                    when (refundState) {
+                    OrderRefundState.REQUESTED -> {
+                        // ✅ Orange "Refund Pending" — no spinner, stable layout
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Warning),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Warning),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(13.dp), tint = Warning)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refund Pending", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.APPROVED -> {
+                        // ✅ FIX: was showing "Refund" + spinning indicator (truncated).
+                        // Now shows full "Refund Approved" with CheckCircle icon in blue.
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2196F3)),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2196F3)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.CheckCircleOutline, contentDescription = null, modifier = Modifier.size(13.dp), tint = Color(0xFF2196F3))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refund Approved", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.PROCESSING -> {
+                        // Blue "Refund Processing" — small spinner is fine here since
+                        // PROCESSING is a real backend state not a loading placeholder
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2196F3)),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2196F3)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(13.dp), tint = Color(0xFF2196F3))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Processing", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.COMPLETED -> {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Success),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Success),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(13.dp), tint = Success)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refund Done", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.REJECTED -> {
+                        OutlinedButton(
+                            onClick = onRequestRefund,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Warning),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Warning),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(13.dp), tint = Warning)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Resubmit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.FINAL_DECISION -> {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF757575)),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF9E9E9E)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Block, contentDescription = null, modifier = Modifier.size(13.dp), tint = Color(0xFF757575))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refund Denied", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.FAILED -> {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Error),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Error.copy(alpha = 0.60f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Error, contentDescription = null, modifier = Modifier.size(13.dp), tint = Error)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refund Failed", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    OrderRefundState.NONE -> {
+                        if (withinWindow) {
+                            OutlinedButton(
+                                onClick = onRequestRefund,
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6B35)),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFFF6B35)),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Request Refund", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = onViewDetails,
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("View Details", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    }
+                } else {
+                    // ✅ Loading state: show placeholder with same height to prevent layout shift
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .background(Color.Transparent)
+                    )
+                }
+                // ── Right button — always Reorder ─────────────────────────────────────────
                 OutlinedButton(
                     onClick = onReorder,
                     modifier = Modifier.weight(1f).height(38.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
                     shape = RoundedCornerShape(10.dp)
-                ) { Text(text = "Reorder", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                ) {
+                    Text("Reorder", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
             OrderStatus.CANCELLED -> {
@@ -779,11 +1041,11 @@ fun TrackOrderButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    
+
     // Pink colors - consistent across app
     val hoverPink = Color(0xFFFFE4E1)  // Light pink for hover background
     val hoverPinkBorder = Color(0xFFE91E8C)  // Pink border for hover
-    
+
     Button(
         onClick = onClick,
         modifier = modifier
@@ -872,5 +1134,4 @@ fun EmptyOrdersState(filterType: OrderStatus?, onBrowseProducts: () -> Unit) {
 
 // ── Date Helpers ──────────────────────────────────────────────────────────────
 
-fun formatDate(timestamp: Long): String = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(timestamp))
-fun formatDateTime(timestamp: Long): String = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault()).format(Date(timestamp))
+private fun formatMyOrdersDate(timestamp: Long): String = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(timestamp))

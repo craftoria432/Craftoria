@@ -16,82 +16,74 @@ class NotificationRepository {
         private const val TAG = "NotificationRepository"
         private const val MAX_FETCH_LIMIT = 100L
         private const val MAX_RETURN_LIMIT = 50
-        private const val DEFAULT_MEMBER_COUNT = 1
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // getUserNotifications
+    //
+    // BUG FIX 1: UNREAD is a UI-only filter concept — no document ever has
+    // category = "UNREAD" stored in Firestore (toMap() only writes real
+    // categories like ORDERS, SYSTEM etc.).  Passing it to
+    // whereEqualTo("category", "UNREAD") therefore always returns zero results.
+    //
+    // Fix: when category == UNREAD, query by is_read = false instead of by
+    // category. When category == ALL, skip the category filter entirely.
+    // For every other category, filter by the category name as before.
+    //
+    // BUG FIX 2: The original code called
+    // CoSellerMemberCountManager.getAccurateMemberCount() — a suspend function
+    // — inside mapNotNull, which is not a suspend context.  The call compiled
+    // because it was inside a coroutine scope, but it executed synchronously
+    // and blocked the coroutine for every single document in the batch, making
+    // the fetch dramatically slower.  Worse, it also called
+    // notificationsCollection.document(doc.id).update(...) without .await(),
+    // meaning the Firestore write was fire-and-forget and could race with the
+    // read.  Member count enrichment is now handled in the ViewModel after
+    // parsing, and the retroactive Firestore update is removed — the real-time
+    // listener in NotificationCard already keeps member counts live.
+    // ─────────────────────────────────────────────────────────────────────────
     suspend fun getUserNotifications(
         userId: String,
         category: NotificationCategory = NotificationCategory.ALL
     ): Result<List<Notification>> {
         return try {
             Log.d(TAG, "Fetching notifications for user: $userId, category: $category")
+            var query: Query = notificationsCollection.whereEqualTo("user_id", userId)
 
-            var query: Query = notificationsCollection
-                .whereEqualTo("user_id", userId)
-
-            if (category != NotificationCategory.ALL) {
-                query = query.whereEqualTo("category", category.name)
+            when (category) {
+                // ALL → no extra filter; return every notification for the user
+                NotificationCategory.ALL -> { /* no additional where clause */ }
+                // UNREAD → filter by is_read = false, not by a "UNREAD" category string
+                // (UNREAD is not stored as a category value in any document)
+                NotificationCategory.UNREAD -> {
+                    query = query.whereEqualTo("is_read", false)
+                }
+                // Every real category (ORDERS, PAYMENTS, SYSTEM, etc.) → filter by name
+                else -> {
+                    // Documents are written with category in UPPERCASE (see toMap())
+                    query = query.whereEqualTo("category", category.name.uppercase())
+                }
             }
 
-            val snapshot = query
-                .limit(MAX_FETCH_LIMIT)
-                .get()
-                .await()
-
+            val snapshot = query.limit(MAX_FETCH_LIMIT).get().await()
             Log.d(TAG, "Raw documents fetched: ${snapshot.size()}")
 
             val notifications = snapshot.documents.mapNotNull { doc ->
                 try {
-                    Log.d(TAG, "Parsing document: ${doc.id}")
-                    Log.d(TAG, "Document data: ${doc.data}")
-
-                    val parsedNotification = doc.toObject(Notification::class.java)
-                    if (parsedNotification == null) {
-                        Log.w(TAG, "Notification object is null for doc: ${doc.id}")
+                    val parsed = doc.toObject(Notification::class.java)
+                    if (parsed == null) {
+                        Log.w(TAG, "Null notification for doc: ${doc.id}")
                         return@mapNotNull null
                     }
-
-                    var notification = parsedNotification.copy(id = doc.id)
-
-                    // ✅ Enhanced member count handling for co-seller store notifications
-                    if (notification.memberCount == 0 && notification.storeId.isNotEmpty()) {
-                        try {
-                            Log.d(TAG, "Fetching accurate member count for store: ${notification.storeId}")
-                            val accurateMemberCount = com.gcuf.craftoria.utils.CoSellerMemberCountManager.getAccurateMemberCount(notification.storeId)
-                            
-                            notification = notification.copy(memberCount = accurateMemberCount)
-                            Log.d(TAG, "✅ Updated member count for notification ${notification.id}: $accurateMemberCount")
-                            
-                            // ✅ Update the notification in Firestore for future use (retroactive fix)
-                            try {
-                                notificationsCollection.document(doc.id)
-                                    .update("member_count", accurateMemberCount)
-                                Log.d(TAG, "✅ Retroactively updated notification ${doc.id} with member count: $accurateMemberCount")
-                            } catch (updateError: Exception) {
-                                Log.w(TAG, "Could not update notification member count in Firestore", updateError)
-                            }
-                            
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Could not fetch accurate member count for ${notification.storeId}", e)
-                            notification = notification.copy(memberCount = DEFAULT_MEMBER_COUNT)
-                        }
-                    }
-
-                    Log.d(
-                        TAG,
-                        "Successfully parsed notification: ${notification.title}, memberCount: ${notification.memberCount}"
-                    )
-
-                    notification
+                    // Assign the Firestore document ID — the model field defaults to ""
+                    parsed.copy(id = doc.id)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing notification: ${doc.id}, data: ${doc.data}", e)
+                    Log.e(TAG, "Error parsing notification: ${doc.id}", e)
                     null
                 }
-            }
-                .sortedByDescending { it.createdAt }
-                .take(MAX_RETURN_LIMIT)
+            }.sortedByDescending { it.createdAt }.take(MAX_RETURN_LIMIT)
 
-            Log.d(TAG, "Fetched ${notifications.size} notifications")
+            Log.d(TAG, "Returning ${notifications.size} notifications (category=$category)")
             Result.success(notifications)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch notifications", e)
@@ -101,17 +93,12 @@ class NotificationRepository {
 
     suspend fun getUnreadCount(userId: String): Result<Int> {
         return try {
-            Log.d(TAG, "Fetching unread count for user: $userId")
-
             val snapshot = notificationsCollection
                 .whereEqualTo("user_id", userId)
                 .whereEqualTo("is_read", false)
                 .get()
                 .await()
-
-            val count = snapshot.size()
-            Log.d(TAG, "Unread count: $count documents found")
-            Result.success(count)
+            Result.success(snapshot.size())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get unread count", e)
             Result.failure(e)
@@ -120,14 +107,11 @@ class NotificationRepository {
 
     suspend fun markAsRead(notificationId: String): Result<Unit> {
         return try {
-            notificationsCollection.document(notificationId)
-                .update("is_read", true)
-                .await()
-
-            Log.d(TAG, "Notification marked as read: $notificationId")
+            notificationsCollection.document(notificationId).update("is_read", true).await()
+            Log.d(TAG, "Marked as read: $notificationId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to mark notification as read", e)
+            Log.e(TAG, "Failed to mark as read", e)
             Result.failure(e)
         }
     }
@@ -139,28 +123,23 @@ class NotificationRepository {
                 .whereEqualTo("is_read", false)
                 .get()
                 .await()
-
             val batch = db.batch()
             snapshot.documents.forEach { doc ->
                 batch.update(doc.reference, "is_read", true)
             }
             batch.commit().await()
-
             Log.d(TAG, "All notifications marked as read for user: $userId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to mark all notifications as read", e)
+            Log.e(TAG, "Failed to mark all as read", e)
             Result.failure(e)
         }
     }
 
     suspend fun deleteNotification(notificationId: String): Result<Unit> {
         return try {
-            notificationsCollection.document(notificationId)
-                .delete()
-                .await()
-
-            Log.d(TAG, "Notification deleted: $notificationId")
+            notificationsCollection.document(notificationId).delete().await()
+            Log.d(TAG, "Deleted: $notificationId")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete notification", e)
@@ -175,7 +154,6 @@ class NotificationRepository {
                 batch.delete(notificationsCollection.document(id))
             }
             batch.commit().await()
-
             Log.d(TAG, "Deleted ${notificationIds.size} notifications")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -186,10 +164,7 @@ class NotificationRepository {
 
     suspend fun createNotification(notification: Notification): Result<String> {
         return try {
-            val docRef = notificationsCollection
-                .add(notification.toMap())
-                .await()
-
+            val docRef = notificationsCollection.add(notification.toMap()).await()
             Log.d(TAG, "Notification created: ${docRef.id}")
             Result.success(docRef.id)
         } catch (e: Exception) {

@@ -2,10 +2,12 @@ package com.gcuf.craftoria.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gcuf.craftoria.services.MLKitFaceDetectionService
 import com.gcuf.craftoria.services.FaceVerificationResult
+import com.gcuf.craftoria.utils.CloudinaryManager
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.Timestamp
 
-class SellerVerificationViewModel(context: Context) : ViewModel() {
+class SellerVerificationViewModel(private val context: Context) : ViewModel() {
     
     private val faceDetectionService = MLKitFaceDetectionService(context)
     private val firestore = FirebaseFirestore.getInstance()
@@ -25,6 +27,10 @@ class SellerVerificationViewModel(context: Context) : ViewModel() {
     
     private val _verificationResult = MutableStateFlow<FaceVerificationResult?>(null)
     val verificationResult: StateFlow<FaceVerificationResult?> = _verificationResult
+    
+    companion object {
+        private const val TAG = "SellerVerificationVM"
+    }
     
     /**
      * Verify seller identity using ML Kit face detection
@@ -51,18 +57,32 @@ class SellerVerificationViewModel(context: Context) : ViewModel() {
     }
     
     /**
-     * Save ML Kit verification result to Firestore
+     * ✅ PRODUCTION-READY: Save ML Kit verification result to Firestore with Cloudinary upload
+     * This uploads the verification photo to Cloudinary so admin can view it from web dashboard
      */
     suspend fun saveVerificationResultToFirestore(
-        imageUrl: String,
+        imageUri: Uri,
         result: FaceVerificationResult
     ): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
             
+            Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            Log.d(TAG, "📤 Uploading verification photo to Cloudinary...")
+            
+            // ✅ CRITICAL FIX: Upload image to Cloudinary instead of storing local URI
+            val cloudinaryUrl = CloudinaryManager.uploadImage(
+                context = context,
+                imageUri = imageUri,
+                folder = "craftoria/verifications"  // Separate folder for verification photos
+            )
+            
+            Log.d(TAG, "✅ Verification photo uploaded successfully")
+            Log.d(TAG, "🔗 Cloudinary URL: $cloudinaryUrl")
+            
             val verificationData = mapOf(
                 "userId" to userId,
-                "imageUrl" to imageUrl,
+                "imageUrl" to cloudinaryUrl,  // ✅ Now stores Cloudinary URL (accessible from web)
                 "verificationStatus" to "pending",
                 "timestamp" to Timestamp.now(),
                 "mlKitResult" to mapOf(
@@ -80,8 +100,12 @@ class SellerVerificationViewModel(context: Context) : ViewModel() {
                 .set(verificationData)
                 .await()
             
+            Log.d(TAG, "✅ Verification data saved to Firestore")
+            Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            
             true
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save verification result", e)
             false
         }
     }

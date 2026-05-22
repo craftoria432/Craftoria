@@ -34,12 +34,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Order
+import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.model.getCreatedAtLong
 import com.gcuf.craftoria.data.model.getOrderPlacedAtLong
 import com.gcuf.craftoria.data.model.getProcessingAtLong
 import com.gcuf.craftoria.data.model.getShippedAtLong
 import com.gcuf.craftoria.data.model.getDeliveredAtLong
+import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
+import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 
@@ -64,44 +67,36 @@ fun OrderDetailsDialog(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // ── Gradient Header ───────────────────────────────────────────
+                // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Order Details",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "#${order.id.take(8).uppercase()}",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.75f)
-                        )
-                    }
+                    Text(
+                        text = "Order Details",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
                     // Close button in tinted circle
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterEnd)
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.15f)
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
@@ -118,6 +113,12 @@ fun OrderDetailsDialog(
                     SellerDialogSectionCard(icon = Icons.Default.AccessTime, title = "Order Information", tinted = true) {
                         SellerDetailRow("Order ID", "#${order.id.take(8).uppercase()}")
                         SellerDetailRow("Order Date", formatDateTime(order.getCreatedAtLong()))
+                        // ✅ Convert status string to OrderStatus enum safely (outside composable)
+                        val orderStatus = try {
+                            OrderStatus.valueOf(order.status.uppercase())
+                        } catch (e: Exception) {
+                            OrderStatus.PENDING // Fallback if status is not valid
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -126,7 +127,7 @@ fun OrderDetailsDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Status", fontSize = 12.sp, color = TextSecondary)
-                            StatusBadge(status = order.status)
+                            OrderStatusBadge(status = orderStatus)
                         }
                         SellerDetailRow("Payment", order.paymentMethod.ifEmpty { "Cash on Delivery" })
                     }
@@ -464,16 +465,11 @@ fun RejectOrderDialog(order: Order, onConfirm: (String, String) -> Unit, onDismi
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Column {
-                        Text(text = "Reject Order", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(text = "#${order.id.take(8).uppercase()}", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
-                        Box(modifier = Modifier.size(30.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
+                    Text(text = "Reject Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.align(Alignment.CenterStart))
+                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd).size(32.dp), colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.15f))) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
                 Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -541,16 +537,11 @@ fun MarkShippedDialog(onConfirm: (String, String, Long) -> Unit, onDismiss: () -
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Column {
-                        Text(text = "Add Shipping Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(text = "Enter courier and tracking info", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
-                        Box(modifier = Modifier.size(30.dp).background(Color.White.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
+                    Text(text = "Add Shipping Details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.align(Alignment.CenterStart))
+                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd).size(32.dp), colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.15f))) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
                 Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -565,15 +556,22 @@ fun MarkShippedDialog(onConfirm: (String, String, Long) -> Unit, onDismiss: () -
                     Column {
                         Text(text = "Expected Delivery Date *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
                         OutlinedTextField(value = deliveryDate, onValueChange = { deliveryDate = it }, placeholder = { Text("YYYY-MM-DD", fontSize = 13.sp) }, singleLine = true, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
+                        Text(text = "e.g., 2026-04-27", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
                     }
                     Button(
                         onClick = {
                             if (deliveryDate.isNotEmpty()) {
-                                val timestamp = System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000L)
-                                onConfirm(courierName, trackingNumber, timestamp)
+                                try {
+                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                    val date = sdf.parse(deliveryDate)
+                                    val timestamp = date?.time ?: System.currentTimeMillis()
+                                    onConfirm(courierName, trackingNumber, timestamp)
+                                } catch (e: Exception) {
+                                    // Invalid date format - button won't be clicked if validation fails
+                                }
                             }
                         },
-                        enabled = deliveryDate.isNotEmpty(),
+                        enabled = deliveryDate.isNotEmpty() && isValidDateFormat(deliveryDate),
                         modifier = Modifier.fillMaxWidth().height(46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
@@ -655,4 +653,18 @@ fun MarkDeliveredDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             }
         }
     )
+}
+
+
+// ── Helper Functions ─────────────────────────────────────────────────────────
+
+fun isValidDateFormat(dateString: String): Boolean {
+    return try {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        sdf.isLenient = false
+        sdf.parse(dateString)
+        true
+    } catch (e: Exception) {
+        false
+    }
 }

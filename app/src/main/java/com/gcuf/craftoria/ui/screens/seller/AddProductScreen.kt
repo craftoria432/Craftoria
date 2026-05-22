@@ -391,7 +391,7 @@ fun ImageThumbnail(uri: Uri, onRemove: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryDropdown(selectedCategory: String, onCategorySelected: (String) -> Unit) {
-    val categories = listOf("Textiles", "Jewelry", "Home Décor", "Embroidery", "Pottery", "Art & Paintings", "Other Handicrafts")
+    val categories = com.gcuf.craftoria.utils.ProductCategories.ALL
     var expanded by remember { mutableStateOf(false) }
     Column {
         Text(text = "Category *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))

@@ -84,10 +84,8 @@ fun ProfileScreen(
             else -> {}
         }
     }
-    LaunchedEffect(user.id) {
-        Log.d("ProfileScreen", "🔄 Loading user profile: ${user.id}")
-        try { viewModel.listenToVerificationStatus() } catch (e: Exception) { Log.e("ProfileScreen", "❌ Error", e) }
-    }
+    
+    // ✅ REMOVED: listenToUserUpdates() is deprecated - real-time listener is already active in AuthViewModel.observeAuthState()
 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -99,6 +97,8 @@ fun ProfileScreen(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showBecomeSellerDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(displayUser.name) { if (!isEditMode) editedName = displayUser.name }
 
@@ -171,7 +171,8 @@ fun ProfileScreen(
                     onChangePassword = { showPasswordDialog = true },
                     onDeleteAccount = { showDeleteDialog = true },
                     unreadMessageCount = unreadMessageCount,
-                    onLogout = onLogout
+                    onLogout = { showLogoutDialog = true },
+                    onBecomeSellerClick = { showBecomeSellerDialog = true }
                 )
             }
         }
@@ -203,6 +204,27 @@ fun ProfileScreen(
             onConfirm = { showDeleteDialog = false; viewModel.deleteAccount { onLogout() } }
         )
     }
+
+    if (showBecomeSellerDialog) {
+        BecomeSellerConfirmationDialog(
+            onDismiss = { showBecomeSellerDialog = false },
+            onConfirm = {
+                showBecomeSellerDialog = false
+                viewModel.upgradeToSeller(user.id)
+                onNavigateTo("verification")
+            }
+        )
+    }
+
+    if (showLogoutDialog) {
+        LogoutConfirmationDialog(
+            onDismiss = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            }
+        )
+    }
 }
 
 @Composable
@@ -226,7 +248,8 @@ fun ViewModeContent(
     onChangePassword: () -> Unit,
     onDeleteAccount: () -> Unit,
     unreadMessageCount: Int = 0,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onBecomeSellerClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
@@ -285,7 +308,7 @@ fun ViewModeContent(
                                     Text("Join as a seller and reach thousands of customers!", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                                 }
                             }
-                            CraftoriaButton(text = "Become a Seller", onClick = { authViewModel.upgradeToSeller(user.id); onNavigateTo("verification") })
+                            CraftoriaButton(text = "Become a Seller", onClick = onBecomeSellerClick)
                         }
                     }
                 }
@@ -354,13 +377,44 @@ fun ViewModeContent(
                                 }
                                 Column {
                                     Text("Seller Application Rejected", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                                    Text("Your application was not approved. You can try again.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
+                                    if (user.rejectionReason.isNotEmpty()) {
+                                        Text("Reason: ${user.rejectionReason}", fontSize = 11.sp, color = Error, lineHeight = 14.sp, modifier = Modifier.padding(top = 2.dp))
+                                    }
+                                    Text("You can try again or revert to buyer account.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp, modifier = Modifier.padding(top = 2.dp))
                                 }
                             }
-                            CraftoriaButton(text = "Apply Again", onClick = { 
-                                authViewModel.resetSellerApplication(user.id)
-                                onNavigateTo("verification") 
-                            })
+                            // ✅ Two action buttons: Try Again and Revert to Buyer
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedButton(
+                                    onClick = { 
+                                        authViewModel.revertToBuyer(user.id)
+                                    },
+                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = TextSecondary
+                                    ),
+                                    border = BorderStroke(0.5.dp, BorderColor),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Revert to Buyer", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                }
+                                Button(
+                                    onClick = { 
+                                        authViewModel.resetSellerApplication(user.id)
+                                        onNavigateTo("verification") 
+                                    },
+                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Primary
+                                    ),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Try Again", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                         }
                     }
                 }
@@ -542,35 +596,6 @@ fun ViewModeContent(
             items = listOf(IconMenuItem(Icons.Outlined.Palette, "Appearance & Theme", "settings")),
             onItemClick = onNavigateTo
         )
-
-        // Theme Preferences
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(0.dp),
-            border = BorderStroke(0.5.dp, BorderColor),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "APPEARANCE",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary,
-                    letterSpacing = 0.5.sp
-                )
-                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-                
-                Text(
-                    text = "Theme preferences are managed in your account settings.",
-                    fontSize = 12.sp,
-                    color = TextSecondary
-                )
-            }
-        }
 
         // Account / Danger zone
         Card(
@@ -1218,57 +1243,6 @@ fun ProfileHeroBanner(displayUser: User, onEditPhoto: () -> Unit, onEditName: ()
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ── Mini stats row — frosted glass cards ──────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Role card
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.White.copy(alpha = 0.15f),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 9.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = when (displayUser.role) {
-                                UserRole.SELLER -> "Seller"
-                                UserRole.CO_SELLER -> "Co-Seller"
-                                else -> "Buyer"
-                            },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(text = "Account", fontSize = 9.sp, color = Color.White.copy(alpha = 0.75f))
-                    }
-                }
-                // Member since card
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.White.copy(alpha = 0.15f),
-                    modifier = Modifier.weight(1.4f)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 9.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = formatMemberSince(displayUser.createdAt),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(text = "Member Since", fontSize = 9.sp, color = Color.White.copy(alpha = 0.75f))
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
 
             // ── Role + verification badges ────────────────────────────────────
@@ -1307,4 +1281,188 @@ fun ProfileHeroBanner(displayUser: User, onEditPhoto: () -> Unit, onEditName: ()
             }
         }
     }
+}
+
+
+@Composable
+fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp),
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Primary.copy(alpha = 0.08f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Store,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                "Become a Seller?",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "You're about to start your seller journey on Craftoria!",
+                    fontSize = 13.sp,
+                    color = TextPrimary,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "Next steps:",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        "• Complete face verification",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        lineHeight = 18.sp
+                    )
+                    Text(
+                        "• Wait for admin approval (24-48 hours)",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        lineHeight = 18.sp
+                    )
+                    Text(
+                        "• Start selling your products",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                            RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Start Now",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.White
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(0.5.dp, BorderColor),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.height(40.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = TextSecondary
+                )
+            ) {
+                Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    )
+}
+
+@Composable
+fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp),
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Error.copy(alpha = 0.08f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = null,
+                    tint = Error,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                "Logout?",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Text(
+                "Are you sure you want to logout from your account?",
+                fontSize = 13.sp,
+                color = TextSecondary,
+                lineHeight = 20.sp,
+                textAlign = TextAlign.Center
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Error),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Text("Logout", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(0.5.dp, BorderColor),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.height(40.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = TextSecondary
+                )
+            ) {
+                Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    )
 }

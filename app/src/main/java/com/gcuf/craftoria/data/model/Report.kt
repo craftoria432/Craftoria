@@ -10,6 +10,8 @@ data class Report(
     val reporterId: String = "",
     @PropertyName("reporter_name")
     val reporterName: String = "",
+    @PropertyName("reporter_role")
+    val reporterRole: String = "", // "buyer" or "seller"
     @PropertyName("reported_entity_id")
     val reportedEntityId: String = "",
     @PropertyName("reported_entity_name")
@@ -55,6 +57,7 @@ fun Report.toMap(): Map<String, Any> = mapOf(
     },
     "reporter_id" to reporterId,
     "reporter_name" to reporterName,
+    "reporter_role" to reporterRole,
     "reported_entity_id" to reportedEntityId,
     "reported_entity_name" to reportedEntityName,
     "reason" to reason,
@@ -67,3 +70,24 @@ fun Report.toMap(): Map<String, Any> = mapOf(
     "created_at" to createdAt,
     "updated_at" to updatedAt
 )
+
+
+/**
+ * Get allowed report types based on reporter role
+ * Buyer can report: PRODUCT, SELLER, TECHNICAL
+ * Seller can report: BUYER, TECHNICAL
+ */
+fun getAllowedReportTypes(reporterRole: String): List<ReportType> {
+    return when (reporterRole.lowercase()) {
+        "buyer" -> listOf(ReportType.PRODUCT, ReportType.SELLER, ReportType.TECHNICAL)
+        "seller" -> listOf(ReportType.BUYER, ReportType.TECHNICAL)
+        else -> listOf(ReportType.TECHNICAL) // fallback - anyone can report technical issues
+    }
+}
+
+/**
+ * Check if a report type is allowed for a given role
+ */
+fun isReportTypeAllowed(reportType: ReportType, reporterRole: String): Boolean {
+    return getAllowedReportTypes(reporterRole).contains(reportType)
+}

@@ -83,6 +83,11 @@ data class Order(
 
     // Status
     var status: String = OrderStatus.NEW.toString(),
+
+    // Refund Status (tracks refund lifecycle independently from order status)
+    @get:PropertyName("refund_status")
+    @set:PropertyName("refund_status")
+    var refundStatus: String = OrderRefundStatus.NONE.toString(),
     
     // Viewed Status (for badge counts)
     @get:PropertyName("is_viewed")
@@ -260,6 +265,24 @@ enum class OrderStatus {
     }
 }
 
+enum class OrderRefundStatus {
+    NONE,
+    REQUESTED,
+    APPROVED,
+    COMPLETED,
+    REJECTED;
+
+    override fun toString(): String = name.lowercase()
+
+    fun getDisplayName(): String = when (this) {
+        NONE -> "No Refund"
+        REQUESTED -> "Refund Requested"
+        APPROVED -> "Refund Approved"
+        COMPLETED -> "Refunded"
+        REJECTED -> "Refund Rejected"
+    }
+}
+
 /* -------------------- Firestore Mappers -------------------- */
 fun Order.toMap(): Map<String, Any> = mapOf(
     "id" to id,
@@ -283,6 +306,7 @@ fun Order.toMap(): Map<String, Any> = mapOf(
     "shipping_cost" to (shippingCost ?: 0.0),
     "co_seller_store_id" to coSellerStoreId,
     "status" to status,
+    "refund_status" to refundStatus,
     "is_viewed" to isViewed,
     "shipping_address" to shippingAddress,
     "full_address" to fullAddress,
@@ -341,6 +365,13 @@ fun Order.getStatusEnum(): OrderStatus =
         OrderStatus.valueOf(status.uppercase())
     } catch (e: Exception) {
         OrderStatus.PENDING
+    }
+
+fun Order.getRefundStatusEnum(): OrderRefundStatus =
+    try {
+        OrderRefundStatus.valueOf(refundStatus.uppercase())
+    } catch (e: Exception) {
+        OrderRefundStatus.NONE
     }
 
 // Helper to convert Any? timestamp to Long

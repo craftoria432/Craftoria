@@ -2,6 +2,10 @@ package com.gcuf.craftoria.services
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Properties
 import javax.mail.Authenticator
 import javax.mail.Message
@@ -126,5 +130,50 @@ object EmailService {
         }
 
         Transport.send(message)
+    }
+
+    // ── Password Reset OTP via EmailJS HTTP API ───────────────────────────────
+    // Uses a separate EmailJS account/template dedicated to password reset.
+    // Replace the three constants below with your 2nd EmailJS account values.
+    private const val OTP_EMAILJS_SERVICE_ID  = "service_muotzyb"  
+    private const val OTP_EMAILJS_TEMPLATE_ID = "template_k3yupgg"
+    private const val OTP_EMAILJS_PUBLIC_KEY  = "wfWfBLv5JKIDKJkj_"
+
+    suspend fun sendPasswordResetOtp(
+        toEmail: String,
+        toName: String,
+        otpCode: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("https://api.emailjs.com/api/v1.0/email/send")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("origin", "https://craftoria.app")
+                doOutput = true
+            }
+
+            val payload = JSONObject().apply {
+                put("service_id", OTP_EMAILJS_SERVICE_ID)
+                put("template_id", OTP_EMAILJS_TEMPLATE_ID)
+                put("user_id", OTP_EMAILJS_PUBLIC_KEY)
+                put("template_params", JSONObject().apply {
+                    put("to_email", toEmail)
+                    put("to_name", toName)
+                    put("otp_code", otpCode)
+                })
+            }
+
+            OutputStreamWriter(conn.outputStream).use { it.write(payload.toString()) }
+
+            val responseCode = conn.responseCode
+            if (responseCode == 200) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("EmailJS error: HTTP $responseCode"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

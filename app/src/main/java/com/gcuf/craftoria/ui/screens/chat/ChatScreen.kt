@@ -55,6 +55,7 @@ fun ChatScreen(
     currentUser: User,
     otherUserId: String,
     otherUserName: String,
+    productId: String = "",
     onBackClick: () -> Unit,
     onViewProfile: (String) -> Unit,
     onViewProduct: (String) -> Unit,
@@ -68,7 +69,20 @@ fun ChatScreen(
     val messages by chatViewModel.messages.collectAsState()
     val chat by chatViewModel.chat.collectAsState()
     val isBlocked by chatViewModel.isBlocked.collectAsState()
+    
+    // ✅ NEW: Get chat type and other user's role
+    val chatType by chatViewModel.chatType.collectAsState()
+    val otherUserRole by chatViewModel.otherUserRole.collectAsState()
+    
     val isCurrentUserSeller = currentUser.role == UserRole.SELLER
+    
+    // ✅ NEW: Determine if profile viewing is allowed based on chat type
+    val canViewProfile = when (chatType) {
+        "seller_seller" -> true  // Sellers can view other sellers
+        "buyer_seller" -> isCurrentUserSeller == false  // Only buyers view sellers
+        "buyer_buyer" -> true  // Buyers can view other buyers
+        else -> false
+    }
 
     var messageText by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
@@ -121,7 +135,13 @@ fun ChatScreen(
     }
 
     LaunchedEffect(otherUserId) {
-        chatViewModel.initializeChat(currentUserId = currentUser.id, currentUserName = currentUser.name, otherUserId = otherUserId, otherUserName = otherUserName)
+        chatViewModel.initializeChat(
+            currentUserId = currentUser.id,
+            currentUserName = currentUser.name,
+            otherUserId = otherUserId,
+            otherUserName = otherUserName,
+            productId = productId
+        )
         // Real-time listener for other user's profile image
         if (otherUserId.isNotEmpty()) {
             try {
@@ -155,10 +175,11 @@ fun ChatScreen(
         topBar = {
             ChatHeader(
                 userName = otherUserName,
+                userId = otherUserId,  // ✅ NEW: Pass userId for real-time updates
                 userAvatar = otherUserProfileImage,
                 isOnline = true,
                 isBlocked = isBlocked,
-                showViewProfile = !isCurrentUserSeller,
+                showViewProfile = canViewProfile,  // ✅ Use dynamic logic
                 onBackClick = onBackClick,
                 onMenuClick = { showMenu = !showMenu },
                 showMenu = showMenu,
@@ -293,6 +314,7 @@ fun ChatScreen(
                         val result = reportRepository.submitReport(
                             reportType = if (isCurrentUserSeller) com.gcuf.craftoria.data.model.ReportType.BUYER else com.gcuf.craftoria.data.model.ReportType.SELLER,
                             reporterId = currentUser.id, reporterName = currentUser.name,
+                            reporterRole = if (isCurrentUserSeller) "seller" else "buyer",
                             reportedEntityId = otherUserId, reportedEntityName = otherUserName,
                             reason = when (reason) { "spam" -> "Spam"; "harassment" -> "Harassment"; "inappropriate" -> "Inappropriate content"; "scam" -> "Scam or fraud"; else -> "Other" },
                             description = "Reported from chat"
@@ -309,6 +331,7 @@ fun ChatScreen(
 @Composable
 fun ChatHeader(
     userName: String,
+    userId: String,  // ✅ NEW: Add userId for real-time name updates
     userAvatar: String = "",
     isOnline: Boolean,
     isBlocked: Boolean,
@@ -354,12 +377,13 @@ fun ChatHeader(
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxHeight()
                 ) {
-                    Text(
-                        text = userName,
+                    // ✅ FIX: Use RealtimeNameDisplay instead of static userName
+                    com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                        userId = userId,
+                        fallbackName = userName,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        lineHeight = 16.sp
+                        color = Color.White
                     )
                     Text(
                         text = if (isBlocked) "Blocked" else if (isOnline) "Active now" else "Offline",
@@ -525,6 +549,18 @@ fun MessageItem(
             horizontalAlignment = if (isSent) Alignment.End else Alignment.Start,
             modifier = Modifier.widthIn(max = 260.dp).combinedClickable(onClick = {}, onLongClick = { showDeleteDialog = true })
         ) {
+            // ✅ NEW: Display sender name with real-time updates
+            if (!isSent) {
+                com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                    userId = message.senderId,
+                    fallbackName = message.senderName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            
             when (message.type) {
                 MessageType.TEXT -> TextMessage(message, isSent)
                 MessageType.IMAGE -> ImageMessage(message, isSent)
@@ -538,11 +574,27 @@ fun MessageItem(
             ) {
                 Text(text = getTimeString(message.createdAt), fontSize = 10.sp, color = TextSecondary)
                 if (isSent) {
-                    Text(
-                        text = if (message.isRead || message.deliveredAt > 0) "✓✓" else "✓",
-                        fontSize = 10.sp,
-                        color = if (message.isRead) Color(0xFF2196F3) else TextSecondary
-                    )
+                    // ✅ UPDATED: Show read receipts correctly
+                    val receiptText = when {
+                        message.isRead -> "✓✓"  // Double tick = read
+                        message.deliveredAt > 0 -> "✓"  // Single tick = delivered
+                        else -> ""  // No tick = sent but not delivered
+                    }
+                    
+                    val receiptColor = when {
+                        message.isRead -> Primary  // Blue for read
+                        message.deliveredAt > 0 -> TextSecondary  // Gray for delivered
+                        else -> TextLight  // Light gray for sent
+                    }
+                    
+                    if (receiptText.isNotEmpty()) {
+                        Text(
+                            text = receiptText,
+                            fontSize = 10.sp,
+                            color = receiptColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

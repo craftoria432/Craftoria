@@ -6,24 +6,26 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gcuf.craftoria.data.model.RefundRequest
 import com.gcuf.craftoria.data.repository.RefundRepository
+import com.gcuf.craftoria.services.RefundNotificationService
 import com.gcuf.craftoria.utils.RefundProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class RefundViewModel : ViewModel() {
 
-    // FIX 1: RefundProcessor takes FirebaseFirestore, NOT RefundRepository
     private val firestore = FirebaseFirestore.getInstance()
     private val refundRepository = RefundRepository(firestore)
-    private val refundProcessor = RefundProcessor(firestore) // ← was RefundProcessor(refundRepository)
+    private val refundProcessor = RefundProcessor(firestore)
+    private val notificationService = RefundNotificationService(firestore)
 
     companion object {
         private const val TAG = "RefundViewModel"
     }
 
-    private val _refundState = MutableStateFlow<RefundUIState>(RefundUIState.Idle)
-    val refundState: StateFlow<RefundUIState> = _refundState
+    private val _refundState = MutableStateFlow<RefundUiState>(RefundUiState.Idle)
+    val refundState: StateFlow<RefundUiState> = _refundState
 
     private val _refundList = MutableStateFlow<List<RefundRequest>>(emptyList())
     val refundList: StateFlow<List<RefundRequest>> = _refundList
@@ -56,7 +58,7 @@ class RefundViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.createRefundRequest(
                     orderId, paymentId, buyerId, buyerName, sellerId, sellerName,
@@ -68,19 +70,23 @@ class RefundViewModel : ViewModel() {
                     // FIX 3: createRefundRequest returns Result<RefundRequest>, not Result<String>
                     val refund = result.getOrNull()!!
                     _currentRefund.value = refund
-                    _refundState.value = RefundUIState.RefundInitiated(refund)
+                    _refundState.value = RefundUiState.RefundInitiated(refund)
                     _errorMessage.value = null
+                    
+                    // Trigger notification
+                    notificationService.notifyRefundRequested(refund)
+                    
                     Log.d(TAG, "Refund initiated successfully: ${refund.id}")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                     Log.e(TAG, "Failed to initiate refund: $error")
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception initiating refund", e)
             }
         }
@@ -95,7 +101,7 @@ class RefundViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.approveRefund(
                     refundId, approvedBy, approverName, approvalNotes
@@ -105,18 +111,22 @@ class RefundViewModel : ViewModel() {
                     // FIX 4: approveRefund returns Result<RefundRequest>
                     val refund = result.getOrNull()!!
                     _currentRefund.value = refund
-                    _refundState.value = RefundUIState.RefundApproved(refund)
+                    _refundState.value = RefundUiState.RefundApproved(refund)
                     _errorMessage.value = null
                     Log.d(TAG, "Refund approved: $refundId")
+                    
+                    // ✅ NOTE: completeRefund() is already called by RefundRepository.approveRefund()
+                    // for buyer-initiated refunds (Case 3) and seller-initiated refunds approved by admin (Case 1).
+                    // No need to call it again here — it would cause duplicate Firestore writes.
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception approving refund", e)
             }
         }
@@ -131,7 +141,7 @@ class RefundViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.rejectRefund(
                     refundId, rejectedBy, rejectorName, rejectionReason
@@ -140,18 +150,18 @@ class RefundViewModel : ViewModel() {
                 if (result.isSuccess) {
                     val refund = result.getOrNull()!!
                     _currentRefund.value = refund
-                    _refundState.value = RefundUIState.RefundRejected(refund)
+                    _refundState.value = RefundUiState.RefundRejected(refund)
                     _errorMessage.value = null
                     Log.d(TAG, "Refund rejected: $refundId")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception rejecting refund", e)
             }
         }
@@ -163,7 +173,7 @@ class RefundViewModel : ViewModel() {
     fun processRefund(refundId: String, paymentGateway: String = "system") {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundProcessor.processRefund(
                     refundId = refundId,
@@ -175,18 +185,18 @@ class RefundViewModel : ViewModel() {
                     val refundResult = refundRepository.getRefundById(refundId)
                     val refund = refundResult.getOrNull() ?: RefundRequest()
                     _currentRefund.value = refund
-                    _refundState.value = RefundUIState.RefundProcessed(refund)
+                    _refundState.value = RefundUiState.RefundProcessed(refund)
                     _errorMessage.value = null
                     Log.d(TAG, "Refund processed: $refundId")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception processing refund", e)
             }
         }
@@ -196,24 +206,24 @@ class RefundViewModel : ViewModel() {
     fun getRefund(refundId: String) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.getRefundById(refundId)
 
                 if (result.isSuccess) {
                     val refund = result.getOrNull()!!
                     _currentRefund.value = refund
-                    _refundState.value = RefundUIState.RefundLoaded(refund)
+                    _refundState.value = RefundUiState.RefundLoaded(refund)
                     _errorMessage.value = null
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception getting refund", e)
             }
         }
@@ -223,24 +233,24 @@ class RefundViewModel : ViewModel() {
     fun getRefundsByBuyer(buyerId: String) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.getRefundsByBuyerId(buyerId)
 
                 if (result.isSuccess) {
                     val refunds = result.getOrNull() ?: emptyList()
                     _refundList.value = refunds
-                    _refundState.value = RefundUIState.RefundsLoaded(refunds)
+                    _refundState.value = RefundUiState.RefundsLoaded(refunds)
                     _errorMessage.value = null
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception getting buyer refunds", e)
             }
         }
@@ -250,24 +260,24 @@ class RefundViewModel : ViewModel() {
     fun getRefundsBySeller(sellerId: String) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.getRefundsBySellerId(sellerId)
 
                 if (result.isSuccess) {
                     val refunds = result.getOrNull() ?: emptyList()
                     _refundList.value = refunds
-                    _refundState.value = RefundUIState.RefundsLoaded(refunds)
+                    _refundState.value = RefundUiState.RefundsLoaded(refunds)
                     _errorMessage.value = null
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception getting seller refunds", e)
             }
         }
@@ -277,24 +287,24 @@ class RefundViewModel : ViewModel() {
     fun getPendingRefunds() {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUIState.Loading
+                _refundState.value = RefundUiState.Loading
 
                 val result = refundRepository.getPendingRefunds()
 
                 if (result.isSuccess) {
                     val refunds = result.getOrNull() ?: emptyList()
                     _refundList.value = refunds
-                    _refundState.value = RefundUIState.RefundsLoaded(refunds)
+                    _refundState.value = RefundUiState.RefundsLoaded(refunds)
                     _errorMessage.value = null
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     _errorMessage.value = error
-                    _refundState.value = RefundUIState.Error(error)
+                    _refundState.value = RefundUiState.Error(error)
                 }
             } catch (e: Exception) {
                 val error = e.message ?: "Unknown error"
                 _errorMessage.value = error
-                _refundState.value = RefundUIState.Error(error)
+                _refundState.value = RefundUiState.Error(error)
                 Log.e(TAG, "Exception getting pending refunds", e)
             }
         }
@@ -307,19 +317,50 @@ class RefundViewModel : ViewModel() {
 
     // ==================== CLEAR STATE ====================
     fun clearState() {
-        _refundState.value = RefundUIState.Idle
+        _refundState.value = RefundUiState.Idle
         _currentRefund.value = null
+    }
+
+    // ==================== GET REFUND BY ID (FLOW) ====================
+    fun getRefundByIdFlow(refundId: String): kotlinx.coroutines.flow.Flow<RefundRequest?> {
+        return kotlinx.coroutines.flow.flow {
+            val result = refundRepository.getRefundById(refundId)
+            emit(result.getOrNull())
+        }
+    }
+
+    // ==================== GET ORDER FOR REFUND ====================
+    fun getOrderForRefund(orderId: String): kotlinx.coroutines.flow.Flow<com.gcuf.craftoria.data.model.Order?> {
+        if (orderId.isBlank()) return kotlinx.coroutines.flow.flowOf(null)
+        return kotlinx.coroutines.flow.flow {
+            try {
+                val doc = firestore.collection("orders")
+                    .document(orderId)
+                    .get()
+                    .await()
+                
+                if (doc.exists()) {
+                    val order = doc.toObject(com.gcuf.craftoria.data.model.Order::class.java)
+                    emit(order)
+                } else {
+                    emit(null)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching order for refund", e)
+                emit(null)
+            }
+        }
     }
 }
 
-sealed class RefundUIState {
-    object Idle : RefundUIState()
-    object Loading : RefundUIState()
-    data class RefundInitiated(val refund: RefundRequest) : RefundUIState()
-    data class RefundApproved(val refund: RefundRequest) : RefundUIState()
-    data class RefundRejected(val refund: RefundRequest) : RefundUIState()
-    data class RefundProcessed(val refund: RefundRequest) : RefundUIState()
-    data class RefundLoaded(val refund: RefundRequest) : RefundUIState()
-    data class RefundsLoaded(val refunds: List<RefundRequest>) : RefundUIState()
-    data class Error(val message: String) : RefundUIState()
+sealed class RefundUiState {
+    object Idle : RefundUiState()
+    object Loading : RefundUiState()
+    data class RefundInitiated(val refund: RefundRequest) : RefundUiState()
+    data class RefundApproved(val refund: RefundRequest) : RefundUiState()
+    data class RefundRejected(val refund: RefundRequest) : RefundUiState()
+    data class RefundProcessed(val refund: RefundRequest) : RefundUiState()
+    data class RefundLoaded(val refund: RefundRequest) : RefundUiState()
+    data class RefundsLoaded(val refunds: List<RefundRequest>) : RefundUiState()
+    data class Error(val message: String) : RefundUiState()
 }

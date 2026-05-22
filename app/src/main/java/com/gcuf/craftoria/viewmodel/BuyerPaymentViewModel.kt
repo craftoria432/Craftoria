@@ -6,6 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.gcuf.craftoria.data.model.PaymentStatus
 import com.gcuf.craftoria.data.model.SellerPayment
 import com.gcuf.craftoria.data.repository.PaymentRepository
+import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.gcuf.craftoria.data.repository.OrderRepository
+import com.gcuf.craftoria.data.model.getDisplayDate
+import com.gcuf.craftoria.data.model.getBuyerDisplayDate
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -34,6 +42,7 @@ data class BuyerPaymentStats(
 
 class BuyerPaymentViewModel : ViewModel() {
     private val paymentRepository = PaymentRepository()
+    private val orderRepository = OrderRepository()
     private val TAG = "BuyerPaymentViewModel"
 
     private val _paymentState = MutableStateFlow<BuyerPaymentUiState>(BuyerPaymentUiState.Loading)
@@ -45,177 +54,203 @@ class BuyerPaymentViewModel : ViewModel() {
     private val _selectedStatus = MutableStateFlow<PaymentStatus?>(null)
     val selectedStatus: StateFlow<PaymentStatus?> = _selectedStatus
 
-    // ✅ Filter count tracking for UI feedback
+    private val _cachedPayments = MutableStateFlow<List<SellerPayment>>(emptyList())
+    private val _cachedStats    = MutableStateFlow<BuyerPaymentStats?>(null)
+
     private val _filteredCount = MutableStateFlow(0)
     val filteredCount: StateFlow<Int> = _filteredCount
 
-    private var paymentListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
-    private var statsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var paymentListenerRegistration: ListenerRegistration? = null
+    private var orderListenerRegistration: ListenerRegistration? = null
+    private var activeBuyerId: String? = null
 
-    /**
-     * ✅ Start real-time listener for buyer payments
-     */
-    fun startRealtimePaymentListener(buyerId: String) {
-        Log.d(TAG, "🔴 Starting real-time payment listener for buyer: $buyerId")
-        
-        // Remove old listener
-        paymentListenerRegistration?.remove()
-        
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        
-        paymentListenerRegistration = db.collection("seller_payments")
-            .whereEqualTo("buyer_id", buyerId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "❌ Error listening to payments", error)
-                    return@addSnapshotListener
-                }
-                
-                if (snapshot != null && snapshot.documentChanges.isNotEmpty()) {
-                    Log.d(TAG, "🔄 Real-time payment update received: ${snapshot.documentChanges.size} changes")
-                    viewModelScope.launch {
-                        try {
-                            val result = paymentRepository.getBuyerPayments(buyerId)
-                            if (result.isSuccess) {
-                                val payments = result.getOrNull() ?: emptyList()
-                                _paymentState.value = BuyerPaymentUiState.Success(payments)
-                                updateFilteredCount(payments)
-                                Log.d(TAG, "✅ Payments updated in real-time: ${payments.size}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error updating payments", e)
-                        }
-                    }
-                }
-            }
-    }
-
-    /**
-     * ✅ Start real-time listener for buyer payment stats
-     */
-    fun startRealtimeStatsListener(buyerId: String) {
-        Log.d(TAG, "🔴 Starting real-time stats listener for buyer: $buyerId")
-        
-        // Remove old listener
-        statsListenerRegistration?.remove()
-        
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        
-        statsListenerRegistration = db.collection("seller_payments")
-            .whereEqualTo("buyer_id", buyerId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "❌ Error listening to stats", error)
-                    return@addSnapshotListener
-                }
-                
-                if (snapshot != null && snapshot.documentChanges.isNotEmpty()) {
-                    Log.d(TAG, "🔄 Real-time stats update received")
-                    viewModelScope.launch {
-                        try {
-                            val result = paymentRepository.getBuyerPaymentStats(buyerId)
-                            if (result.isSuccess) {
-                                val stats = result.getOrNull() ?: return@launch
-                                _statsState.value = BuyerPaymentStatsUiState.Success(stats)
-                                Log.d(TAG, "✅ Stats updated in real-time")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error updating stats", e)
-                        }
-                    }
-                }
-            }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // loadBuyerPayments
+    //
+    // INSTANT LOADING OPTIMIZATION
+    //
+    // Strategy for zero-delay screen opening:
+    //   1. Cache hit  → publish instantly, zero Loading state emitted.
+    //   2. Cold start → fetch in parallel with a 500 ms Loading delay.
+    //                   If fetch completes before 500 ms, Loading is never shown.
+    //                   If fetch takes >500 ms, show Loading only then.
+    //   3. Always attach listeners for real-time updates.
+    //
+    // Result: Buyers see instant content on revisits, and fast connections
+    // never see a loading spinner on first visit.
+    // ─────────────────────────────────────────────────────────────────────────
 
     fun loadBuyerPayments(buyerId: String) {
+        activeBuyerId = buyerId
+
         viewModelScope.launch {
-            try {
-                _paymentState.value = BuyerPaymentUiState.Loading
-                val result = paymentRepository.getBuyerPayments(buyerId)
-                result.onSuccess { payments ->
-                    Log.d(TAG, "✅ Loaded ${payments.size} payments for buyer: $buyerId")
-                    _paymentState.value = BuyerPaymentUiState.Success(payments)
-                    updateFilteredCount(payments)
-                    
-                    // ✅ Start real-time listener after initial load
-                    startRealtimePaymentListener(buyerId)
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load payments", error)
-                    _paymentState.value = BuyerPaymentUiState.Error(error.message ?: "Unknown error")
+            if (_cachedPayments.value.isNotEmpty()) {
+                // ✅ INSTANT: Serve cache immediately, zero Loading state
+                publishPayments(_cachedPayments.value)
+                // Fetch fresh data in background for real-time updates
+                fetchAndPublish(buyerId)
+            } else {
+                // ✅ COLD START: Fetch immediately, but delay Loading indicator
+                // If fetch completes within 500 ms, user never sees Loading
+                val loadingJob: Job = launch {
+                    delay(500)
+                    _paymentState.value = BuyerPaymentUiState.Loading
+                    _statsState.value   = BuyerPaymentStatsUiState.Loading
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception loading payments", e)
-                _paymentState.value = BuyerPaymentUiState.Error(e.message ?: "Unknown error")
+                try {
+                    fetchAndPublish(buyerId)
+                } finally {
+                    loadingJob.cancel()
+                }
             }
+            // Always re-attach listeners for real-time updates
+            attachListeners(buyerId)
         }
     }
 
-    fun loadPaymentStats(buyerId: String) {
-        viewModelScope.launch {
-            try {
-                _statsState.value = BuyerPaymentStatsUiState.Loading
-                val result = paymentRepository.getBuyerPaymentStats(buyerId)
-                result.onSuccess { stats ->
-                    Log.d(TAG, "✅ Loaded payment stats for buyer: $buyerId")
-                    _statsState.value = BuyerPaymentStatsUiState.Success(stats)
-                    
-                    // ✅ Start real-time listener after initial load
-                    startRealtimeStatsListener(buyerId)
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load stats", error)
-                    _statsState.value = BuyerPaymentStatsUiState.Error(error.message ?: "Unknown error")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception loading stats", e)
-                _statsState.value = BuyerPaymentStatsUiState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
+    // ✅ Stats are loaded as part of fetchAndPublish() — no separate call needed
+    fun loadPaymentStats(buyerId: String)        { /* derived in fetchAndPublish */ }
+    fun startRealtimeStatsListener(buyerId: String) { /* no-op */ }
 
     fun setStatusFilter(status: PaymentStatus) {
         _selectedStatus.value = status
-        Log.d(TAG, "✅ Filter applied: ${status.getDisplayName()}")
-        
-        // Update filtered count
-        if (_paymentState.value is BuyerPaymentUiState.Success) {
-            val payments = (_paymentState.value as BuyerPaymentUiState.Success).payments
-            updateFilteredCount(payments)
-        }
+        val payments = (_paymentState.value as? BuyerPaymentUiState.Success)?.payments ?: return
+        updateFilteredCount(payments)
     }
 
     fun clearFilters() {
         _selectedStatus.value = null
-        Log.d(TAG, "✅ Filters cleared")
-        
-        // Update filtered count
-        if (_paymentState.value is BuyerPaymentUiState.Success) {
-            val payments = (_paymentState.value as BuyerPaymentUiState.Success).payments
-            updateFilteredCount(payments)
-        }
+        val payments = (_paymentState.value as? BuyerPaymentUiState.Success)?.payments ?: return
+        updateFilteredCount(payments)
     }
 
     fun getFilteredPayments(payments: List<SellerPayment>): List<SellerPayment> {
         val status = _selectedStatus.value ?: return payments
-        val filtered = payments.filter { it.status.equals(status.toString(), ignoreCase = true) }
-        Log.d(TAG, "📊 Filtered: ${filtered.size} of ${payments.size} payments")
-        return filtered
+        return payments.filter { it.status.equals(status.toString(), ignoreCase = true) }
     }
 
-    // ✅ Helper function to update filtered count
-    private fun updateFilteredCount(payments: List<SellerPayment>) {
-        val filtered = getFilteredPayments(payments)
-        _filteredCount.value = filtered.size
-    }
-
-    // ✅ Get count for specific status
-    fun getCountForStatus(status: PaymentStatus, payments: List<SellerPayment>): Int {
-        return payments.count { it.status.equals(status.toString(), ignoreCase = true) }
-    }
+    fun getCountForStatus(status: PaymentStatus, payments: List<SellerPayment>): Int =
+        payments.count { it.status.equals(status.toString(), ignoreCase = true) }
 
     override fun onCleared() {
         super.onCleared()
         paymentListenerRegistration?.remove()
-        statsListenerRegistration?.remove()
-        Log.d(TAG, "🔴 Real-time listeners removed")
+        orderListenerRegistration?.remove()
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    private suspend fun fetchAndPublish(buyerId: String): Boolean {
+        return try {
+            val paymentResult = paymentRepository.getBuyerPayments(buyerId)
+            if (paymentResult.isFailure) {
+                val msg = paymentResult.exceptionOrNull()?.message ?: "Failed to load payments"
+                Log.e(TAG, "❌ $msg")
+                if (_cachedPayments.value.isEmpty()) {
+                    _paymentState.value = BuyerPaymentUiState.Error(msg)
+                    _statsState.value   = BuyerPaymentStatsUiState.Error(msg)
+                }
+                return false
+            }
+            val payments = paymentResult.getOrNull() ?: emptyList()
+            val orders   = try {
+                orderRepository.getUserOrders(buyerId).getOrNull() ?: emptyList()
+            } catch (e: Exception) { emptyList() }
+
+            // ✅ CRITICAL: publishPayments() computes stats via computeStats() and sets
+            // _statsState to Success. This ensures statsState is never left as Idle.
+            // On cache hit, stats are published immediately. On cold start, stats are
+            // published as soon as fetch completes (within 500ms or after Loading shown).
+            publishPayments(enrichPaymentsWithOrderAmounts(payments, orders))
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ fetchAndPublish exception", e)
+            if (_cachedPayments.value.isEmpty()) {
+                _paymentState.value = BuyerPaymentUiState.Error(e.message ?: "Unknown error")
+                _statsState.value   = BuyerPaymentStatsUiState.Error(e.message ?: "Unknown error")
+            }
+            false
+        }
+    }
+
+    private fun attachListeners(buyerId: String) {
+        val db = FirebaseFirestore.getInstance()
+
+        paymentListenerRegistration?.remove()
+        // ✅ FIX: Listen to "payments" collection (canonical), not "seller_payments"
+        // Real-time updates to payments (where PaymentSplitProcessor writes) trigger refresh for buyers
+        paymentListenerRegistration = db.collection("payments")
+            .whereEqualTo("buyer_id", buyerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) return@addSnapshotListener
+                // ✅ FIX: Don't skip hasPendingWrites — server-confirmed writes (like
+                // refund status updates written by the seller's device) never set
+                // hasPendingWrites on THIS client, so the guard was a no-op for
+                // remote writes but blocked local optimistic updates from refreshing
+                // the UI. Remove it entirely so every confirmed change triggers a fetch.
+                viewModelScope.launch { fetchAndPublish(buyerId) }
+            }
+
+        orderListenerRegistration?.remove()
+        orderListenerRegistration = db.collection("orders")
+            .whereEqualTo("buyer_id", buyerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) return@addSnapshotListener
+                // ✅ FIX: Same as above — remove hasPendingWrites guard
+                viewModelScope.launch { fetchAndPublish(buyerId) }
+            }
+    }
+
+    private fun publishPayments(payments: List<SellerPayment>) {
+        // ✅ FIX: Use getBuyerDisplayDate() instead of getDisplayDate()
+        // getBuyerDisplayDate prioritizes original_transaction_date (order placed time)
+        // getDisplayDate prioritizes payment_date (payment confirmed time) — seller-centric
+        // For buyer's payment history, we want to show orders by when they were placed
+        val sorted = payments.sortedByDescending { it.getBuyerDisplayDate() }
+        val stats  = computeStats(sorted)
+        _cachedPayments.value = sorted
+        _cachedStats.value    = stats
+        _paymentState.value   = BuyerPaymentUiState.Success(sorted)
+        _statsState.value     = BuyerPaymentStatsUiState.Success(stats)
+        updateFilteredCount(sorted)
+    }
+
+    private fun enrichPaymentsWithOrderAmounts(
+        payments: List<SellerPayment>,
+        orders: List<com.gcuf.craftoria.data.model.Order>
+    ): List<SellerPayment> {
+        val orderMap = orders.associateBy { it.id }
+        return payments.map { payment ->
+            val order = orderMap[payment.orderId] ?: return@map payment
+            val amount = when {
+                order.totalPrice > 0.0   -> order.totalPrice
+                order.totalAmount > 0.0  -> order.totalAmount
+                order.items.isNotEmpty() -> order.items.sumOf { it.price * it.quantity }
+                else                     -> order.productPrice * order.quantity
+            }
+            payment.copy(amount = amount, originalTransactionDate = order.getCreatedAtLong())
+        }
+    }
+
+    private fun computeStats(payments: List<SellerPayment>): BuyerPaymentStats {
+        // ✅ INTENTIONAL: Refunded payments are excluded from totalSpent because the buyer
+        // did not actually spend that money (it was returned). Only active payments
+        // (completed, pending, processing) count toward spending statistics.
+        val activeStatuses = setOf("completed", "pending", "processing")
+        val active    = payments.filter { it.status.lowercase() in activeStatuses }
+        val completed = active.filter { it.status.equals("completed", ignoreCase = true) }
+        return BuyerPaymentStats(
+            totalSpent        = active.sumOf { it.amount },
+            completedAmount   = completed.sumOf { it.amount },
+            pendingAmount     = active.filter { it.status.equals("pending", ignoreCase = true) }.sumOf { it.amount },
+            totalPayments     = active.size,
+            completedPayments = completed.size,
+            totalOrders       = active.map { it.orderId }.distinct().size,
+            totalSellers      = active.map { it.sellerId }.distinct().size
+        )
+    }
+
+    private fun updateFilteredCount(payments: List<SellerPayment>) {
+        _filteredCount.value = getFilteredPayments(payments).size
     }
 }

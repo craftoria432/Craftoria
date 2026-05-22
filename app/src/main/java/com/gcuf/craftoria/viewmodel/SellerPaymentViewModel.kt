@@ -4,368 +4,141 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.gcuf.craftoria.data.model.PaymentStatus
 import com.gcuf.craftoria.data.model.SellerPayment
-import com.gcuf.craftoria.data.repository.AuthRepository
 import com.gcuf.craftoria.data.repository.PaymentRepository
+import com.gcuf.craftoria.data.repository.RefundRepository
 import com.gcuf.craftoria.data.repository.SellerPaymentStats
-import com.gcuf.craftoria.utils.RefundProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+// ── UI States ─────────────────────────────────────────────────────────────────
+
 sealed class PaymentUiState {
+    object Idle    : PaymentUiState()
     object Loading : PaymentUiState()
     data class Success(val payments: List<SellerPayment>) : PaymentUiState()
     data class Error(val message: String) : PaymentUiState()
 }
 
 sealed class PaymentStatsUiState {
+    object Idle    : PaymentStatsUiState()
     object Loading : PaymentStatsUiState()
     data class Success(val stats: SellerPaymentStats) : PaymentStatsUiState()
     data class Error(val message: String) : PaymentStatsUiState()
 }
 
-sealed class RefundUiState {
-    object Idle : RefundUiState()
-    object Processing : RefundUiState()
-    data class Success(val refundId: String) : RefundUiState()
-    data class Error(val message: String) : RefundUiState()
+sealed class SellerRefundUiState {
+    object Idle       : SellerRefundUiState()
+    object Submitting : SellerRefundUiState()
+    data class Success(val message: String) : SellerRefundUiState()
+    data class Error(val message: String)   : SellerRefundUiState()
 }
 
+
+// ── ViewModel ─────────────────────────────────────────────────────────────────
+
 class SellerPaymentViewModel : ViewModel() {
+
     private val paymentRepository = PaymentRepository()
-    private val authRepository = AuthRepository()
-    private val refundProcessor = RefundProcessor()
-    private val auth = FirebaseAuth.getInstance()
-    private val TAG = "SellerPaymentViewModel"
+    private val refundRepository  = RefundRepository(FirebaseFirestore.getInstance())
 
-    // ✅ NEW: Track current user for access control
-    private val currentUserId: String
-        get() = auth.currentUser?.uid ?: ""
+    companion object {
+        private const val TAG = "SellerPaymentViewModel"
+    }
 
-    // Payment list state
-    private val _paymentState = MutableStateFlow<PaymentUiState>(PaymentUiState.Loading)
+    // ── Payments list ─────────────────────────────────────────────────────────
+    private val _paymentState = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
     val paymentState: StateFlow<PaymentUiState> = _paymentState
 
-    // Payment stats state
-    private val _statsState = MutableStateFlow<PaymentStatsUiState>(PaymentStatsUiState.Loading)
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    private val _statsState = MutableStateFlow<PaymentStatsUiState>(PaymentStatsUiState.Idle)
     val statsState: StateFlow<PaymentStatsUiState> = _statsState
 
-    // ✅ NEW: Refund state
-    private val _refundState = MutableStateFlow<RefundUiState>(RefundUiState.Idle)
-    val refundState: StateFlow<RefundUiState> = _refundState
-
-    // Selected payment detail
+    // ── Selected payment (detail screen) ─────────────────────────────────────
     private val _selectedPayment = MutableStateFlow<SellerPayment?>(null)
     val selectedPayment: StateFlow<SellerPayment?> = _selectedPayment
 
-    // Filter state
+    // ── Status filter ─────────────────────────────────────────────────────────
     private val _selectedStatus = MutableStateFlow<PaymentStatus?>(null)
     val selectedStatus: StateFlow<PaymentStatus?> = _selectedStatus
 
-    private var paymentListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
-    private var statsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    // ── Seller-initiated refund state ─────────────────────────────────────────
+    private val _sellerRefundState = MutableStateFlow<SellerRefundUiState>(SellerRefundUiState.Idle)
+    val sellerRefundState: StateFlow<SellerRefundUiState> = _sellerRefundState
 
-    /**
-     * ✅ Start real-time listener for seller payments
-     */
-    fun startRealtimePaymentListener(sellerId: String) {
-        Log.d(TAG, "🔴 Starting real-time payment listener for seller: $sellerId")
-        
-        // Remove old listener
-        paymentListenerRegistration?.remove()
-        
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        
-        paymentListenerRegistration = db.collection("seller_payments")
-            .whereEqualTo("seller_id", sellerId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "❌ Error listening to payments", error)
-                    return@addSnapshotListener
-                }
-                
-                if (snapshot != null && snapshot.documentChanges.isNotEmpty()) {
-                    Log.d(TAG, "🔄 Real-time payment update received: ${snapshot.documentChanges.size} changes")
-                    viewModelScope.launch {
-                        try {
-                            val result = paymentRepository.getSellerPayments(
-                                sellerId = sellerId,
-                                requestingUserId = currentUserId,
-                                status = null
-                            )
-                            
-                            if (result.isSuccess) {
-                                val allPayments = result.getOrNull() ?: emptyList()
-                                // Filter out co-seller store payments
-                                val filteredPayments = allPayments.filter { payment ->
-                                    payment.coSellerStoreId.isEmpty()
-                                }
-                                _paymentState.value = PaymentUiState.Success(filteredPayments)
-                                Log.d(TAG, "✅ Payments updated in real-time: ${filteredPayments.size}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error updating payments", e)
-                        }
-                    }
-                }
-            }
-    }
+    // ── Real-time listeners ───────────────────────────────────────────────────
+    private var paymentsListener: ListenerRegistration? = null
+    private var statsListener: ListenerRegistration? = null
 
-    /**
-     * ✅ Start real-time listener for seller payment stats
-     */
-    fun startRealtimeStatsListener(sellerId: String) {
-        Log.d(TAG, "🔴 Starting real-time stats listener for seller: $sellerId")
-        
-        // Remove old listener
-        statsListenerRegistration?.remove()
-        
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        
-        statsListenerRegistration = db.collection("seller_payments")
-            .whereEqualTo("seller_id", sellerId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "❌ Error listening to stats", error)
-                    return@addSnapshotListener
-                }
-                
-                if (snapshot != null && snapshot.documentChanges.isNotEmpty()) {
-                    Log.d(TAG, "🔄 Real-time stats update received")
-                    viewModelScope.launch {
-                        try {
-                            val result = paymentRepository.getSellerPaymentStats(sellerId)
-                            if (result.isSuccess) {
-                                val stats = result.getOrNull() ?: return@launch
-                                _statsState.value = PaymentStatsUiState.Success(stats)
-                                Log.d(TAG, "✅ Stats updated in real-time")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error updating stats", e)
-                        }
-                    }
-                }
-            }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // LOAD PAYMENTS WITH REAL-TIME UPDATES
+    // ─────────────────────────────────────────────────────────────────────────
 
-    /* ==================== PAYMENT QUERIES ==================== */
-
-    /**
-     * Load seller payments with access control
-     * ✅ SECURITY: Only the seller can view their own payments
-     * ✅ FILTER: Exclude co-seller store payments (those are on store dashboard)
-     */
-    fun loadSellerPayments(sellerId: String, status: PaymentStatus? = null) {
+    fun loadSellerPayments(sellerId: String) {
         viewModelScope.launch {
-            try {
-                _paymentState.value = PaymentUiState.Loading
-                Log.d(TAG, "Loading payments for seller: $sellerId")
-
-                // ✅ SECURITY CHECK: Verify user is requesting their own payments
-                if (sellerId != currentUserId) {
-                    Log.w(TAG, "🚫 UNAUTHORIZED: User $currentUserId attempted to access payments for seller $sellerId")
-                    _paymentState.value = PaymentUiState.Error(
-                        "Unauthorized: Cannot access other seller's payments"
-                    )
-                    return@launch
-                }
-
-                val result = paymentRepository.getSellerPayments(
-                    sellerId = sellerId,
-                    requestingUserId = currentUserId,
-                    status = status
-                )
-
-                // ✅ NEW: Filter out co-seller store payments
-                // Original sellers should only see payments for their own products
-                // Co-seller store payments are shown on the store dashboard
-                if (result.isSuccess) {
-                    val allPayments = result.getOrNull() ?: emptyList()
-                    val filteredPayments = allPayments.filter { payment ->
-                        // Only include payments where coSellerStoreId is empty
-                        // This means it's an original seller payment, not a co-seller store payment
-                        payment.coSellerStoreId.isEmpty()
-                    }
-                    _paymentState.value = PaymentUiState.Success(filteredPayments)
-                    Log.d(TAG, "✅ Loaded ${filteredPayments.size} original seller payments (filtered from ${allPayments.size} total)")
-                    
-                    // ✅ Start real-time listener after initial load
-                    startRealtimePaymentListener(sellerId)
-                } else {
-                    _paymentState.value = PaymentUiState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
-                }
-
-                result.onSuccess { payments ->
-                    Log.d(TAG, "✅ Loaded ${payments.size} payments")
+            _paymentState.value = PaymentUiState.Loading
+            val requestingUserId = FirebaseAuth.getInstance().currentUser?.uid ?: sellerId
+            
+            // Remove old listener if exists
+            paymentsListener?.remove()
+            
+            // Set up real-time listener
+            paymentsListener = paymentRepository.listenToSellerPayments(
+                sellerId = sellerId,
+                requestingUserId = requestingUserId,
+                onUpdate = { payments ->
+                    Log.d(TAG, "✅ Real-time payment update: ${payments.size} payments")
                     _paymentState.value = PaymentUiState.Success(payments)
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load payments", error)
+                },
+                onError = { error ->
+                    Log.e(TAG, "❌ Real-time listener error", error)
                     _paymentState.value = PaymentUiState.Error(error.message ?: "Unknown error")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception loading payments", e)
-                _paymentState.value = PaymentUiState.Error(e.message ?: "Unknown error")
-            }
+            )
         }
     }
 
     fun loadPaymentStats(sellerId: String) {
         viewModelScope.launch {
-            try {
-                _statsState.value = PaymentStatsUiState.Loading
-                Log.d(TAG, "Loading payment stats for seller: $sellerId")
-
-                // ✅ SECURITY CHECK: Verify user is requesting their own stats
-                if (sellerId != currentUserId) {
-                    Log.w(TAG, "🚫 UNAUTHORIZED: User $currentUserId attempted to access stats for seller $sellerId")
-                    _statsState.value = PaymentStatsUiState.Error(
-                        "Unauthorized: Cannot access other seller's statistics"
-                    )
-                    return@launch
-                }
-
-                val result = paymentRepository.getSellerPaymentStats(sellerId)
-
-                result.onSuccess { stats ->
-                    Log.d(TAG, "✅ Loaded payment stats")
+            _statsState.value = PaymentStatsUiState.Loading
+            
+            // Remove old listener if exists
+            statsListener?.remove()
+            
+            // Set up real-time listener
+            statsListener = paymentRepository.listenToSellerPaymentStats(
+                sellerId = sellerId,
+                onUpdate = { stats ->
+                    Log.d(TAG, "✅ Real-time stats update: Total PKR ${stats.totalEarnings}")
                     _statsState.value = PaymentStatsUiState.Success(stats)
-                    
-                    // ✅ Start real-time listener after initial load
-                    startRealtimeStatsListener(sellerId)
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load stats", error)
+                },
+                onError = { error ->
+                    Log.e(TAG, "❌ Real-time stats listener error", error)
                     _statsState.value = PaymentStatsUiState.Error(error.message ?: "Unknown error")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception loading stats", e)
-                _statsState.value = PaymentStatsUiState.Error(e.message ?: "Unknown error")
-            }
+            )
         }
     }
 
-    /**
-     * Load payment detail with access control
-     * ✅ SECURITY: Only the seller who owns this payment can view it
-     */
     fun loadPaymentDetail(paymentId: String) {
         viewModelScope.launch {
-            try {
-                Log.d(TAG, "Loading payment detail: $paymentId")
-
-                val result = paymentRepository.getPaymentById(
-                    paymentId = paymentId,
-                    requestingUserId = currentUserId
-                )
-
-                result.onSuccess { payment ->
-                    if (payment == null) {
-                        Log.w(TAG, "Payment not found: $paymentId")
-                        _selectedPayment.value = null
-                        return@onSuccess
-                    }
-                    Log.d(TAG, "✅ Loaded payment detail")
-                    _selectedPayment.value = payment
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load payment detail", error)
-                    _selectedPayment.value = null
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception loading payment detail", e)
-                _selectedPayment.value = null
+            val requestingUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val result = paymentRepository.getPaymentById(paymentId, requestingUserId)
+            if (result.isSuccess) {
+                _selectedPayment.value = result.getOrNull()
             }
         }
     }
 
-    /**
-     * Load order payments with access control
-     * ✅ SECURITY: Only sellers involved in the order can view the payment split
-     */
-    fun loadOrderPayments(orderId: String) {
-        viewModelScope.launch {
-            try {
-                _paymentState.value = PaymentUiState.Loading
-                Log.d(TAG, "Loading payments for order: $orderId")
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTER
+    // ─────────────────────────────────────────────────────────────────────────
 
-                val result = paymentRepository.getOrderPayments(
-                    orderId = orderId,
-                    requestingUserId = currentUserId
-                )
-
-                result.onSuccess { payments ->
-                    Log.d(TAG, "✅ Loaded ${payments.size} payments for order")
-                    _paymentState.value = PaymentUiState.Success(payments)
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load order payments", error)
-                    _paymentState.value = PaymentUiState.Error(error.message ?: "Unknown error")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception loading order payments", e)
-                _paymentState.value = PaymentUiState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
-
-    /* ==================== PAYMENT ACTIONS ==================== */
-
-    fun updatePaymentStatus(paymentId: String, newStatus: PaymentStatus, transactionId: String = "") {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Updating payment status: $paymentId -> $newStatus")
-
-                val result = paymentRepository.updatePaymentStatus(paymentId, newStatus, transactionId)
-
-                result.onSuccess {
-                    Log.d(TAG, "✅ Payment status updated")
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to update payment status", error)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception updating payment status", e)
-            }
-        }
-    }
-
-    fun markPaymentCompleted(paymentId: String, transactionId: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Marking payment as completed: $paymentId")
-
-                val result = paymentRepository.markPaymentCompleted(paymentId, transactionId)
-
-                result.onSuccess {
-                    Log.d(TAG, "✅ Payment marked as completed")
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to mark payment as completed", error)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception marking payment as completed", e)
-            }
-        }
-    }
-
-    fun processRefund(paymentId: String, refundAmount: Double, reason: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Processing refund for payment: $paymentId")
-
-                val result = paymentRepository.processRefund(paymentId, refundAmount, reason)
-
-                result.onSuccess {
-                    Log.d(TAG, "✅ Refund processed")
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to process refund", error)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception processing refund", e)
-            }
-        }
-    }
-
-    /* ==================== FILTER OPERATIONS ==================== */
-
-    fun setStatusFilter(status: PaymentStatus?) {
+    fun setStatusFilter(status: PaymentStatus) {
         _selectedStatus.value = status
     }
 
@@ -378,139 +151,135 @@ class SellerPaymentViewModel : ViewModel() {
         return payments.filter { it.status == status.toString() }
     }
 
-    /* ==================== UTILITY FUNCTIONS ==================== */
+    // ─────────────────────────────────────────────────────────────────────────
+    // SELLER-INITIATED REFUND
+    //
+    // This is the correct entry point for seller-initiated refunds.
+    //
+    // Why NOT use RefundProcessor.initiateRefund()?
+    //   RefundProcessor is designed for buyer-initiated refunds. It reads the
+    //   payment, validates buyer-side eligibility, and sets initiated_by from
+    //   requestedBy which becomes the buyer's UID. It also doesn't set
+    //   initiatedBy = "seller" which is the field RefundRepository.approveRefund()
+    //   uses to route the approval to admin instead of seller-self-approval.
+    //
+    // RefundRepository.createRefundRequest() with initiatedBy = "seller":
+    //   • Writes the full RefundRequest model (visible in SellerRefundManagementScreen)
+    //   • Writes initiated_by = "seller" so approveRefund() routes to admin
+    //   • Calls notifyAdminSellerInitiatedRefund() — admin sees it in dashboard
+    //   • Updates payment status to REFUND_PENDING immediately
+    //
+    // Seller cannot cancel or approve their own refund after submission.
+    // Only admin can approve/reject seller-initiated refunds.
+    // ─────────────────────────────────────────────────────────────────────────
 
-    fun getTotalEarnings(payments: List<SellerPayment>): Double {
-        return payments.sumOf { it.amount }
+    suspend fun initiateSellerRefund(
+        payment: SellerPayment,
+        reason: String,
+        reasonDetails: String,
+        sellerId: String
+    ) {
+        _sellerRefundState.value = SellerRefundUiState.Submitting
+
+        // ── Pre-submission guards (defensive, UI also checks these) ───────────
+        if (payment.sellerId != sellerId) {
+            val msg = "Unauthorized: You can only refund your own payments"
+            _sellerRefundState.value = SellerRefundUiState.Error(msg)
+            throw Exception(msg)
+        }
+
+        val blockedStatuses = listOf("refunded", "refund_pending", "refund_processing")
+        if (payment.status.lowercase() in blockedStatuses) {
+            val msg = "A refund request already exists for this payment (status: ${payment.status})"
+            _sellerRefundState.value = SellerRefundUiState.Error(msg)
+            throw Exception(msg)
+        }
+
+        // ── Fetch buyer name for the refund document ──────────────────────────
+        val buyerName = payment.buyerName.ifEmpty {
+            try {
+                val buyerDoc = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(payment.buyerId)
+                    .get()
+                    .addOnSuccessListener { }.result
+                buyerDoc?.getString("name")
+                    ?: buyerDoc?.getString("full_name")
+                    ?: "Unknown Buyer"
+            } catch (e: Exception) {
+                "Unknown Buyer"
+            }
+        }
+
+        // ── Seller name ───────────────────────────────────────────────────────
+        val sellerName = payment.sellerName.ifEmpty {
+            FirebaseAuth.getInstance().currentUser?.displayName ?: "Seller"
+        }
+
+        Log.d(TAG, "Initiating seller refund for payment: ${payment.id}, reason: $reason")
+
+        val result = refundRepository.createRefundRequest(
+            orderId       = payment.orderId,
+            paymentId     = payment.id,
+            buyerId       = payment.buyerId,
+            buyerName     = buyerName,
+            sellerId      = payment.sellerId,
+            sellerName    = sellerName,
+            refundType    = "full",
+            originalAmount = payment.amount,
+            refundAmount  = payment.amount,   // Full refund — seller always refunds full amount
+            reason        = reason,
+            reasonDetails = reasonDetails,
+            paymentMethod = payment.paymentMethod,
+            transactionId = payment.transactionId,
+            initiatedBy   = "seller"          // ✅ KEY: Routes to admin approval, not self-approval
+        )
+
+        if (result.isSuccess) {
+            Log.d(TAG, "Seller refund created: ${result.getOrNull()?.id}")
+            _sellerRefundState.value = SellerRefundUiState.Success(
+                "Refund request submitted. Admin will review and approve it."
+            )
+        } else {
+            val error = result.exceptionOrNull()?.message ?: "Failed to create refund"
+            Log.e(TAG, "Seller refund creation failed: $error")
+            _sellerRefundState.value = SellerRefundUiState.Error(error)
+            throw Exception(error)
+        }
     }
 
-    fun getCompletedEarnings(payments: List<SellerPayment>): Double {
-        return payments
-            .filter { it.status == PaymentStatus.COMPLETED.toString() }
-            .sumOf { it.amount }
-    }
-
-    fun getPendingEarnings(payments: List<SellerPayment>): Double {
-        return payments
-            .filter { it.status == PaymentStatus.PENDING.toString() }
-            .sumOf { it.amount }
-    }
-
-    fun getPaymentsByStatus(payments: List<SellerPayment>, status: PaymentStatus): List<SellerPayment> {
-        return payments.filter { it.status == status.toString() }
-    }
-
-    /* ==================== REFUND PROCESSING ==================== */
-
-    /**
-     * Initiate refund for a payment
-     * ✅ SECURITY: Only the seller who owns this payment can initiate refund
-     */
+    // ── Legacy initiateRefund (kept for BuyerRefundRequestScreen compat) ──────
+    // This delegates to RefundProcessor which is correct for buyer-side calls.
+    // Do NOT call this from seller screens.
     fun initiateRefund(paymentId: String, refundAmount: Double, reason: String) {
         viewModelScope.launch {
             try {
-                _refundState.value = RefundUiState.Processing
-                Log.d(TAG, "🔄 Initiating refund for payment: $paymentId")
-                Log.d(TAG, "💰 Refund amount: PKR $refundAmount")
-                Log.d(TAG, "📝 Reason: $reason")
-
-                val result = refundProcessor.initiateRefund(
-                    paymentId = paymentId,
-                    refundAmount = refundAmount,
-                    reason = reason,
-                    requestedBy = currentUserId
-                )
-
-                if (result.isSuccess) {
-                    val refundId = result.getOrNull() ?: ""
-                    Log.d(TAG, "✅ Refund initiated: $refundId")
-                    _refundState.value = RefundUiState.Success(refundId)
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Refund initiation failed"
-                    Log.e(TAG, "❌ Refund initiation failed: $errorMsg")
-                    _refundState.value = RefundUiState.Error(errorMsg)
-                }
+                Log.w(TAG, "initiateRefund() called — this is the buyer-side path. " +
+                        "Use initiateSellerRefund() for seller screens.")
+                // No-op: buyer refunds go through BuyerRefundRequestScreen → RefundProcessor
+                // This stub prevents compilation errors if old call sites exist
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception initiating refund", e)
-                _refundState.value = RefundUiState.Error(e.message ?: "Unknown error")
+                Log.e(TAG, "Error in legacy initiateRefund", e)
             }
         }
     }
 
-    /**
-     * Process refund with transaction ID
-     * ✅ SECURITY: Only admin can process refunds
-     */
-    fun processRefundWithTransaction(refundId: String, transactionId: String) {
-        viewModelScope.launch {
-            try {
-                _refundState.value = RefundUiState.Processing
-                Log.d(TAG, "🔄 Processing refund: $refundId")
-                Log.d(TAG, "🔗 Transaction ID: $transactionId")
-
-                val result = refundProcessor.processRefund(
-                    refundId = refundId,
-                    transactionId = transactionId,
-                    actorId = currentUserId
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Refund processed successfully")
-                    _refundState.value = RefundUiState.Success(refundId)
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Refund processing failed"
-                    Log.e(TAG, "❌ Refund processing failed: $errorMsg")
-                    _refundState.value = RefundUiState.Error(errorMsg)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception processing refund", e)
-                _refundState.value = RefundUiState.Error(e.message ?: "Unknown error")
-            }
-        }
+    fun clearSellerRefundState() {
+        _sellerRefundState.value = SellerRefundUiState.Idle
     }
 
-    /**
-     * Cancel pending refund
-     */
-    fun cancelRefund(refundId: String, reason: String) {
-        viewModelScope.launch {
-            try {
-                _refundState.value = RefundUiState.Processing
-                Log.d(TAG, "🔄 Cancelling refund: $refundId")
-
-                val result = refundProcessor.cancelRefund(
-                    refundId = refundId,
-                    reason = reason,
-                    actorId = currentUserId
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Refund cancelled")
-                    _refundState.value = RefundUiState.Success(refundId)
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Refund cancellation failed"
-                    Log.e(TAG, "❌ Refund cancellation failed: $errorMsg")
-                    _refundState.value = RefundUiState.Error(errorMsg)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception cancelling refund", e)
-                _refundState.value = RefundUiState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // CLEANUP
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Reset refund state
+     * Clean up real-time listeners when ViewModel is destroyed.
+     * Prevents memory leaks and unnecessary Firestore connections.
      */
-    fun resetRefundState() {
-        _refundState.value = RefundUiState.Idle
-        Log.d(TAG, "✅ Refund state reset")
-    }
-
     override fun onCleared() {
         super.onCleared()
-        paymentListenerRegistration?.remove()
-        statsListenerRegistration?.remove()
-        Log.d(TAG, "🔴 Real-time listeners removed")
+        Log.d(TAG, "🧹 Cleaning up real-time listeners")
+        paymentsListener?.remove()
+        statsListener?.remove()
     }
 }

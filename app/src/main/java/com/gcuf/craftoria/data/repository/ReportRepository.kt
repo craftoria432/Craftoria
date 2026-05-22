@@ -27,6 +27,7 @@ class ReportRepository {
         reportType: ReportType,
         reporterId: String,
         reporterName: String,
+        reporterRole: String, // "buyer" or "seller"
         reportedEntityId: String,
         reportedEntityName: String,
         reason: String,
@@ -37,6 +38,7 @@ class ReportRepository {
                 type = reportType,
                 reporterId = reporterId,
                 reporterName = reporterName,
+                reporterRole = reporterRole,
                 reportedEntityId = reportedEntityId,
                 reportedEntityName = reportedEntityName,
                 reason = reason,
@@ -136,6 +138,7 @@ class ReportRepository {
             },
             reporterId = data["reporter_id"] as? String ?: "",
             reporterName = data["reporter_name"] as? String ?: "",
+            reporterRole = data["reporter_role"] as? String ?: "buyer", // default to buyer for backward compatibility
             reportedEntityId = data["reported_entity_id"] as? String ?: "",
             reportedEntityName = data["reported_entity_name"] as? String ?: "",
             reason = data["reason"] as? String ?: "",

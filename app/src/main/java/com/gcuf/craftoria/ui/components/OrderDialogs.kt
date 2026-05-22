@@ -60,8 +60,9 @@ import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.DeliveryInfo
 import com.gcuf.craftoria.data.model.OrderTimeline
 import com.gcuf.craftoria.data.model.getCreatedAtLong
-import com.gcuf.craftoria.ui.screens.buyer.OrderStatusBadge
-import com.gcuf.craftoria.ui.screens.buyer.formatDateTime
+import com.gcuf.craftoria.data.model.getRefundStatusEnum
+import com.gcuf.craftoria.ui.components.OrderStatusBadge
+import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.data.model.getStatusEnum
@@ -96,44 +97,37 @@ fun OrderDetailsDialog(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // ── Gradient Header ───────────────────────────────────────────
+                // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(48.dp)
                         .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Column {
-                        Text(
-                            text = "Order Details",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "#${order.id.take(8).uppercase()}",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.75f)
-                        )
-                    }
+                    Text(
+                        text = "Order Details",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
                     // Close button in tinted circle
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterEnd)
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.15f)
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
@@ -161,7 +155,32 @@ fun OrderDetailsDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Status", fontSize = 12.sp, color = TextSecondary)
-                            OrderStatusBadge(status = order.getStatusEnum())
+                            // ✅ FIX: Check refund status first
+                            // If order is refunded, show "Refunded" badge instead of order status
+                            if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Refunded",
+                                            tint = Color(0xFF9C27B0),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Refunded",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF9C27B0)
+                                        )
+                                    }
+                                }
+                            } else {
+                                OrderStatusBadge(status = order.getStatusEnum())
+                            }
                         }
                         DetailRow("Payment", order.paymentMethod)
                     }
@@ -171,18 +190,29 @@ fun OrderDetailsDialog(
                         icon = Icons.Default.ShoppingBag,
                         title = "Products"
                     ) {
-                        order.items.forEachIndexed { index, item ->
-                            ProductListItem(
-                                thumbnail = item.productImage,
-                                name = item.productTitle,
-                                quantity = item.quantity,
-                                price = item.price
-                            )
-                            if (index < order.items.lastIndex) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-                                Spacer(modifier = Modifier.height(8.dp))
+                        if (order.items.isNotEmpty()) {
+                            order.items.forEachIndexed { index, item ->
+                                ProductListItem(
+                                    thumbnail = item.productImage,
+                                    name = item.productTitle,
+                                    quantity = item.quantity,
+                                    price = item.price
+                                )
+                                if (index < order.items.lastIndex) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
                             }
+                        } else {
+                            // Legacy single product fallback
+                            ProductListItem(
+                                thumbnail = order.productImage,
+                                name = order.productTitle,
+                                quantity = order.quantity,
+                                price = order.productPrice.takeIf { it > 0.0 }
+                                    ?: if (order.quantity > 0) order.subtotal / order.quantity else order.totalPrice
+                            )
                         }
                     }
 
@@ -212,7 +242,19 @@ fun OrderDetailsDialog(
                             icon = Icons.Default.AccessTime,
                             title = "Order Timeline"
                         ) {
-                            OrderTimelineView(timeline = order.timeline)
+                            // ✅ FIX: Check refund status first
+                            // If order is refunded, append a "Refunded" step to preserve full history
+                            val displayTimeline = if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                                // Append "Refunded" step to the end, preserving all previous steps
+                                order.timeline + com.gcuf.craftoria.data.model.OrderTimeline(
+                                    title = "Refunded",
+                                    isCompleted = true,
+                                    timestamp = System.currentTimeMillis()
+                                )
+                            } else {
+                                order.timeline
+                            }
+                            OrderTimelineView(timeline = displayTimeline)
                         }
                     }
 
@@ -400,7 +442,35 @@ fun CancelOrderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Confirm cancel — 0.5.dp Error border
+                    // Keep order — gradient (safe action first)
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                                    RoundedCornerShape(10.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No, Keep Order",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Confirm cancel — 0.5.dp Error border (destructive action second)
                     OutlinedButton(
                         onClick = onConfirm,
                         modifier = Modifier
@@ -414,24 +484,6 @@ fun CancelOrderDialog(
                             text = "Yes, Cancel Order",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    // Keep order — muted fill
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BackgroundSecondary),
-                        shape = RoundedCornerShape(10.dp),
-                        elevation = ButtonDefaults.buttonElevation(0.dp)
-                    ) {
-                        Text(
-                            text = "No, Keep Order",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
                         )
                     }
                 }
@@ -468,62 +520,55 @@ fun OrderTrackingDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.93f)
-                .fillMaxHeight(0.80f),
+                .wrapContentHeight(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
 
-                // ── Gradient Header ───────────────────────────────────────────
+                // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(48.dp)
                         .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)))
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Column {
-                        Text(
-                            text = "Track Order",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "#${order.id.take(8).uppercase()}",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.75f)
-                        )
-                    }
+                    Text(
+                        text = "Track Order",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterEnd)
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.15f)
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
                 Column(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
+                        .heightIn(max = 500.dp)
                         .verticalScroll(scrollState)
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(14.dp)
                 ) {
                     // Timeline with hover effects
                     DialogSectionCard(
-                        icon = Icons.Default.AccessTime,
+                        icon = Icons.Default.LocalShipping,
                         title = "Delivery Status"
                     ) {
                         if (order.timeline.isNotEmpty()) {
@@ -549,47 +594,39 @@ fun OrderTrackingDialog(
                                 }
                             }
                         } else {
-                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                TimelineItemWithHover(
-                                    title = "Order Confirmed",
-                                    time = formatDateTime(order.getCreatedAtLong()),
-                                    isCompleted = true,
-                                    isLast = false,
-                                    isHovered = hoveredItemIndex == 0,
-                                    onHoverChange = { isHovered ->
-                                        hoveredItemIndex = if (isHovered) 0 else -1
-                                    }
-                                )
-                                TimelineItemWithHover(
-                                    title = "Picked Up by Courier",
-                                    time = "Pending",
-                                    isCompleted = false,
-                                    isLast = false,
-                                    isHovered = hoveredItemIndex == 1,
-                                    onHoverChange = { isHovered ->
-                                        hoveredItemIndex = if (isHovered) 1 else -1
-                                    }
-                                )
-                                TimelineItemWithHover(
-                                    title = "In Transit",
-                                    time = "Pending",
-                                    isCompleted = false,
-                                    isLast = false,
-                                    isHovered = hoveredItemIndex == 2,
-                                    onHoverChange = { isHovered ->
-                                        hoveredItemIndex = if (isHovered) 2 else -1
-                                    }
-                                )
-                                TimelineItemWithHover(
-                                    title = "Out for Delivery",
-                                    time = "Pending",
-                                    isCompleted = false,
-                                    isLast = true,
-                                    isHovered = hoveredItemIndex == 3,
-                                    onHoverChange = { isHovered ->
-                                        hoveredItemIndex = if (isHovered) 3 else -1
-                                    }
-                                )
+                            // Timeline not yet created — order not shipped yet
+                            TimelineItemWithHover(
+                                title = "Order Confirmed",
+                                time = formatDateTime(order.getCreatedAtLong()),
+                                isCompleted = true,
+                                isLast = true,
+                                isHovered = hoveredItemIndex == 0,
+                                onHoverChange = { isHovered -> hoveredItemIndex = if (isHovered) 0 else -1 }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFFFF3CD),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalShipping,
+                                        contentDescription = null,
+                                        tint = Color(0xFF856404),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Tracking details will appear once the seller ships your order",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF856404),
+                                        lineHeight = 18.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -603,6 +640,7 @@ fun OrderTrackingDialog(
                             else -> 0L
                         }
                         if (deliveryTime > 0) {
+                            Spacer(modifier = Modifier.height(12.dp))
                             DialogSectionCard(
                                 icon = Icons.Default.Schedule,
                                 title = "Estimated Delivery"
@@ -614,6 +652,7 @@ fun OrderTrackingDialog(
 
                     // Courier Information
                     if (order.trackingId.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
                         DialogSectionCard(
                             icon = Icons.Default.LocalShipping,
                             title = "Courier Information"
@@ -633,6 +672,7 @@ fun OrderTrackingDialog(
                     }
 
                     // Close — gradient button
+                    Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onDismiss,
                         modifier = Modifier
@@ -944,10 +984,10 @@ fun TimelineItemWithHover(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = if (isLast) 0.dp else 4.dp)
-            .background(backgroundColor, RoundedCornerShape(8.dp))
-            .padding(8.dp)
             .hoverable(interactionSource)
-            .scale(scale),
+            .scale(scale)
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .padding(8.dp),
         verticalAlignment = Alignment.Top
     ) {
         Column(
@@ -1003,15 +1043,15 @@ fun TimelineItemWithHover(
 
 fun formatAddress(deliveryInfo: DeliveryInfo): String {
     return buildString {
-        append(deliveryInfo.address)
-        append("\n")
-        append(deliveryInfo.city)
-        if (deliveryInfo.postalCode.isNotEmpty()) {
-            append(", ")
-            append(deliveryInfo.postalCode)
-        }
-        append("\nPakistan")
-    }
+        if (deliveryInfo.fullName.isNotEmpty()) appendLine(deliveryInfo.fullName)
+        if (deliveryInfo.address.isNotEmpty()) appendLine(deliveryInfo.address)
+        val cityLine = listOfNotNull(
+            deliveryInfo.city.takeIf { it.isNotEmpty() },
+            deliveryInfo.postalCode.takeIf { it.isNotEmpty() }
+        ).joinToString(", ")
+        if (cityLine.isNotEmpty()) appendLine(cityLine)
+        append("Pakistan")
+    }.trim()
 }
 
 // ── Invoice / Print / Save — logic unchanged ──────────────────────────────────

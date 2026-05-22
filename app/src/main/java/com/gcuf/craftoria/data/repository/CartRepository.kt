@@ -35,13 +35,30 @@ class CartRepository {
                 if (snapshot != null) {
                     val items = snapshot.documents.mapNotNull { doc ->
                         try {
-                            doc.toObject(CartItem::class.java)?.copy(id = doc.id)
+                            val cartItem = doc.toObject(CartItem::class.java)?.copy(id = doc.id)
+                            
+                            // ✅ FIX: Manually parse negotiation_status string to enum
+                            val statusString = doc.getString("negotiation_status")
+                            if (statusString != null && cartItem != null) {
+                                val status = try {
+                                    NegotiationStatus.valueOf(statusString)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Invalid negotiation status: $statusString")
+                                    null
+                                }
+                                cartItem.copy(negotiationStatus = status)
+                            } else {
+                                cartItem
+                            }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error parsing cart item ${doc.id}", e)
                             null
                         }
                     }
-                    Log.d(TAG, "✅ Cart updated: ${items.size} items")
+                    Log.d(TAG, "✅ Cart updated: ${items.size} items (real-time)")
+                    items.forEach { item ->
+                        Log.d(TAG, "   📦 ${item.product.title}: status=${item.negotiationStatus}, price=${item.price}")
+                    }
                     trySend(items)
                 }
             }

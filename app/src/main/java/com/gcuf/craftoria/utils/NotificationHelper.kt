@@ -26,7 +26,9 @@ object NotificationHelper {
         buyerId: String,
         orderId: String,
         storeName: String,
-        orderNumber: String
+        orderNumber: String,
+        storeId: String = "",
+        memberCount: Int = 0
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -38,7 +40,9 @@ object NotificationHelper {
                     actionType = NotificationActionType.TRACK_ORDER.name,
                     actionData = mapOf("order_id" to orderId),
                     orderId = orderId,
-                    storeName = storeName
+                    storeName = storeName,
+                    storeId = storeId,
+                    memberCount = memberCount
                 )
                 val result = notificationRepository.createNotification(notification)
                 if (result.isSuccess) {
@@ -59,7 +63,9 @@ object NotificationHelper {
         buyerId: String,
         orderId: String,
         storeName: String,
-        orderNumber: String
+        orderNumber: String,
+        storeId: String = "",
+        memberCount: Int = 0
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -71,7 +77,9 @@ object NotificationHelper {
                     actionType = NotificationActionType.TRACK_ORDER.name,
                     actionData = mapOf("order_id" to orderId),
                     orderId = orderId,
-                    storeName = storeName
+                    storeName = storeName,
+                    storeId = storeId,
+                    memberCount = memberCount
                 )
                 val result = notificationRepository.createNotification(notification)
                 if (result.isSuccess) {
@@ -94,7 +102,9 @@ object NotificationHelper {
         storeName: String,
         orderNumber: String,
         courierName: String = "",
-        trackingNumber: String = ""
+        trackingNumber: String = "",
+        storeId: String = "",
+        memberCount: Int = 0
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -112,7 +122,9 @@ object NotificationHelper {
                     actionType = NotificationActionType.TRACK_ORDER.name,
                     actionData = mapOf("order_id" to orderId),
                     orderId = orderId,
-                    storeName = storeName
+                    storeName = storeName,
+                    storeId = storeId,
+                    memberCount = memberCount
                 )
                 val result = notificationRepository.createNotification(notification)
                 if (result.isSuccess) {
@@ -862,6 +874,92 @@ object NotificationHelper {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error creating member left notification", e)
+            }
+        }
+    }
+
+    /**
+     * Report Action Taken - Sent to buyer when admin takes action on their report
+     * Informs buyer that their report has been reviewed and action taken against the seller
+     */
+    fun notifyBuyerReportActionTaken(
+        buyerId: String,
+        reportId: String,
+        reportedSellerName: String,
+        actionTaken: String,
+        details: String = ""
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val description = if (details.isNotEmpty()) {
+                    "Action taken on your report against $reportedSellerName: $actionTaken. Details: $details"
+                } else {
+                    "Action taken on your report against $reportedSellerName: $actionTaken"
+                }
+
+                val notification = Notification(
+                    userId = buyerId,
+                    title = "Report Action Taken",
+                    description = description,
+                    category = NotificationCategory.SYSTEM.name,
+                    actionType = NotificationActionType.VIEW_PROFILE.name,
+                    actionData = mapOf(
+                        "report_id" to reportId,
+                        "action_type" to "report_action"
+                    )
+                )
+                val result = notificationRepository.createNotification(notification)
+                if (result.isSuccess) {
+                    Log.d(TAG, "Report action notification created for buyer: $buyerId")
+                } else {
+                    Log.e(TAG, "Failed to create report action notification", result.exceptionOrNull())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating report action notification", e)
+            }
+        }
+    }
+
+    /**
+     * New Message - Sent to recipient when new message is received
+     * Populates MESSAGES tab in notifications
+     */
+    fun notifyNewMessage(
+        recipientId: String,
+        senderId: String,
+        senderName: String,
+        messageContent: String,
+        chatId: String
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Truncate message if too long
+                val displayContent = if (messageContent.length > 100) {
+                    messageContent.substring(0, 100) + "..."
+                } else {
+                    messageContent
+                }
+
+                val notification = Notification(
+                    userId = recipientId,
+                    title = "New Message from $senderName",
+                    description = displayContent,
+                    category = NotificationCategory.MESSAGES.name,
+                    actionType = NotificationActionType.REPLY_MESSAGE.name,
+                    actionData = mapOf(
+                        "chat_id" to chatId,
+                        "sender_id" to senderId
+                    ),
+                    storeName = senderName  // Reuse storeName field for sender name
+                )
+                val result = notificationRepository.createNotification(notification)
+                if (result.isSuccess) {
+                    Log.d(TAG, "Message notification created for recipient: $recipientId from sender: $senderId")
+                } else {
+                    Log.e(TAG, "Failed to create message notification", result.exceptionOrNull())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating message notification", e)
             }
         }
     }

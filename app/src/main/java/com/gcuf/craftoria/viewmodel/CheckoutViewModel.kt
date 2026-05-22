@@ -188,12 +188,22 @@ class CheckoutViewModel : ViewModel() {
 
     /**
      * Process checkout with validation, retry logic, and audit logging
+     * ✅ ENHANCED: Multiple safeguards to ensure payment records are always created
      */
     fun processCheckout(order: Order, items: List<OrderItem>, currentUserId: String) {
         viewModelScope.launch {
             try {
                 _checkoutState.value = CheckoutUiState.Processing
+                Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 Log.d(TAG, "🔄 Starting checkout process for order: ${order.id}")
+                Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                // ✅ GUARD: Prevent payment processing if order has no ID
+                if (order.id.isEmpty()) {
+                    Log.e(TAG, "❌ Cannot process payment — order has no ID")
+                    _checkoutState.value = CheckoutUiState.Error("Order ID missing")
+                    return@launch
+                }
 
                 // Step 1: Validate payment
                 Log.d(TAG, "✅ Step 1: Validating payment...")
@@ -215,7 +225,28 @@ class CheckoutViewModel : ViewModel() {
 
                 if (result.isSuccess) {
                     val paymentIds = result.getOrNull() ?: emptyList()
+                    
+                    // ✅ SAFEGUARD 1: Verify payments were actually created
+                    if (paymentIds.isEmpty()) {
+                        Log.e(TAG, "❌ CRITICAL: No payment IDs returned for order ${order.id}")
+                        Log.e(TAG, "❌ This should never happen - payment creation failed silently")
+                        _checkoutState.value = CheckoutUiState.Error(
+                            "Payment creation failed. Please try again or contact support."
+                        )
+                        return@launch
+                    }
+                    
                     Log.d(TAG, "✅ Payment processed successfully: ${paymentIds.size} payments created")
+                    Log.d(TAG, "   Payment IDs: ${paymentIds.joinToString(", ") { it.take(8) }}")
+
+                    // ✅ SAFEGUARD 2: Verify payment count matches expected sellers
+                    val expectedSellerCount = items.map { it.sellerId }.distinct().size
+                    if (paymentIds.size != expectedSellerCount) {
+                        Log.w(TAG, "⚠️  WARNING: Payment count mismatch!")
+                        Log.w(TAG, "   Expected: $expectedSellerCount sellers")
+                        Log.w(TAG, "   Created: ${paymentIds.size} payments")
+                        // Continue anyway - partial success is better than failure
+                    }
 
                     // Step 3: Log payment creation
                     Log.d(TAG, "✅ Step 3: Logging payment actions...")
@@ -229,8 +260,30 @@ class CheckoutViewModel : ViewModel() {
                     }
                     Log.d(TAG, "✅ Audit logs created")
 
+                    // ✅ SAFEGUARD 3: Double-check payments exist in Firestore
+                    Log.d(TAG, "✅ Step 4: Verifying payments in database...")
+                    val verificationResult = paymentRepository.verifyPaymentsExist(order.id)
+                    if (verificationResult.isSuccess) {
+                        val existingPayments = verificationResult.getOrNull() ?: emptyList()
+                        if (existingPayments.isEmpty()) {
+                            Log.e(TAG, "❌ CRITICAL: Payments not found in database after creation!")
+                            Log.e(TAG, "❌ Order: ${order.id}, Expected: ${paymentIds.size}, Found: 0")
+                            _checkoutState.value = CheckoutUiState.Error(
+                                "Payment verification failed. Please contact support with order ID: ${order.id.take(8)}"
+                            )
+                            return@launch
+                        }
+                        Log.d(TAG, "✅ Verified ${existingPayments.size} payments in database")
+                    } else {
+                        Log.w(TAG, "⚠️  Could not verify payments (non-critical)")
+                    }
+
                     _checkoutState.value = CheckoutUiState.Success
+                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     Log.d(TAG, "✅ Checkout completed successfully")
+                    Log.d(TAG, "   Order: ${order.id}")
+                    Log.d(TAG, "   Payments: ${paymentIds.size}")
+                    Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Payment processing failed"
                     Log.e(TAG, "❌ Payment processing failed: $errorMsg")

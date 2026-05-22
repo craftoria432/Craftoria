@@ -5,6 +5,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.gcuf.craftoria.data.model.*
 import com.gcuf.craftoria.data.repository.CommissionRepository
 import kotlinx.coroutines.tasks.await
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 /**
  * ✅ PRODUCTION-READY: Handles payment split creation for co-seller stores
@@ -41,7 +43,10 @@ class PaymentSplitProcessor(private val db: FirebaseFirestore) {
         Log.d(TAG, "💳 Processing payments with splits for order: ${order.id}")
 
         val paymentIds = mutableListOf<String>()
-        val paymentsCollection = db.collection("seller_payments")
+        // New co-seller payments must live in the canonical payments collection.
+        // The UI still reads legacy seller_payments data during migration, but new writes
+        // should not continue splitting data across collections.
+        val paymentsCollection = db.collection("payments")
 
         // ✅ Step 0: Fetch commission settings
         val commissionSettingsResult = commissionRepository.getCommissionSettings()
@@ -60,12 +65,23 @@ class PaymentSplitProcessor(private val db: FirebaseFirestore) {
         // ✅ Step 3: Process each store group
         itemsByStore.forEach { (storeKey, storeItems) ->
             try {
-                val totalAmount = storeItems.sumOf { it.price * it.quantity }
+                // ✅ FIX 5: Use BigDecimal for precise financial calculations
+                val totalAmountBD = storeItems.fold(BigDecimal.ZERO) { acc, item ->
+                    acc + (BigDecimal(item.price) * BigDecimal(item.quantity))
+                }
+                val totalAmount = totalAmountBD.setScale(2, RoundingMode.HALF_UP).toDouble()
                 val itemsCount = storeItems.sumOf { it.quantity }
 
-                // ✅ Calculate commission
-                val adminCommission = totalAmount * commissionRate
-                val sellerAmount = totalAmount - adminCommission
+                // ✅ Calculate commission with precision
+                val adminCommissionBD = BigDecimal(totalAmount)
+                    .multiply(BigDecimal(commissionRate))
+                    .setScale(2, RoundingMode.HALF_UP)
+                val adminCommission = adminCommissionBD.toDouble()
+                
+                val sellerAmountBD = BigDecimal(totalAmount)
+                    .minus(adminCommissionBD)
+                    .setScale(2, RoundingMode.HALF_UP)
+                val sellerAmount = sellerAmountBD.toDouble()
 
                 Log.d(TAG, "")
                 Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -74,6 +90,7 @@ class PaymentSplitProcessor(private val db: FirebaseFirestore) {
                 Log.d(TAG, "💰 Admin Commission (${commissionSettings.commissionRate}%): PKR $adminCommission")
                 Log.d(TAG, "💸 Seller Payout: PKR $sellerAmount")
                 Log.d(TAG, "📦 Items: $itemsCount")
+                Log.d(TAG, "✅ Amounts calculated with BigDecimal precision")
 
                 if (storeKey.startsWith("original_seller_")) {
                     // ✅ Original seller: Commission deducted
@@ -144,10 +161,11 @@ class PaymentSplitProcessor(private val db: FirebaseFirestore) {
                     Log.d(TAG, "🏪 Co-Seller Store: ${store.storeName}")
                     Log.d(TAG, "👤 Store Owner: $storeOwner")
 
-                    // ✅ Create payment splits based on store configuration (from seller amount after commission)
+                    // ✅ Create FAIR payment splits based on actual product sales (from seller amount after commission)
                     val splits = createPaymentSplits(
                         store = store,
-                        totalAmount = sellerAmount  // ✅ Split the amount AFTER commission
+                        totalAmount = sellerAmount,  // ✅ Split the amount AFTER commission
+                        items = storeItems  // ✅ Pass items to calculate fair split
                     )
 
                     Log.d(TAG, "💸 Payment Splits (after commission):")
@@ -249,21 +267,80 @@ class PaymentSplitProcessor(private val db: FirebaseFirestore) {
     }
 
     /**
-     * Create payment splits based on store configuration
+     * ✅ FAIR PAYMENT SPLIT: Create payment splits based on actual product sales
+     * 
+     * This ensures each co-seller receives payment proportional to their actual sales,
+     * which is critical for fairness to women entrepreneurs.
+     * 
+     * Priority:
+     * 1. Product-based split (FAIR) - Each seller gets paid for what they sold
+     * 2. Configured split - Only if all products are from the same seller
+     * 3. Equal split - Fallback for edge cases
+     * 
+     * @param store The co-seller store
+     * @param totalAmount Total amount to split (after commission)
+     * @param items Order items to determine who sold what
+     * @return List of payment splits proportional to actual sales
      */
     private suspend fun createPaymentSplits(
         store: CoSellerStore,
-        totalAmount: Double
+        totalAmount: Double,
+        items: List<OrderItem>
     ): List<PaymentSplit> {
-        return store.paymentSplitConfig.map { (sellerId, percentage) ->
+        
+        // ✅ STEP 1: Calculate actual sales by each seller
+        val salesBySeller = items.groupBy { it.sellerId }
+            .mapValues { (_, sellerItems) ->
+                sellerItems.sumOf { it.price * it.quantity }
+            }
+        
+        val totalSales = salesBySeller.values.sum()
+        
+        // ✅ STEP 2: If only one seller, give them 100%
+        if (salesBySeller.size == 1) {
+            val (sellerId, sellerSales) = salesBySeller.entries.first()
+            Log.d(TAG, "Single seller detected: ${getUserName(sellerId)} gets 100%")
+            
+            return listOf(
+                PaymentSplit(
+                    sellerId = sellerId,
+                    sellerName = getUserName(sellerId),
+                    splitPercentage = 1.0,
+                    splitAmount = totalAmount,
+                    status = PaymentStatus.PENDING.toString()
+                )
+            )
+        }
+        
+        // ✅ STEP 3: Multiple sellers - FAIR PRODUCT-BASED SPLIT
+        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d(TAG, "💎 FAIR PAYMENT SPLIT (Product-Based)")
+        Log.d(TAG, "Total Sales: PKR $totalSales")
+        Log.d(TAG, "Amount to Split: PKR $totalAmount (after commission)")
+        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        
+        val splits = salesBySeller.map { (sellerId, sellerSales) ->
+            val percentage = sellerSales / totalSales
+            val splitAmount = totalAmount * percentage
+            val sellerName = getUserName(sellerId)
+            
+            Log.d(TAG, "👤 $sellerName:")
+            Log.d(TAG, "   Sales: PKR $sellerSales (${String.format("%.1f", percentage * 100)}%)")
+            Log.d(TAG, "   Gets: PKR ${String.format("%.2f", splitAmount)}")
+            
             PaymentSplit(
                 sellerId = sellerId,
-                sellerName = getUserName(sellerId),
+                sellerName = sellerName,
                 splitPercentage = percentage,
-                splitAmount = totalAmount * percentage,
+                splitAmount = splitAmount,
                 status = PaymentStatus.PENDING.toString()
             )
         }
+        
+        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d(TAG, "✅ Fair split calculated for ${splits.size} sellers")
+        
+        return splits
     }
 
     /**

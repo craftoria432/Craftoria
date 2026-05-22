@@ -22,8 +22,9 @@ class DashboardRepository {
             Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             Log.d(TAG, "📊 Fetching dashboard stats for seller: $sellerId")
 
-            // ✅ FIX: Fetch payments from seller_payments collection (actual earnings)
-            val paymentsSnapshot = db.collection("seller_payments")
+            // ✅ FIX: Fetch payments from "payments" collection (canonical collection)
+            // seller_payments is legacy — all new payments are written to "payments"
+            val paymentsSnapshot = db.collection("payments")
                 .whereEqualTo("seller_id", sellerId)
                 .get()
                 .await()

@@ -95,7 +95,18 @@ fun StorePublicViewScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = currentStore?.storeName ?: "Store", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    // ✅ NEW: Display store owner name with real-time updates
+                    currentStore?.let {
+                        com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
+                            userId = it.ownerId,
+                            fallbackName = it.storeName,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    } ?: run {
+                        Text(text = "Store", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {

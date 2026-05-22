@@ -26,6 +26,7 @@ import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Product
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.WishlistViewModel
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
@@ -45,25 +46,26 @@ fun ProductCard(
     var localFavorite by remember { mutableStateOf(false) }
     val displayFavorite = if (wishlistViewModel != null) wishlistIds.contains(product.id) else localFavorite
 
-    // ✅ Real-time seller name listener
-    var currentSellerName by remember { mutableStateOf(product.sellerName) }
-    
-    LaunchedEffect(product.sellerId) {
-        if (product.sellerId.isNotEmpty()) {
-            try {
-                val db = Firebase.firestore
-                db.collection("users").document(product.sellerId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error == null && snapshot != null && snapshot.exists()) {
-                            val name = snapshot.getString("name") ?: product.sellerName
-                            currentSellerName = name
-                            Log.d("ProductCard", "✅ Updated seller name: $name")
-                        }
+    // ✅ Real-time seller name listener (properly cleaned up)
+    var currentSellerName by remember(product.sellerId) { mutableStateOf(product.sellerName) }
+
+    DisposableEffect(product.sellerId) {
+        if (product.sellerId.isEmpty()) return@DisposableEffect onDispose {}
+        var registration: ListenerRegistration? = null
+        try {
+            registration = Firebase.firestore
+                .collection("users")
+                .document(product.sellerId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && snapshot.exists()) {
+                        val name = snapshot.getString("name") ?: product.sellerName
+                        currentSellerName = name
                     }
-            } catch (e: Exception) {
-                Log.e("ProductCard", "❌ Error listening to seller name: ${e.message}")
-            }
+                }
+        } catch (e: Exception) {
+            Log.e("ProductCard", "Error listening to seller name: ${e.message}")
         }
+        onDispose { registration?.remove() }
     }
 
     Card(

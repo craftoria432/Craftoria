@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import com.gcuf.craftoria.data.model.UserRole
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.outlined.*
@@ -37,6 +38,7 @@ import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.NotificationUiState
 import com.gcuf.craftoria.viewmodel.NotificationViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -245,7 +247,8 @@ fun NotificationsScreen(
                 currentFilter = currentFilter,
                 onFilterSelected = { filter ->
                     notificationViewModel.filterNotifications(filter, user.id)
-                }
+                },
+                userRole = if (user.role == UserRole.SELLER) "seller" else "buyer"  // ✅ Convert enum to string
             )
 
             when (uiState) {
@@ -254,64 +257,99 @@ fun NotificationsScreen(
                         CircularProgressIndicator(color = Primary)
                     }
                 }
-                is NotificationUiState.Empty -> EmptyNotificationUiState()
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(notifications) { notification ->
-                            NotificationCard(
-                                notification = notification,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = selectedNotifications.contains(notification.id),
-                                onSelectionToggle = {
-                                    selectedNotifications =
-                                        if (selectedNotifications.contains(notification.id))
-                                            selectedNotifications - notification.id
-                                        else selectedNotifications + notification.id
-                                },
-                                onMarkAsRead = {
-                                    notificationViewModel.markAsRead(notification.id, user.id)
-                                },
-                                onDelete = {
-                                    confirmDialogData = "Delete Notification" to {
-                                        notificationViewModel.deleteNotification(
-                                            notification.id, user.id
-                                        )
-                                    }
-                                    showConfirmDialog = true
-                                },
-                                onAction = { action ->
-                                    when (action) {
-                                        "accept_invitation" -> {
-                                            confirmDialogData = "Accept Invitation" to {
-                                                onNotificationAction(notification)
-                                                notificationViewModel.markAsRead(
-                                                    notification.id, user.id
-                                                )
-                                            }
-                                            showConfirmDialog = true
-                                        }
-                                        "decline_invitation" -> {
-                                            confirmDialogData = "Decline Invitation" to {
-                                                notificationViewModel.deleteNotification(
-                                                    notification.id, user.id
-                                                )
-                                            }
-                                            showConfirmDialog = true
-                                        }
-                                        else -> {
+                is NotificationUiState.Empty -> {
+                    // ✅ BUG FIX 7: Drive empty state off notifications.isEmpty() directly
+                    // This prevents empty-state flash when filter changes but uiState lags
+                    if (notifications.isEmpty()) {
+                        EmptyNotificationUiState(currentFilter = currentFilter)
+                    } else {
+                        NotificationList(
+                            notifications = notifications,
+                            isSelectionMode = isSelectionMode,
+                            selectedNotifications = selectedNotifications,
+                            onSelectionToggle = { id ->
+                                selectedNotifications =
+                                    if (selectedNotifications.contains(id))
+                                        selectedNotifications - id
+                                    else selectedNotifications + id
+                            },
+                            onMarkAsRead = { id -> notificationViewModel.markAsRead(id, user.id) },
+                            onDelete = { id ->
+                                confirmDialogData = "Delete Notification" to {
+                                    notificationViewModel.deleteNotification(id, user.id)
+                                }
+                                showConfirmDialog = true
+                            },
+                            onAction = { action, notification ->
+                                when (action) {
+                                    "accept_invitation" -> {
+                                        confirmDialogData = "Accept Invitation" to {
                                             onNotificationAction(notification)
-                                            if (!notification.isRead)
-                                                notificationViewModel.markAsRead(
-                                                    notification.id, user.id
-                                                )
+                                            notificationViewModel.markAsRead(notification.id, user.id)
                                         }
+                                        showConfirmDialog = true
+                                    }
+                                    "decline_invitation" -> {
+                                        confirmDialogData = "Decline Invitation" to {
+                                            notificationViewModel.deleteNotification(notification.id, user.id)
+                                        }
+                                        showConfirmDialog = true
+                                    }
+                                    else -> {
+                                        onNotificationAction(notification)
+                                        if (!notification.isRead)
+                                            notificationViewModel.markAsRead(notification.id, user.id)
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
+                    }
+                }
+                else -> {
+                    // ✅ BUG FIX 7: Drive content area off notifications.isEmpty() directly
+                    if (notifications.isEmpty()) {
+                        EmptyNotificationUiState(currentFilter = currentFilter)
+                    } else {
+                        NotificationList(
+                            notifications = notifications,
+                            isSelectionMode = isSelectionMode,
+                            selectedNotifications = selectedNotifications,
+                            onSelectionToggle = { id ->
+                                selectedNotifications =
+                                    if (selectedNotifications.contains(id))
+                                        selectedNotifications - id
+                                    else selectedNotifications + id
+                            },
+                            onMarkAsRead = { id -> notificationViewModel.markAsRead(id, user.id) },
+                            onDelete = { id ->
+                                confirmDialogData = "Delete Notification" to {
+                                    notificationViewModel.deleteNotification(id, user.id)
+                                }
+                                showConfirmDialog = true
+                            },
+                            onAction = { action, notification ->
+                                when (action) {
+                                    "accept_invitation" -> {
+                                        confirmDialogData = "Accept Invitation" to {
+                                            onNotificationAction(notification)
+                                            notificationViewModel.markAsRead(notification.id, user.id)
+                                        }
+                                        showConfirmDialog = true
+                                    }
+                                    "decline_invitation" -> {
+                                        confirmDialogData = "Decline Invitation" to {
+                                            notificationViewModel.deleteNotification(notification.id, user.id)
+                                        }
+                                        showConfirmDialog = true
+                                    }
+                                    else -> {
+                                        onNotificationAction(notification)
+                                        if (!notification.isRead)
+                                            notificationViewModel.markAsRead(notification.id, user.id)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -401,15 +439,36 @@ fun NotificationsScreen(
 @Composable
 fun NotificationFilterTabs(
     currentFilter: NotificationCategory,
-    onFilterSelected: (NotificationCategory) -> Unit
+    onFilterSelected: (NotificationCategory) -> Unit,
+    userRole: String = "buyer"  // "buyer" or "seller"
 ) {
-    val filters = listOf(
+    // ✅ PROFESSIONAL: Role-based filter tabs
+    // Buyer: Unread · All · Orders · Payments · Refunds · Messages · Promotions · System
+    // Seller: Unread · All · Orders · Payments · Refunds · Messages · System · Store Rating · Reports
+    val buyerFilters = listOf(
+        NotificationCategory.UNREAD to "Unread",
         NotificationCategory.ALL to "All",
         NotificationCategory.ORDERS to "Orders",
+        NotificationCategory.PAYMENTS to "Payments",
+        NotificationCategory.REFUNDS to "Refunds",
         NotificationCategory.MESSAGES to "Messages",
         NotificationCategory.PROMOTIONS to "Promotions",
         NotificationCategory.SYSTEM to "System"
     )
+    
+    val sellerFilters = listOf(
+        NotificationCategory.UNREAD to "Unread",
+        NotificationCategory.ALL to "All",
+        NotificationCategory.ORDERS to "Orders",
+        NotificationCategory.PAYMENTS to "Payments",
+        NotificationCategory.REFUNDS to "Refunds",
+        NotificationCategory.MESSAGES to "Messages",
+        NotificationCategory.STORE_RATING to "Store Rating",
+        NotificationCategory.SYSTEM to "System",
+        NotificationCategory.REPORT to "Reports"
+    )
+    
+    val filters = if (userRole == "seller") sellerFilters else buyerFilters
 
     // White surface with 0.5.dp bottom divider — consistent with FilterTabs in ManageProductsScreen
     Surface(
@@ -541,38 +600,45 @@ fun NotificationCard(
                             )
 
                             // Store pill — 0.5.dp BorderColor surface with real-time updates
-                            if (notification.storeName.isNotEmpty()) {
-                                var realtimeStoreName by remember { mutableStateOf(notification.storeName) }
-                                var realtimeMemberCount by remember { mutableStateOf(notification.memberCount) }
+                            // ✅ FIXED: Only show if co-seller store ID is present (not empty)
+                            if ((notification.storeName.isNotEmpty() || notification.storeId.isNotEmpty()) && notification.storeId.isNotEmpty()) {
+                                var realtimeStoreName by remember(notification.storeId) { mutableStateOf(notification.storeName) }
+                                var realtimeMemberCount by remember(notification.storeId) { mutableStateOf(notification.memberCount) }
                                 
-                                LaunchedEffect(notification.storeId) {
-                                    if (notification.storeId.isNotEmpty()) {
-                                        try {
-                                            // Real-time listener for seller name
-                                            val db = FirebaseFirestore.getInstance()
-                                            db.collection("users").document(notification.storeId)
-                                                .addSnapshotListener { snapshot, error ->
-                                                    if (error == null && snapshot != null && snapshot.exists()) {
-                                                        val name = snapshot.getString("name") ?: notification.storeName
-                                                        realtimeStoreName = name
-                                                        Log.d("NotificationCard", "✅ Updated store name: $name")
-                                                    }
+                                DisposableEffect(notification.storeId) {
+                                    if (notification.storeId.isEmpty()) return@DisposableEffect onDispose {}
+                                    
+                                    var storeRegistration: ListenerRegistration? = null
+                                    
+                                    try {
+                                        val db = FirebaseFirestore.getInstance()
+                                        
+                                        // ✅ FIXED: Single listener on co_seller_stores document
+                                        // Store name from store_name field, member count from member_ids or member_count
+                                        storeRegistration = db.collection("co_seller_stores").document(notification.storeId)
+                                            .addSnapshotListener { snapshot, error ->
+                                                if (error == null && snapshot != null && snapshot.exists()) {
+                                                    // Get store name from store_name field
+                                                    val name = snapshot.getString("store_name") ?: notification.storeName
+                                                    realtimeStoreName = name
+                                                    Log.d("NotificationCard", "✅ Updated store name to: $name")
+                                                    
+                                                    // Get member count from member_ids array or member_count field
+                                                    val memberCount = (snapshot.get("member_ids") as? List<*>)?.size
+                                                        ?: snapshot.getLong("member_count")?.toInt()
+                                                        ?: notification.memberCount
+                                                    realtimeMemberCount = memberCount
+                                                    Log.d("NotificationCard", "✅ Updated member count to: $memberCount")
+                                                } else if (error != null) {
+                                                    Log.e("NotificationCard", "Error fetching store data: ${error.message}")
                                                 }
-                                            
-                                            // Real-time listener for member count
-                                            db.collection("co_seller_stores").document(notification.storeId)
-                                                .addSnapshotListener { snapshot, error ->
-                                                    if (error == null && snapshot != null && snapshot.exists()) {
-                                                        val memberCount = snapshot.getLong("member_count")?.toInt() 
-                                                            ?: (snapshot.get("member_ids") as? List<*>)?.size 
-                                                            ?: notification.memberCount
-                                                        realtimeMemberCount = memberCount
-                                                        Log.d("NotificationCard", "✅ Updated member count: $memberCount")
-                                                    }
-                                                }
-                                        } catch (e: Exception) {
-                                            Log.e("NotificationCard", "Error setting up real-time listeners", e)
-                                        }
+                                            }
+                                    } catch (e: Exception) {
+                                        Log.e("NotificationCard", "Error setting up listener: ${e.message}")
+                                    }
+                                    
+                                    onDispose {
+                                        storeRegistration?.remove()
                                     }
                                 }
                                 
@@ -678,42 +744,48 @@ fun NotificationCard(
 
 fun getCategoryIcon(category: NotificationCategory): ImageVector {
     return when (category) {
+        NotificationCategory.UNREAD -> Icons.Outlined.MailOutline  // ✅ NEW
         NotificationCategory.ORDERS -> Icons.Outlined.ShoppingBag
         NotificationCategory.MESSAGES -> Icons.AutoMirrored.Outlined.Message
         NotificationCategory.PROMOTIONS -> Icons.Outlined.Campaign
         NotificationCategory.SYSTEM -> Icons.Outlined.CheckCircle
         NotificationCategory.REPORT -> Icons.Outlined.Flag
         NotificationCategory.ADMIN_MESSAGE -> Icons.Outlined.AdminPanelSettings
-        NotificationCategory.STORE_RATING -> Icons.Outlined.Store
+        NotificationCategory.STORE_RATING -> Icons.Outlined.Star  // ✅ NEW
         NotificationCategory.PAYMENTS -> Icons.Outlined.ShoppingBag
+        NotificationCategory.REFUNDS -> Icons.Outlined.MoneyOff  // ✅ NEW
         else -> Icons.Outlined.Notifications
     }
 }
 
 fun getCategoryIconTint(category: NotificationCategory): Color {
     return when (category) {
+        NotificationCategory.UNREAD -> Color(0xFF1976D2)  // ✅ NEW: Blue for unread
         NotificationCategory.ORDERS -> Color(0xFFE91E8C)
         NotificationCategory.MESSAGES -> Color(0xFF1976D2)
         NotificationCategory.PROMOTIONS -> Color(0xFFF57F17)
         NotificationCategory.SYSTEM -> Color(0xFF2E7D32)
-        NotificationCategory.REPORT -> Color(0xFFE91E63)
+        NotificationCategory.REPORT -> Color(0xFFD32F2F)  // ✅ NEW: Red for reports
         NotificationCategory.ADMIN_MESSAGE -> Color(0xFFD32F2F)
-        NotificationCategory.STORE_RATING -> Color(0xFFE91E8C)
+        NotificationCategory.STORE_RATING -> Color(0xFFFFA500)  // ✅ NEW: Orange for ratings
         NotificationCategory.PAYMENTS -> Color(0xFF2E7D32)
+        NotificationCategory.REFUNDS -> Color(0xFF2E7D32)  // ✅ NEW: Green for refunds
         else -> Color(0xFF757575)
     }
 }
 
 fun getIconBackground(category: NotificationCategory): Color {
     return when (category) {
+        NotificationCategory.UNREAD -> Color(0xFFE3F2FD)  // ✅ NEW: Light blue background
         NotificationCategory.ORDERS -> Color(0xFFFFF5F8)
         NotificationCategory.MESSAGES -> Color(0xFFE3F2FD)
         NotificationCategory.PROMOTIONS -> Color(0xFFFFF9C4)
         NotificationCategory.SYSTEM -> Color(0xFFE8F5E8)
-        NotificationCategory.REPORT -> Color(0xFFFFF5F8)
+        NotificationCategory.REPORT -> Color(0xFFFFEBEE)  // ✅ NEW: Light red background
         NotificationCategory.ADMIN_MESSAGE -> Color(0xFFFFEBEE)
-        NotificationCategory.STORE_RATING -> Color(0xFFFFF5F8)
+        NotificationCategory.STORE_RATING -> Color(0xFFFFF3E0)  // ✅ NEW: Light orange background
         NotificationCategory.PAYMENTS -> Color(0xFFE8F5E9)
+        NotificationCategory.REFUNDS -> Color(0xFFE8F5E9)  // ✅ NEW: Light green background
         else -> Color(0xFFF5F5F5)
     }
 }
@@ -958,6 +1030,35 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
                 }
             }
         }
+        NotificationActionType.VIEW_RATING -> {
+            // ✅ NEW: View store rating details — orange gradient for ratings
+            Button(
+                onClick = { onAction("view_rating") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(listOf(Color(0xFFFFA500), Color(0xFFFFB84D))),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "View Rating",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
         else -> {}
     }
 }
@@ -965,7 +1066,7 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
 // ── Empty State ───────────────────────────────────────────────────────────────
 
 @Composable
-fun EmptyNotificationUiState() {
+fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationCategory.ALL) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -987,15 +1088,35 @@ fun EmptyNotificationUiState() {
             )
         }
         Spacer(modifier = Modifier.height(20.dp))
+        
+        // ✅ BUG FIX 7: Filter-aware empty state message
+        val (title, subtitle) = if (currentFilter != NotificationCategory.ALL) {
+            val filterName = when (currentFilter) {
+                NotificationCategory.UNREAD -> "Unread"
+                NotificationCategory.ORDERS -> "Order"
+                NotificationCategory.PAYMENTS -> "Payment"
+                NotificationCategory.REFUNDS -> "Refund"
+                NotificationCategory.MESSAGES -> "Message"
+                NotificationCategory.PROMOTIONS -> "Promotion"
+                NotificationCategory.SYSTEM -> "System"
+                NotificationCategory.STORE_RATING -> "Store Rating"
+                NotificationCategory.REPORT -> "Report"
+                else -> "Notification"
+            }
+            "No $filterName notifications" to "Nothing here for this filter"
+        } else {
+            "No notifications yet" to "When you get notifications, they'll show up here"
+        }
+        
         Text(
-            text = "No notifications yet",
+            text = title,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = TextPrimary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "When you get notifications, they'll show up here",
+            text = subtitle,
             fontSize = 13.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
@@ -1004,6 +1125,35 @@ fun EmptyNotificationUiState() {
     }
 }
 
+@Composable
+private fun NotificationList(
+    notifications: List<Notification>,
+    isSelectionMode: Boolean,
+    selectedNotifications: Set<String>,
+    onSelectionToggle: (String) -> Unit,
+    onMarkAsRead: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onAction: (String, Notification) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // ✅ BUG FIX 6: Added key = { it.id } for stable identity
+        // Prevents card recycling flicker when list updates
+        items(notifications, key = { it.id }) { notification ->
+            NotificationCard(
+                notification = notification,
+                isSelectionMode = isSelectionMode,
+                isSelected = selectedNotifications.contains(notification.id),
+                onSelectionToggle = { onSelectionToggle(notification.id) },
+                onMarkAsRead = { onMarkAsRead(notification.id) },
+                onDelete = { onDelete(notification.id) },
+                onAction = { action -> onAction(action, notification) }
+            )
+        }
+    }
+}
 // ── Time helper ───────────────────────────────────────────────────────────────
 
 fun getTimeAgo(timestamp: Long): String {
