@@ -32,6 +32,9 @@ class AuthViewModel(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
+    private val _isNewGoogleUser = MutableStateFlow(false)
+    val isNewGoogleUser: StateFlow<Boolean> = _isNewGoogleUser.asStateFlow()
+
     private val firestore = Firebase.firestore
     private var userListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
 
@@ -424,7 +427,7 @@ class AuthViewModel(
         }
     }
 
-    fun signInWithGoogle(idToken: String, onNewUser: (Boolean) -> Unit = {}) {
+    fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 
@@ -434,7 +437,7 @@ class AuthViewModel(
                 val signInResult = result.getOrNull()
                 if (signInResult != null) {
                     _currentUser.value = signInResult.user
-                    onNewUser(signInResult.isNewUser)  // Notify caller if new user
+                    _isNewGoogleUser.value = signInResult.isNewUser  // Store in VM, not callback
                     AuthState.Success("Welcome!")
                 } else {
                     AuthState.Error("Sign-in failed: No user data")
@@ -443,6 +446,12 @@ class AuthViewModel(
                 AuthState.Error(result.exceptionOrNull()?.message ?: "Google sign-in failed")
             }
         }
+    }
+
+    fun consumeNewGoogleUserFlag(): Boolean {
+        val wasNewUser = _isNewGoogleUser.value
+        _isNewGoogleUser.value = false
+        return wasNewUser
     }
 
     fun setInitialRole(userId: String, role: UserRole) {
