@@ -630,37 +630,46 @@ private fun CoSellerEmptyPaymentsState(rangeLabel: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(48.dp),
+            .background(BackgroundSecondary)
+            .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Professional empty state icon
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(100.dp)
                 .background(Primary.copy(alpha = 0.08f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Receipt,
                 contentDescription = null,
-                tint = Primary.copy(alpha = 0.50f),
-                modifier = Modifier.size(38.dp)
+                tint = Primary.copy(alpha = 0.60f),
+                modifier = Modifier.size(50.dp)
             )
         }
-        Spacer(modifier = Modifier.height(18.dp))
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Main heading
         Text(
-            text = "No payments found",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
+            text = "No Payments Found",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(6.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Description text
         Text(
-            text = "No payments match the $rangeLabel filter yet.",
+            text = "No payments found for the $rangeLabel date range.\n\nTry selecting a different date range to view your earnings.",
             fontSize = 13.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
-            lineHeight = 19.sp
+            lineHeight = 20.sp
         )
     }
 }

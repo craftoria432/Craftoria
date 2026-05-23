@@ -375,31 +375,86 @@ private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun SellerEmptyPaymentsState(hasFilter: Boolean = false, filterName: String = "") {
     Column(
-        modifier = Modifier.fillMaxSize().padding(48.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundSecondary)
+            .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Professional empty state icon
         Box(
-            modifier = Modifier.size(80.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
+            modifier = Modifier
+                .size(100.dp)
+                .background(
+                    if (hasFilter) Error.copy(alpha = 0.08f) else Success.copy(alpha = 0.08f),
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (hasFilter) Icons.Default.FilterList else Icons.Default.Receipt,
-                null, tint = Primary.copy(alpha = 0.50f), modifier = Modifier.size(38.dp)
+                imageVector = if (hasFilter) Icons.Default.FilterList else Icons.Default.Receipt,
+                contentDescription = null,
+                tint = if (hasFilter) Error.copy(alpha = 0.60f) else Success.copy(alpha = 0.60f),
+                modifier = Modifier.size(50.dp)
             )
         }
-        Spacer(modifier = Modifier.height(18.dp))
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Main heading
         Text(
-            if (hasFilter) "No Payments Found" else "No Payments Yet",
-            fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            text = if (hasFilter) "No Payments Found" else "No Earnings Yet",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(6.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Description text
         Text(
-            if (hasFilter) "No payments match the filter: $filterName"
-            else "Your payment history will appear here",
-            fontSize = 13.sp, color = TextSecondary
+            text = if (hasFilter) {
+                "No payments match the \"$filterName\" filter.\n\nTry selecting a different filter to view your earnings."
+            } else {
+                "Your earnings will appear here\nonce your first order is completed."
+            },
+            fontSize = 13.sp,
+            color = TextSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            lineHeight = 20.sp
         )
+
+        // Optional: Add action button if needed
+        if (hasFilter) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Surface(
+                onClick = { /* clear filter - handled by parent */ },
+                shape = RoundedCornerShape(8.dp),
+                color = Success.copy(alpha = 0.10f),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Success.copy(alpha = 0.30f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = Success,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Clear Filter",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Success
+                    )
+                }
+            }
+        }
     }
 }
 
