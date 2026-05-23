@@ -57,16 +57,16 @@ fun PaymentHistoryScreen(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxHeight()
                     ) {
-                        Text("Payment History", fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                            color = Color.White, lineHeight = 16.sp)
-                        Text("Your purchase history", fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.85f), lineHeight = 12.sp)
+                        Text("Payment History", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            color = Color.White, lineHeight = 18.sp)
+                        Text("Your purchase history", fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.85f), lineHeight = 13.sp)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Box(
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(36.dp)
                                 .background(Color.White.copy(alpha = 0.18f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -130,8 +130,8 @@ fun PaymentHistoryScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(filtered, key = { it.id }) { payment ->
                                 BuyerPaymentCard(payment = payment)
@@ -170,8 +170,8 @@ fun PaymentHistoryScreen(
 @Composable
 private fun BuyerPaymentStatsCards(stats: BuyerPaymentStats) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Card(
             colors    = CardDefaults.cardColors(containerColor = Color.White),
@@ -185,9 +185,9 @@ private fun BuyerPaymentStatsCards(stats: BuyerPaymentStats) {
                     modifier = Modifier.fillMaxWidth()
                         .background(Brush.horizontalGradient(
                             listOf(Primary.copy(alpha = 0.06f), Primary.copy(alpha = 0.02f))))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         modifier = Modifier.size(36.dp)
@@ -261,7 +261,7 @@ private fun BuyerPaymentCard(payment: SellerPayment) {
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth().background(BackgroundSecondary)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -277,7 +277,7 @@ private fun BuyerPaymentCard(payment: SellerPayment) {
 
             HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
 
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.padding(bottom = 7.dp)) {
@@ -372,7 +372,7 @@ private fun BuyerPaymentFilterTabs(
         Row(
             modifier = Modifier.fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -425,25 +425,25 @@ private fun BuyerEmptyPaymentsState(hasFilter: Boolean = false, filterName: Stri
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(80.dp)
+            modifier = Modifier.size(88.dp)
                 .background(Primary.copy(alpha = 0.08f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 if (hasFilter) Icons.Default.FilterList else Icons.Default.Receipt,
-                null, tint = Primary.copy(alpha = 0.50f), modifier = Modifier.size(38.dp)
+                null, tint = Primary.copy(alpha = 0.50f), modifier = Modifier.size(44.dp)
             )
         }
         Spacer(modifier = Modifier.height(18.dp))
         Text(
             if (hasFilter) "No Payments Found" else "No Payments Yet",
-            fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             if (hasFilter) "No payments match the filter: $filterName"
             else "Your payment history will appear here",
-            fontSize = 13.sp, color = TextSecondary
+            fontSize = 14.sp, color = TextSecondary
         )
     }
 }

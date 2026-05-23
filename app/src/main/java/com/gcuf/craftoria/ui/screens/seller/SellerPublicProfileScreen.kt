@@ -387,7 +387,7 @@ fun SellerPublicProfileScreen(
                     }
 
                     // ── Products Section ──────────────────────────────────────
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -454,8 +454,9 @@ fun SellerPublicProfileScreen(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                                 modifier = Modifier.height((products.size / 2 + 1) * 280.dp)
                             ) {
                                 items(products) { product ->

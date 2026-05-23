@@ -84,17 +84,17 @@ fun NegotiationRequestsScreen(
                     ) {
                         Text(
                             text = "Negotiation Requests",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         if (!isLoading && negotiations.isNotEmpty()) {
                             Text(
                                 text = "${negotiations.size} pending offer${if (negotiations.size > 1) "s" else ""}",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = Color.White.copy(alpha = 0.85f),
-                                lineHeight = 12.sp
+                                lineHeight = 13.sp
                             )
                         }
                     }
@@ -124,8 +124,8 @@ fun NegotiationRequestsScreen(
             negotiations.isEmpty() -> EmptyNegotiationsState(modifier = Modifier.padding(paddingValues))
             else -> {
                 LazyColumn(
-                    contentPadding = PaddingValues(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(paddingValues)
                 ) {
                     items(negotiations) { item ->

@@ -49,17 +49,17 @@ fun WishlistScreen(
                     ) {
                         Text(
                             text = "My Wishlist",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         if (wishlistProducts.isNotEmpty()) {
                             Text(
-                                text = "Items you've saved",
-                                fontSize = 12.sp,
+                                text = "${wishlistProducts.size} items saved",
+                                fontSize = 13.sp,
                                 color = Color.White.copy(alpha = 0.85f),
-                                lineHeight = 12.sp
+                                lineHeight = 13.sp
                             )
                         }
                     }
@@ -135,13 +135,13 @@ fun WishlistScreen(
                         .padding(paddingValues)
                         .background(BackgroundSecondary),
                     contentPadding = PaddingValues(
-                        start = 14.dp,
-                        end = 14.dp,
-                        top = 14.dp,
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
                         bottom = 20.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(
                         items = wishlistProducts,
@@ -180,10 +180,10 @@ private fun WishlistEmptyState(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // 90.dp tinted circle — consistent with all empty states in the project
+        // 88.dp tinted circle — consistent with all empty states in the project
         Box(
             modifier = Modifier
-                .size(90.dp)
+                .size(88.dp)
                 .background(Primary.copy(alpha = 0.08f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -208,7 +208,7 @@ private fun WishlistEmptyState(modifier: Modifier = Modifier) {
 
         Text(
             text = "Tap the heart icon on any product to save it here for later",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp

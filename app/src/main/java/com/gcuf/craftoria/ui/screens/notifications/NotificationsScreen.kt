@@ -94,17 +94,17 @@ fun NotificationsScreen(
                     ) {
                         Text(
                             text = "Notifications",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         if (unreadCount > 0) {
                             Text(
                                 text = "$unreadCount unread",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = Color.White.copy(alpha = 0.85f),
-                                lineHeight = 12.sp
+                                lineHeight = 13.sp
                             )
                         }
                     }
@@ -113,7 +113,7 @@ fun NotificationsScreen(
                     IconButton(onClick = onBackClick) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(36.dp)
                                 .background(Color.White.copy(alpha = 0.18f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -121,7 +121,7 @@ fun NotificationsScreen(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

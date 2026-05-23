@@ -16,7 +16,7 @@ import kotlinx.coroutines.tasks.await
 object PaymentDataMigration {
     private const val TAG = "PaymentDataMigration"
     private val db = FirebaseFirestore.getInstance()
-    private val paymentsCollection = db.collection("seller_payments")
+    private val paymentsCollection = db.collection("payments")
 
     /**
      * Migrate existing payments to include involved_seller_ids

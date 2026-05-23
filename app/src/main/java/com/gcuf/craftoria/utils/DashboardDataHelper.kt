@@ -596,7 +596,7 @@ object DashboardDataHelper {
             )
 
             samplePayments.forEach { paymentData ->
-                db.collection("seller_payments").add(paymentData).await()
+                db.collection("payments").add(paymentData).await()
                 Log.d("DashboardData", "✅ Added payment: ${paymentData["order_id"]} - PKR ${paymentData["amount"]}")
             }
 

@@ -121,16 +121,16 @@ fun LearningResourcesScreen(
                     ) {
                         Text(
                             text = "Learning Resources",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = "Tutorials for women artisans",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },

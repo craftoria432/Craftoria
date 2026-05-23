@@ -112,16 +112,16 @@ fun AddProductScreen(
                     ) {
                         Text(
                             text = if (isEditMode) "Edit Product" else "Add New Product",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = if (isEditMode) "Update your listing" else "Fill in the details below",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },

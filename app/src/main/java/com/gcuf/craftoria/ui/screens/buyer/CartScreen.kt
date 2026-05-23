@@ -120,7 +120,7 @@ fun CartScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(bottom = 88.dp),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     val itemsBySeller = cartItems.groupBy { it.product.sellerId }
                     val sellerEntries = itemsBySeller.entries.toList()
@@ -128,12 +128,11 @@ fun CartScreen(
                         item { SellerGroupHeader(sellerId = sellerId, sellerName = sellerItems.first().product.sellerName, itemCount = sellerItems.size) }
                         items(sellerItems) { item ->
                             CartItemCard(item = item, onQuantityChange = { newQty -> cartViewModel.updateQuantity(item.id, newQty) }, onRemove = { cartViewModel.removeFromCart(item.id) }, onClick = { onProductClick(item.product.id) })
-                            Spacer(modifier = Modifier.height(10.dp))
                         }
                         if (sellerIndex < sellerEntries.size - 1) { item { SellerGroupDivider() } }
                     }
                     item {
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         PriceSummarySection(cartItems = cartItems, subtotal = subtotal, shipping = shipping, total = total)
                     }
                 }
@@ -172,20 +171,20 @@ fun CartScreen(
 
 @Composable
 fun SellerGroupHeader(sellerId: String, sellerName: String, itemCount: Int) {
-    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(modifier = Modifier.size(26.dp).background(Primary.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
-            Text(text = sellerName.take(2).uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Primary)
+    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(modifier = Modifier.size(28.dp).background(Primary.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+            Text(text = sellerName.take(2).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Primary)
         }
         RealtimeNameDisplay(
             userId = sellerId,
             fallbackName = sellerName,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = TextSecondary
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
         )
         Spacer(modifier = Modifier.weight(1f))
         Surface(color = Primary.copy(alpha = 0.10f), shape = RoundedCornerShape(10.dp)) {
-            Text(text = "$itemCount ${if (itemCount == 1) "item" else "items"}", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+            Text(text = "$itemCount ${if (itemCount == 1) "item" else "items"}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
         }
     }
 }
@@ -343,13 +342,13 @@ fun PriceSummarySection(cartItems: List<CartItem>, subtotal: Double, shipping: D
         border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(text = "Order summary", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.padding(bottom = 12.dp))
+            Text(text = "Order summary", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.padding(bottom = 12.dp))
             PriceSummaryRow(label = "Subtotal (${cartItems.size} items)", value = "PKR ${String.format("%.0f", subtotal)}")
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             if (uniqueSellers > 1) {
                 repeat(uniqueSellers) { index ->
                     PriceSummaryRow(label = "Shipping — Seller ${index + 1}", value = "PKR ${CartViewModel.SHIPPING_COST.toInt()}")
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
             } else {
                 PriceSummaryRow(label = "Shipping", value = "PKR ${String.format("%.0f", shipping)}")
@@ -357,13 +356,13 @@ fun PriceSummarySection(cartItems: List<CartItem>, subtotal: Double, shipping: D
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Primary.copy(alpha = 0.12f), thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(12.dp))
-            PriceSummaryRow(label = "Total", value = "PKR ${String.format("%.0f", subtotal + totalShipping)}", labelFontSize = 15.sp, valueFontSize = 15.sp, fontWeight = FontWeight.Bold, valueColor = Primary)
+            PriceSummaryRow(label = "Total", value = "PKR ${String.format("%.0f", subtotal + totalShipping)}", labelFontSize = 16.sp, valueFontSize = 16.sp, fontWeight = FontWeight.Bold, valueColor = Primary)
         }
     }
 }
 
 @Composable
-fun PriceSummaryRow(label: String, value: String, labelFontSize: androidx.compose.ui.unit.TextUnit = 13.sp, valueFontSize: androidx.compose.ui.unit.TextUnit = 13.sp, fontWeight: FontWeight = FontWeight.Normal, valueColor: Color = TextPrimary) {
+fun PriceSummaryRow(label: String, value: String, labelFontSize: androidx.compose.ui.unit.TextUnit = 14.sp, valueFontSize: androidx.compose.ui.unit.TextUnit = 14.sp, fontWeight: FontWeight = FontWeight.Normal, valueColor: Color = TextPrimary) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(text = label, fontSize = labelFontSize, color = TextSecondary, fontWeight = FontWeight.Medium)
         Text(text = value, fontSize = valueFontSize, fontWeight = fontWeight, color = valueColor)
@@ -392,14 +391,14 @@ fun CartCheckoutButton(total: Double, itemCount: Int, onCheckout: () -> Unit) {
 
 @Composable
 fun EmptyCartState(modifier: Modifier = Modifier, onContinueShopping: () -> Unit) {
-    Column(modifier = modifier.fillMaxSize().background(BackgroundSecondary).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(modifier = Modifier.size(100.dp).background(color = Primary.copy(alpha = 0.10f), shape = CircleShape), contentAlignment = Alignment.Center) {
-            Icon(imageVector = Icons.Outlined.ShoppingCart, contentDescription = null, tint = Primary.copy(alpha = 0.7f), modifier = Modifier.size(46.dp))
+    Column(modifier = modifier.fillMaxSize().background(BackgroundSecondary).padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(modifier = Modifier.size(88.dp).background(color = Primary.copy(alpha = 0.10f), shape = CircleShape), contentAlignment = Alignment.Center) {
+            Icon(imageVector = Icons.Outlined.ShoppingCart, contentDescription = null, tint = Primary.copy(alpha = 0.70f), modifier = Modifier.size(44.dp))
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         Text(text = "Your Cart is Empty", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Discover beautiful handcrafted items\nand add them to your cart", fontSize = 13.sp, color = TextSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(text = "Discover beautiful handcrafted items\nand add them to your cart", fontSize = 14.sp, color = TextSecondary, textAlign = TextAlign.Center, lineHeight = 22.sp)
         Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = onContinueShopping,

@@ -152,16 +152,16 @@ fun SellerVerificationScreen(
                 Column {
                     Text(
                         text = "Seller Verification",
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        lineHeight = 16.sp
+                        lineHeight = 18.sp
                     )
                     Text(
                         text = "Verify your identity to start selling",
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.75f),
-                        lineHeight = 12.sp
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.85f),
+                        lineHeight = 13.sp
                     )
                 }
             },

@@ -1,6 +1,7 @@
 package com.gcuf.craftoria.ui.screens.buyer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -95,8 +96,8 @@ fun SearchScreen(
                     
                     Text(
                         text = "Search Products",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
@@ -199,7 +200,7 @@ fun SearchScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -216,7 +217,7 @@ fun SearchScreen(
                                         append("\"$searchQuery\"")
                                     }
                                 },
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = TextSecondary
                             )
                             // Count pill — Primary.copy(0.10f) tinted
@@ -226,11 +227,11 @@ fun SearchScreen(
                             ) {
                                 Text(
                                     text = "${filteredProducts.size} found",
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Primary,
                                     modifier = Modifier.padding(
-                                        horizontal = 8.dp, vertical = 3.dp
+                                        horizontal = 10.dp, vertical = 4.dp
                                     )
                                 )
                             }
@@ -256,8 +257,8 @@ fun SearchScreen(
 
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(filteredProducts) { product ->
@@ -313,27 +314,27 @@ fun SearchEmptyState() {
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
                 tint = Primary.copy(alpha = 0.70f),
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(44.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Start searching",
-            fontSize = 18.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = TextPrimary
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = "Find beautiful handicrafts from talented sellers",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 22.sp
         )
     }
 }
@@ -352,28 +353,29 @@ fun NoResultsState(query: String) {
         // Neutral circle with 0.5.dp BorderColor border — distinct from primary empty states
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .background(BackgroundSecondary, CircleShape),
+                .size(88.dp)
+                .background(BackgroundSecondary, CircleShape)
+                .border(0.5.dp, BorderColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.SearchOff,
                 contentDescription = null,
                 tint = TextLight,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(44.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "No results found",
-            fontSize = 18.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = TextPrimary
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Query highlighted in SemiBold TextPrimary — more readable than plain concat
         Text(
@@ -388,17 +390,17 @@ fun NoResultsState(query: String) {
                     append("\"$query\"")
                 }
             },
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 22.sp
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = "Try a different keyword",
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             color = Primary,
             fontWeight = FontWeight.Medium
         )

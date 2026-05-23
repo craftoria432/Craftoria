@@ -141,17 +141,17 @@ fun ManageProductsScreen(
                     ) {
                         Text(
                             text = "My Products",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         if (products.isNotEmpty()) {
                             Text(
                                 text = "Manage your listings",
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = Color.White.copy(alpha = 0.85f),
-                                lineHeight = 12.sp
+                                lineHeight = 13.sp
                             )
                         }
                     }

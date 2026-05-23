@@ -101,8 +101,8 @@ fun ManageCoSellerStoreScreen(
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxHeight()) {
-                        Text(text = currentStore?.storeName ?: "Store", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, lineHeight = 16.sp)
-                        Text(text = "Manage store details", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f), lineHeight = 12.sp)
+                        Text(text = currentStore?.storeName ?: "Store", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, lineHeight = 18.sp)
+                        Text(text = "Manage store details", fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f), lineHeight = 13.sp)
                     }
                 },
                 navigationIcon = {

@@ -61,16 +61,16 @@ fun SellerPaymentsScreen(
                     ) {
                         Text(
                             text = "Payment History",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = "Your earnings overview",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },
@@ -131,8 +131,8 @@ fun SellerPaymentsScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(filtered, key = { it.id }) { payment ->
                                 PaymentCard(payment = payment, onClick = { onPaymentClick(payment.id) })

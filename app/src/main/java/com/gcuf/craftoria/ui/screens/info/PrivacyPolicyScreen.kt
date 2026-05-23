@@ -30,16 +30,16 @@ fun PrivacyPolicyScreen(onBackClick: () -> Unit) {
                     Column {
                         Text(
                             text = "Privacy Policy",
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight= 16.sp
+                            lineHeight= 18.sp
                         )
                         Text(
                             text = "Last updated: January 30, 2026",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.75f),
-                            lineHeight= 12.sp
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight= 13.sp
                         )
                     }
                 },

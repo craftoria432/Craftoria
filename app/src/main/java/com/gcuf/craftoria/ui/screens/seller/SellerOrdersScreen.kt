@@ -118,16 +118,16 @@ fun SellerOrdersScreen(
                     ) {
                         Text(
                             text = "Orders",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = "Manage incoming orders",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },
@@ -213,7 +213,7 @@ fun SellerOrdersScreen(
                 else -> {
                     LazyColumn(
                     state = lazyListState,
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(orders) { order ->
@@ -326,7 +326,7 @@ fun SellerOrderFilterTabs(
         modifier = Modifier.fillMaxWidth()
     ) {
         androidx.compose.foundation.lazy.LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {

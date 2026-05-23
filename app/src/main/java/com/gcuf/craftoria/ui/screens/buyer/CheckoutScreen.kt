@@ -131,17 +131,17 @@ fun CheckoutScreen(
 
                     // Delivery Information — 0.5.dp BorderColor border
                     CheckoutSectionCard(icon = { Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp)) }, title = "Delivery Information") {
-                        CraftoriaTextField(value = fullName, onValueChange = { checkoutViewModel.updateFullName(it) }, label = "Full Name", placeholder = "Enter your full name", modifier = Modifier.padding(bottom = 10.dp))
-                        CraftoriaTextField(value = phoneNumber, onValueChange = { checkoutViewModel.updatePhoneNumber(it) }, label = "Phone Number", placeholder = "+92 300 1234567", keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone, modifier = Modifier.padding(bottom = 10.dp))
-                        CraftoriaTextField(value = email, onValueChange = { checkoutViewModel.updateEmail(it) }, label = "Email Address", placeholder = "your.email@example.com", keyboardType = androidx.compose.ui.text.input.KeyboardType.Email, modifier = Modifier.padding(bottom = 10.dp))
-                        Column(modifier = Modifier.padding(bottom = 10.dp)) {
-                            Text(text = "Complete Address", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary, letterSpacing = 0.4.sp, modifier = Modifier.padding(bottom = 6.dp))
+                        CraftoriaTextField(value = fullName, onValueChange = { checkoutViewModel.updateFullName(it) }, label = "Full Name", placeholder = "Enter your full name", modifier = Modifier.padding(bottom = 12.dp))
+                        CraftoriaTextField(value = phoneNumber, onValueChange = { checkoutViewModel.updatePhoneNumber(it) }, label = "Phone Number", placeholder = "+92 300 1234567", keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone, modifier = Modifier.padding(bottom = 12.dp))
+                        CraftoriaTextField(value = email, onValueChange = { checkoutViewModel.updateEmail(it) }, label = "Email Address", placeholder = "your.email@example.com", keyboardType = androidx.compose.ui.text.input.KeyboardType.Email, modifier = Modifier.padding(bottom = 12.dp))
+                        Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                            Text(text = "Complete Address", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary, letterSpacing = 0.4.sp, modifier = Modifier.padding(bottom = 8.dp))
                             OutlinedTextField(value = address, onValueChange = { checkoutViewModel.updateAddress(it) }, placeholder = { Text(text = "House/Street/Area", fontSize = 14.sp, color = TextLight) }, minLines = 3, maxLines = 3, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
                         }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             CraftoriaTextField(value = city, onValueChange = { checkoutViewModel.updateCity(it) }, label = "City", placeholder = "City", modifier = Modifier.weight(1f))
-                            Column(modifier = Modifier.width(90.dp)) {
-                                Text(text = "Postal", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary, letterSpacing = 0.4.sp, modifier = Modifier.padding(bottom = 6.dp))
+                            Column(modifier = Modifier.width(100.dp)) {
+                                Text(text = "Postal Code", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary, letterSpacing = 0.4.sp, modifier = Modifier.padding(bottom = 8.dp))
                                 OutlinedTextField(value = postalCode, onValueChange = { newValue -> if (newValue.all { it.isDigit() } && newValue.length <= 5) checkoutViewModel.updatePostalCode(newValue) }, placeholder = { Text(text = "51310", fontSize = 14.sp, color = TextLight) }, singleLine = true, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
                             }
                         }
@@ -152,9 +152,9 @@ fun CheckoutScreen(
                         val paymentMethods = listOf(PaymentMethodOption("Debit/Credit Card", Icons.Default.CreditCard), PaymentMethodOption("Easypaisa", Icons.Default.AccountBalance), PaymentMethodOption("JazzCash", Icons.Default.AccountBalance), PaymentMethodOption("Cash on Delivery", Icons.Default.Money))
                         paymentMethods.forEach { method -> PaymentOptionWithIcon(text = method.name, icon = method.icon, isSelected = selectedPaymentMethod == method.name, onClick = { checkoutViewModel.updatePaymentMethod(method.name) }) }
                         Surface(color = Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(14.dp))
-                                Text(text = "Payment in test mode for FYP project", fontSize = 11.sp, color = Color(0xFF1976D2), lineHeight = 15.sp)
+                            Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(16.dp))
+                                Text(text = "Payment in test mode for FYP project", fontSize = 12.sp, color = Color(0xFF1976D2), lineHeight = 18.sp)
                             }
                         }
                     }
@@ -163,33 +163,33 @@ fun CheckoutScreen(
                     CheckoutSectionCard(icon = { Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp)) }, title = "Order Summary", contentBg = Primary.copy(alpha = 0.03f), tinted = true) {
                         val uniqueSellers = cartItems.map { it.product.sellerId }.distinct().size
                         val totalShipping = CartViewModel.SHIPPING_COST * uniqueSellers
-                        CheckoutSummaryRow("Items ($itemCount)", "${subtotal.toInt()}")
-                        Spacer(modifier = Modifier.height(6.dp))
+                        CheckoutSummaryRow("Items ($itemCount)", "PKR ${subtotal.toInt()}")
+                        Spacer(modifier = Modifier.height(10.dp))
                         if (uniqueSellers > 1) {
                             repeat(uniqueSellers) { index ->
                                 CheckoutSummaryRow(label = "Shipping — Seller ${index + 1}", value = "PKR ${CartViewModel.SHIPPING_COST.toInt()}")
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                             }
                         } else {
                             CheckoutSummaryRow("Shipping", "PKR ${shipping.toInt()}")
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.5.dp, color = Primary.copy(alpha = 0.15f))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Primary.copy(alpha = 0.15f))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "Total", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Text(text = "PKR ${(subtotal + totalShipping).toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Primary)
+                            Text(text = "Total", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text(text = "PKR ${(subtotal + totalShipping).toInt()}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Primary)
                         }
                     }
 
                     // Terms
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(vertical = 6.dp)) {
                         Checkbox(checked = agreeToTerms, onCheckedChange = { checkoutViewModel.updateAgreeToTerms(it) }, colors = CheckboxDefaults.colors(checkedColor = Primary, uncheckedColor = BorderColor))
                         Text(
                             text = androidx.compose.ui.text.buildAnnotatedString {
                                 append("I agree to the ")
                                 withStyle(style = androidx.compose.ui.text.SpanStyle(color = Primary, fontWeight = FontWeight.SemiBold)) { append("terms and conditions") }
                             },
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             color = TextPrimary,
                             modifier = Modifier.padding(top = 2.dp).clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { onNavigateToTerms() }
                         )
@@ -266,20 +266,20 @@ private fun CheckoutSectionCard(icon: @Composable () -> Unit, title: String, ico
         else androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(modifier = Modifier.fillMaxWidth().background(if (tinted) Primary.copy(alpha = 0.03f) else Color.White).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(modifier = Modifier.size(30.dp).background(iconBg, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { icon() }
-            Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Row(modifier = Modifier.fillMaxWidth().background(if (tinted) Primary.copy(alpha = 0.03f) else Color.White).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(modifier = Modifier.size(32.dp).background(iconBg, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { icon() }
+            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         }
         HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-        Column(modifier = Modifier.fillMaxWidth().background(contentBg).padding(14.dp), content = content)
+        Column(modifier = Modifier.fillMaxWidth().background(contentBg).padding(16.dp), content = content)
     }
 }
 
 @Composable
 private fun CheckoutSummaryRow(label: String, value: String, isDiscount: Boolean = false, color: Color = TextPrimary, fontWeight: FontWeight = FontWeight.Normal) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, fontSize = 13.sp, color = TextSecondary)
-        Text(text = value, fontSize = 13.sp, fontWeight = fontWeight, color = if (isDiscount) Success else color)
+        Text(text = label, fontSize = 14.sp, color = TextSecondary)
+        Text(text = value, fontSize = 14.sp, fontWeight = fontWeight, color = if (isDiscount) Success else color)
     }
 }
 
@@ -299,14 +299,14 @@ fun PaymentOption(text: String, isSelected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun PaymentOptionWithIcon(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFF5F8) else Color.White), border = androidx.compose.foundation.BorderStroke(width = if (isSelected) 1.5.dp else 0.5.dp, color = if (isSelected) Primary else BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(11.dp)) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFF5F8) else Color.White), border = androidx.compose.foundation.BorderStroke(width = if (isSelected) 1.5.dp else 0.5.dp, color = if (isSelected) Primary else BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(12.dp)) {
             RadioButton(selected = isSelected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = Primary))
-            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) Primary else TextSecondary, modifier = Modifier.size(18.dp))
-            Text(text = text, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium, color = if (isSelected) Primary else TextPrimary)
+            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) Primary else TextSecondary, modifier = Modifier.size(20.dp))
+            Text(text = text, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium, color = if (isSelected) Primary else TextPrimary)
             if (isSelected) {
                 Spacer(modifier = Modifier.weight(1f))
-                Surface(color = Primary, shape = RoundedCornerShape(6.dp)) { Text(text = "Selected", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)) }
+                Surface(color = Primary, shape = RoundedCornerShape(6.dp)) { Text(text = "Selected", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) }
             }
         }
     }

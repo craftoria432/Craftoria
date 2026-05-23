@@ -135,7 +135,7 @@ fun HomeScreen(
                         )
                         Text(
                             text = "Empowering Women Artisans",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Normal,
                             color = Color.White.copy(alpha = 0.9f),
                             letterSpacing = 0.sp
@@ -269,7 +269,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             when {
                 isLoading -> {
@@ -282,13 +282,13 @@ fun HomeScreen(
                 }
                 else -> {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         filteredProducts.chunked(2).forEach { rowProducts ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 rowProducts.forEach { product ->
                                     ProductCard(
@@ -329,23 +329,23 @@ fun FeaturedStoresSection(
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Featured Stores", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary, letterSpacing = (-0.3).sp)
+            Text(text = "Featured Stores", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary, letterSpacing = (-0.3).sp)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.clickable { onViewAllClick() }
             ) {
-                Text(text = "View All", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Primary)
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = Primary, modifier = Modifier.size(10.dp))
+                Text(text = "View All", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Primary)
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = Primary, modifier = Modifier.size(11.dp))
             }
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(stores) { store ->
                 StoreCard(store = store, onClick = { onStoreClick(store.id) })
@@ -368,7 +368,7 @@ fun StoreCard(store: CoSellerStore, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.width(120.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -404,34 +404,34 @@ fun StoreCard(store: CoSellerStore, onClick: () -> Unit) {
                     Surface(
                         shape = RoundedCornerShape(5.dp),
                         color = Primary,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(5.dp)
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
                     ) {
                         Text(text = "NEW", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
                     }
                 }
             }
             // Info
-            Column(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // ✅ NEW: Display store name with real-time updates
                 com.gcuf.craftoria.ui.components.RealtimeNameDisplay(
                     userId = store.ownerId,
                     fallbackName = store.storeName,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text(text = "${store.productCount} products", fontSize = 10.sp, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(text = "${store.productCount} products", fontSize = 11.sp, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 // Rating
                 Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFFFF3E0), modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(5.dp)) {
-                        Text("⭐", fontSize = 11.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(6.dp)) {
+                        Text("⭐", fontSize = 12.sp)
                         Spacer(modifier = Modifier.width(3.dp))
                         if (store.averageRating > 0) {
-                            Text("%.1f".format(store.averageRating), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            Text(" (${store.ratingCount})", fontSize = 9.sp, color = TextSecondary)
+                            Text("%.1f".format(store.averageRating), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text(" (${store.ratingCount})", fontSize = 10.sp, color = TextSecondary)
                         } else {
-                            Text("New", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                            Text("New", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
                         }
                     }
                 }

@@ -400,7 +400,7 @@ fun BuyerChatListItem(chat: Chat, currentUserId: String, onClick: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -541,7 +541,7 @@ fun EmptyChatsState() {
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(88.dp)
                 .background(Primary.copy(alpha = 0.08f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -549,20 +549,20 @@ fun EmptyChatsState() {
                 imageVector = Icons.Default.Chat,
                 contentDescription = null,
                 tint = Primary.copy(alpha = 0.5f),
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(44.dp)
             )
         }
         Spacer(modifier = Modifier.height(18.dp))
         Text(
             text = "No conversations yet",
-            fontSize = 16.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             color = TextPrimary
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Start chatting with sellers about products you're interested in",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp

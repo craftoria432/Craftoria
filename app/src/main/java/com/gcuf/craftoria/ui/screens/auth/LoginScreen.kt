@@ -84,15 +84,21 @@ fun LoginScreen(
     }
 
     if (!isPreview && vm != null) {
-        LaunchedEffect(authState) {
+        // ✅ Monitor both authState AND isNewGoogleUser flag
+        val isNewGoogleUser by vm.isNewGoogleUser.collectAsState()
+        
+        LaunchedEffect(authState, isNewGoogleUser) {
             when (authState) {
                 is AuthState.Success -> {
                     val user = vm.currentUser.value
                     if (user != null) {
                         vm.resetAuthState()
                         
-                        // ✅ Check if this is a new Google user using the VM flag
-                        if (vm.consumeNewGoogleUserFlag()) {
+                        // ✅ Check if this is a new Google user
+                        // isNewGoogleUser flag is set during signInWithGoogle()
+                        if (isNewGoogleUser) {
+                            // ✅ Consume the flag and navigate to role selection
+                            vm.consumeNewGoogleUserFlag()
                             onNavigateToRoleSelection(user.id, user.name)
                         } else if (user.role == UserRole.SELLER &&
                             user.verificationStatus != VerificationStatus.APPROVED
@@ -618,6 +624,7 @@ fun LoginForm(
         // Google Sign In
         OutlinedButton(
             onClick = onGoogleSignIn,
+            enabled = authState !is AuthState.Loading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -625,18 +632,33 @@ fun LoginForm(
             border = BorderStroke(0.5.dp, BorderColor),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_google_logo),
-                contentDescription = "Google",
-                modifier = Modifier.size(20.dp),
-                tint = Color.Unspecified
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = "Sign in with Google",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (authState is AuthState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Primary
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Authenticating...",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Primary
+                )
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_google_logo),
+                    contentDescription = "Google",
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.Unspecified
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Continue with Google",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(22.dp))

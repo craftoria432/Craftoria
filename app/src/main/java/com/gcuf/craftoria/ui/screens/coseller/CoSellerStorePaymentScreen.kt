@@ -212,8 +212,8 @@ fun CoSellerStorePaymentScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(filteredPayments) { payment ->
                                 CoSellerPaymentCard(
@@ -253,9 +253,9 @@ private fun StoreRevenueSummaryCards(
         modifier = Modifier
             .fillMaxWidth()
             .then(bgModifier)
-            .padding(horizontal = 14.dp)
-            .padding(top = 0.dp, bottom = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 0.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
@@ -264,14 +264,14 @@ private fun StoreRevenueSummaryCards(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = "Total Revenue · $rangeLabel",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = if (showHeader) Color.White.copy(alpha = 0.80f) else TextSecondary
                     )
                     Text(
@@ -283,7 +283,7 @@ private fun StoreRevenueSummaryCards(
                 }
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(36.dp)
                         .background(
                             if (showHeader) Color.White.copy(alpha = 0.20f) else Primary.copy(alpha = 0.08f),
                             CircleShape
@@ -294,7 +294,7 @@ private fun StoreRevenueSummaryCards(
                         imageVector = Icons.Default.TrendingUp,
                         contentDescription = null,
                         tint = if (showHeader) Color.White else Primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }

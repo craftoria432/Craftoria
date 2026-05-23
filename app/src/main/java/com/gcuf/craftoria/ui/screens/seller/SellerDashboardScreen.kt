@@ -243,16 +243,16 @@ fun SellerDashboardScreen(
                     ) {
                         Text(
                             text = "My Dashboard",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = "Hello, ${user.name.split(" ").firstOrNull() ?: user.name}",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },
@@ -357,10 +357,10 @@ fun SellerDashboardScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = 0.dp,
+                    top = 12.dp,
                     bottom = 80.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     WelcomeBanner(

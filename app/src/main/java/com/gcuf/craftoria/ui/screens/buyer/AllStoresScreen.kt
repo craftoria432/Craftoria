@@ -68,19 +68,19 @@ fun AllStoresScreen(
                     ) {
                         Text(
                             text = "All Stores",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = if (searchQuery.isNotBlank())
                                 "${filteredStores.size} of ${activeStores.size} stores"
                             else
                                 "Discover handcrafted collections",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },
@@ -143,14 +143,14 @@ fun AllStoresScreen(
                         onValueChange = { searchQuery = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                             .onFocusChanged { focusState ->
                                 isSearchActive = focusState.isFocused
                             },
                         placeholder = {
                             Text(
                                 text = "Search stores by name, category...",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 color = TextLight
                             )
                         },
@@ -178,7 +178,7 @@ fun AllStoresScreen(
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor   = BackgroundSecondary,
                             unfocusedContainerColor = BackgroundSecondary,
@@ -187,7 +187,7 @@ fun AllStoresScreen(
                             cursorColor             = Primary
                         ),
                         textStyle = LocalTextStyle.current.copy(
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             color = TextPrimary
                         )
                     )
@@ -211,7 +211,7 @@ fun AllStoresScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(80.dp)
+                                    .size(88.dp)
                                     .background(Primary.copy(alpha = 0.08f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -219,18 +219,18 @@ fun AllStoresScreen(
                                     imageVector = Icons.Default.SearchOff,
                                     contentDescription = null,
                                     tint = Primary.copy(alpha = 0.50f),
-                                    modifier = Modifier.size(38.dp)
+                                    modifier = Modifier.size(44.dp)
                                 )
                             }
                             Text(
                                 text = "No stores found",
-                                fontSize = 16.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "Try searching with different keywords",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 color = TextSecondary,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 20.sp
@@ -253,7 +253,7 @@ fun AllStoresScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(80.dp)
+                                    .size(88.dp)
                                     .background(Primary.copy(alpha = 0.08f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -261,18 +261,18 @@ fun AllStoresScreen(
                                     imageVector = Icons.Default.Store,
                                     contentDescription = null,
                                     tint = Primary.copy(alpha = 0.50f),
-                                    modifier = Modifier.size(38.dp)
+                                    modifier = Modifier.size(44.dp)
                                 )
                             }
                             Text(
                                 text = "No stores available",
-                                fontSize = 16.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "Check back later for new stores",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 color = TextSecondary,
                                 textAlign = TextAlign.Center
                             )
@@ -285,10 +285,10 @@ fun AllStoresScreen(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 14.dp),
-                        contentPadding = PaddingValues(top = 14.dp, bottom = 16.dp),
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredStores) { store ->
                             StoreCard(
