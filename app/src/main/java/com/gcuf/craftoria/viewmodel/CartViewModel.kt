@@ -34,6 +34,9 @@ class CartViewModel(
     private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
 
+    private val _isCartLoading = MutableStateFlow(false)
+    val isCartLoading: StateFlow<Boolean> = _isCartLoading.asStateFlow()
+
     val cartCount: StateFlow<Int> = cartItems
         .map { items -> items.sumOf { it.quantity } }
         .stateIn(
@@ -53,37 +56,54 @@ class CartViewModel(
         }
         
         _currentUserId.value = userId
+        _isCartLoading.value = true
         Log.d(TAG, "🛒 Initializing Firebase cart for user: $userId")
         
         viewModelScope.launch {
             cartRepository.getCartItems(userId)
                 .catch { e ->
                     Log.e(TAG, "❌ Error loading cart", e)
+                    _isCartLoading.value = false
                     emit(emptyList())
                 }
                 .collect { items ->
-                    // Load product details for each cart item
-                    val itemsWithProducts = items.map { cartItem ->
+                    _isCartLoading.value = false
+                    Log.d(TAG, "✅ Cart loaded instantly: ${items.size} items")
+                    // ✅ INSTANT DISPLAY: Show cart items immediately without waiting for product details
+                    // Cart items from repository already have product data, just update UI instantly
+                    _cartItems.value = items
+                    
+                    // ✅ BACKGROUND REFRESH: Fetch latest product data asynchronously in background
+                    // This ensures product details are fresh without blocking UI
+                    viewModelScope.launch {
                         try {
-                            val productDoc = FirebaseFirestore.getInstance()
-                                .collection("products")
-                                .document(cartItem.productId)
-                                .get()
-                                .await()
-                            
-                            val product = productDoc.toObject(Product::class.java)?.copy(id = productDoc.id)
-                            if (product != null) {
-                                cartItem.copy(product = product)
-                            } else {
-                                cartItem
+                            val itemsWithLatestProducts = items.map { cartItem ->
+                                try {
+                                    val productDoc = FirebaseFirestore.getInstance()
+                                        .collection("products")
+                                        .document(cartItem.productId)
+                                        .get()
+                                        .await()
+                                    
+                                    val product = productDoc.toObject(Product::class.java)?.copy(id = productDoc.id)
+                                    if (product != null) {
+                                        cartItem.copy(product = product)
+                                    } else {
+                                        cartItem
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to refresh product data for ${cartItem.productId}", e)
+                                    cartItem
+                                }
                             }
+                            // Update UI with latest product data
+                            _cartItems.value = itemsWithLatestProducts
+                            Log.d(TAG, "✅ Cart refreshed with latest product data: ${itemsWithLatestProducts.size} items")
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to load product for cart item", e)
-                            cartItem
+                            Log.w(TAG, "Background product refresh failed", e)
+                            // Keep existing data if refresh fails
                         }
                     }
-                    _cartItems.value = itemsWithProducts
-                    Log.d(TAG, "✅ Cart loaded: ${itemsWithProducts.size} items")
                 }
         }
     }
@@ -316,7 +336,7 @@ class CartViewModel(
                         productImage = firstItem.product.imageUrls.firstOrNull() ?: "",
                         quantity = sellerItems.sumOf { it.quantity },
                         totalPrice = total,
-                        status = OrderStatus.PENDING.name,
+                        status = OrderStatus.PENDING.toString(),
                         isViewed = false, // ✅ NEW: Explicitly mark as unviewed for badge
                         shippingAddress = "${deliveryInfo.address}, ${deliveryInfo.city}",
                         buyerPhone = deliveryInfo.phoneNumber,

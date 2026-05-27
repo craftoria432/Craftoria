@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.data.model.LearningCategory
 import com.gcuf.craftoria.data.model.Tutorial
 import com.gcuf.craftoria.data.model.User
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextFieldCompact
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.LearningState
 import com.gcuf.craftoria.viewmodel.LearningViewModel
@@ -263,32 +265,12 @@ fun WelcomeBanner() {
 
 @Composable
 fun LearningSearchBar(searchQuery: String, onSearchQueryChange: (String) -> Unit) {
-    OutlinedTextField(
+    StandardizedOutlinedTextFieldCompact(
         value = searchQuery,
         onValueChange = onSearchQueryChange,
-        placeholder = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Search,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(15.dp)
-                )
-                Text("Search tutorials...", fontSize = 13.sp, color = TextSecondary)
-            }
-        },
+        placeholder = "Search tutorials...",
         singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor      = Primary,
-            unfocusedBorderColor    = BorderColor,
-            focusedContainerColor   = Color.White,
-            unfocusedContainerColor = Color.White
-        ),
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth()
+        minHeight = 48
     )
 }
 

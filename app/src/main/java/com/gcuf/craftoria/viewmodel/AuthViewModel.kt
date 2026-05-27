@@ -46,7 +46,10 @@ class AuthViewModel(
         viewModelScope.launch {
             authRepository.currentUser.collect { firebaseUser ->
                 if (firebaseUser != null) {
-                    loadCurrentUser()
+                    // ✅ FIX: Only start listener - it will populate _currentUser
+                    // No need for loadCurrentUser() - listener provides real-time data
+                    // This eliminates race condition where loadCurrentUser() could overwrite
+                    // fresher data from the listener
                     startRealtimeUserListener(firebaseUser.uid)
                 } else {
                     _currentUser.value = null
@@ -93,7 +96,8 @@ class AuthViewModel(
                             rejectionReason = data["rejection_reason"] as? String ?: "",
                             mainSellerId = data["main_seller_id"] as? String ?: "",
                             sellerApplicationStatus = SellerApplicationStatus.fromString(data["seller_application_status"] as? String),
-                            themePreference = data["theme_preference"] as? String ?: "rose"
+                            themePreference = data["theme_preference"] as? String ?: "rose",
+                            status = data["status"] as? String ?: ""
                         )
                         
                         _currentUser.value = user
@@ -118,7 +122,19 @@ class AuthViewModel(
         stopRealtimeUserListener()
     }
 
+    /**
+     * @deprecated No longer needed - startRealtimeUserListener() provides real-time data
+     * Kept for backward compatibility but should not be called
+     * 
+     * RACE CONDITION FIX: This method was causing race conditions with the real-time listener.
+     * The listener now serves as the single source of truth for user data.
+     */
+    @Deprecated(
+        message = "Use startRealtimeUserListener() instead - it provides real-time updates",
+        replaceWith = ReplaceWith("startRealtimeUserListener(userId)")
+    )
     private fun loadCurrentUser() {
+        // Keep implementation for now, but it's no longer called
         viewModelScope.launch {
             val result = authRepository.getCurrentUser()
             result.onSuccess { user ->
@@ -132,7 +148,7 @@ class AuthViewModel(
 
     fun signUp(email: String, password: String, name: String, phone: String, role: UserRole) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            _authState.value = AuthState.EmailLoading  // ✅ Email-specific loading state
 
             val result = authRepository.signUp(email, password, name, role)
 
@@ -160,7 +176,7 @@ class AuthViewModel(
 
     fun signIn(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            _authState.value = AuthState.EmailLoading  // ✅ Email-specific loading state
 
             val result = authRepository.signIn(email, password)
 
@@ -434,7 +450,7 @@ class AuthViewModel(
 
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            _authState.value = AuthState.GoogleLoading  // ✅ Google-specific loading state
 
             val result = authRepository.signInWithGoogle(idToken)
 
@@ -463,15 +479,25 @@ class AuthViewModel(
         viewModelScope.launch {
             try {
                 _authState.value = AuthState.Loading
+                
+                // ✅ FIX: Repository now returns Result<User> and fetches updated data
+                // This eliminates the race condition and ensures consistency
                 val result = authRepository.setInitialRole(userId, role)
                 
                 if (result.isSuccess) {
-                    // Update local user with new role
-                    _currentUser.value = _currentUser.value?.copy(role = role)
-                    _authState.value = AuthState.Success("Role set successfully!")
-                    Log.d("AuthViewModel", "✅ Role set to $role for user $userId")
+                    // Update local state with the fresh user data from repository
+                    _currentUser.value = result.getOrNull()
+                    
+                    _authState.value = AuthState.Success(
+                        if (role == UserRole.SELLER) "Seller account created!"
+                        else "Buyer account created!"
+                    )
+                    
+                    Log.d("AuthViewModel", "✅ ${role.name} account created for user $userId")
                 } else {
-                    _authState.value = AuthState.Error("Failed to set role")
+                    _authState.value = AuthState.Error(
+                        result.exceptionOrNull()?.message ?: "Failed to set role"
+                    )
                 }
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.message ?: "Failed to set role")
@@ -669,11 +695,29 @@ class AuthViewModel(
         }
     }
 
-    // ✅ Manual refresh function to fetch latest user data (kept for backward compatibility)
+    /**
+     * @deprecated This method can race with the real-time listener and should be avoided.
+     * The real-time listener (startRealtimeUserListener) is the single source of truth for user data.
+     * 
+     * RACE CONDITION WARNING: Calling this method while the real-time listener is active can cause
+     * _currentUser to be set twice in quick succession, potentially overwriting fresher data from
+     * the listener with stale data from this one-time fetch.
+     * 
+     * If you need to force a refresh, consider removing and re-adding the listener instead, or
+     * simply rely on the listener which provides real-time updates automatically.
+     * 
+     * Kept for backward compatibility with existing call sites, but new code should not use this.
+     */
+    @Deprecated(
+        message = "Use startRealtimeUserListener() instead - it provides real-time updates without race conditions",
+        replaceWith = ReplaceWith("startRealtimeUserListener(userId)"),
+        level = DeprecationLevel.WARNING
+    )
     fun refreshUserData(userId: String) {
         viewModelScope.launch {
             try {
-                Log.d("AuthViewModel", "🔄 Manually refreshing user data...")
+                Log.w("AuthViewModel", "⚠️ refreshUserData() called - this can race with real-time listener!")
+                Log.w("AuthViewModel", "⚠️ Consider using startRealtimeUserListener() instead for consistent updates")
                 
                 val snapshot = firestore.collection("users")
                     .document(userId)
@@ -700,11 +744,14 @@ class AuthViewModel(
                         rejectionReason = data["rejection_reason"] as? String ?: "",
                         mainSellerId = data["main_seller_id"] as? String ?: "",
                         sellerApplicationStatus = SellerApplicationStatus.fromString(data["seller_application_status"] as? String),
-                        themePreference = data["theme_preference"] as? String ?: "rose"
+                        themePreference = data["theme_preference"] as? String ?: "rose",
+                        status = data["status"] as? String ?: ""
                     )
                     
+                    // ⚠️ RACE CONDITION: This can overwrite fresher data from the real-time listener
                     _currentUser.value = user
                     Log.d("AuthViewModel", "✅ User data refreshed: ${user.name}, status: ${user.sellerApplicationStatus}")
+                    Log.w("AuthViewModel", "⚠️ Note: Real-time listener may overwrite this data shortly")
                 }
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "❌ Failed to refresh user data: ${e.message}")
@@ -752,6 +799,16 @@ class AuthViewModel(
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
+    
+    // ✅ Separate loading states for email and Google authentication
+    object EmailLoading : AuthState()
+    object GoogleLoading : AuthState()
+    
     data class Success(val message: String) : AuthState()
     data class Error(val message: String) : AuthState()
+    
+    // Helper properties for UI
+    val isEmailLoading: Boolean get() = this is EmailLoading
+    val isGoogleLoading: Boolean get() = this is GoogleLoading
+    val isAnyLoading: Boolean get() = this is Loading || this is EmailLoading || this is GoogleLoading
 }

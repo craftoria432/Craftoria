@@ -310,22 +310,17 @@ fun TeamMembersSection(members: List<StoreMember>) {
 fun TeamMemberItem(member: StoreMember, modifier: Modifier = Modifier) {
     var currentMemberName by remember { mutableStateOf(member.userName) }
 
-    LaunchedEffect(member.userId) {
-        if (member.userId.isNotEmpty()) {
-            try {
-                val db = Firebase.firestore
-                db.collection("users").document(member.userId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error == null && snapshot != null && snapshot.exists()) {
-                            val name = snapshot.getString("name") ?: member.userName
-                            currentMemberName = name
-                            Log.d("TeamMemberItem", "✅ Updated member name: $name")
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.e("TeamMemberItem", "❌ Error listening to member name: ${e.message}")
+    DisposableEffect(member.userId) {
+        if (member.userId.isEmpty()) return@DisposableEffect onDispose {}
+        val listener = Firebase.firestore
+            .collection("users")
+            .document(member.userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    currentMemberName = snapshot.getString("name") ?: member.userName
+                }
             }
-        }
+        onDispose { listener.remove() }
     }
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -381,23 +376,35 @@ fun ProductGridItem(product: Product, onClick: () -> Unit, onAddToCart: () -> Un
                     Text(text = "PKR", fontSize = 10.sp, fontWeight = FontWeight.Medium, color = Primary.copy(alpha = 0.65f))
                     Text(text = String.format(java.util.Locale.US, "%,.0f", product.price), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Primary, letterSpacing = (-0.3).sp)
                 }
-                // Add to Cart — gradient fill replacing flat Primary button
+                // Add to Cart — gradient fill with proper layout
                 Button(
                     onClick = { onAddToCart() },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
-                        .background(
-                            Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
-                            RoundedCornerShape(7.dp)
-                        ),
+                        .height(32.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     shape = RoundedCornerShape(7.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add to Cart", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                                RoundedCornerShape(7.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(13.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Add to Cart", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        }
+                    }
                 }
             }
         }

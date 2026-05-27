@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,12 +46,14 @@ import com.gcuf.craftoria.viewmodel.CartViewModel
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
-import com.gcuf.craftoria.data.model.OrderRefundStatus
+import com.gcuf.craftoria.ui.components.FilterTabRow
 import com.gcuf.craftoria.ui.components.OrderDetailsDialog
 import com.gcuf.craftoria.ui.components.CancelOrderDialog
 import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.components.OrderTrackingDialog
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
+import com.gcuf.craftoria.ui.components.EmptyStateComponent
+import com.gcuf.craftoria.ui.components.CraftoriaButton
 import com.gcuf.craftoria.data.model.getStatusEnum
 import com.gcuf.craftoria.data.model.getRefundStatusEnum
 import com.gcuf.craftoria.data.model.getCreatedAtLong
@@ -60,7 +61,6 @@ import com.gcuf.craftoria.data.model.getDeliveredAtLong
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.utils.OrderRefundState
-import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.viewmodel.OrderViewModel
 import com.gcuf.craftoria.viewmodel.OrderActionState
 import java.text.SimpleDateFormat
@@ -267,7 +267,7 @@ fun MyOrdersScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(orders) { order ->
+                        items(orders, key = { it.id }) { order ->
                             OrderCard(
                                 order = order,
                                 isSelectionMode = isSelectionMode,
@@ -426,48 +426,26 @@ fun OrderFilterTabs(
     onFilterSelected: (OrderStatus?) -> Unit
 ) {
     val filters = listOf(
-        Pair(null, "All"),
-        Pair(OrderStatus.PENDING, "Pending"),
-        Pair(OrderStatus.PROCESSING, "Processing"),
-        Pair(OrderStatus.SHIPPED, "Shipped"),
-        Pair(OrderStatus.DELIVERED, "Delivered"),
-        Pair(OrderStatus.COMPLETED, "Completed"),
-        Pair(OrderStatus.CANCELLED, "Cancelled")
+        null to "All",
+        OrderStatus.PENDING to "Pending",
+        OrderStatus.PROCESSING to "Processing",
+        OrderStatus.SHIPPED to "Shipped",
+        OrderStatus.DELIVERED to "Delivered",
+        OrderStatus.COMPLETED to "Completed",
+        OrderStatus.CANCELLED to "Cancelled"
     )
+    val selectedIndex = filters.indexOfFirst { it.first == currentFilter }.coerceAtLeast(0)
 
-    Surface(
-        color = Color.White,
-        shadowElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier.fillMaxWidth().background(Color.White)
     ) {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(filters.size) { index ->
-                val (status, label) = filters[index]
-                val isSelected = currentFilter == status
-                Surface(
-                    onClick = { onFilterSelected(status) },
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isSelected) Primary else Color.White,
-                    border = androidx.compose.foundation.BorderStroke(
-                        width = if (isSelected) 0.dp else 0.5.dp,
-                        color = if (isSelected) Primary else BorderColor
-                    ),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text(
-                        text = label,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) Color.White else TextSecondary,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                    )
-                }
-            }
-        }
+        FilterTabRow(
+            tabs = filters.map { it.second },
+            selectedIndex = selectedIndex,
+            onTabSelected = { index -> onFilterSelected(filters[index].first) },
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        )
+        HorizontalDivider(color = BorderColor, thickness = 0.55.dp)
     }
 }
 
@@ -604,11 +582,11 @@ fun OrderCard(
                     
                     if (refundStatusEnum == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
                         // Show ONLY the refunded badge when refund is completed
-                        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
@@ -618,9 +596,10 @@ fun OrderCard(
                                 )
                                 Text(
                                     text = "Refunded",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF9C27B0)
+                                    color = Color(0xFF9C27B0),
+                                    lineHeight = 13.sp
                                 )
                             }
                         }
@@ -766,32 +745,6 @@ fun OrderCard(
                 onRequestRefund = onRequestRefund
             )
         }
-    }
-}
-
-// ── Status Badge ──────────────────────────────────────────────────────────────
-
-@Composable
-private fun LegacyOrderStatusBadge(status: OrderStatus) {
-    val (backgroundColor, textColor) = when (status) {
-        OrderStatus.PENDING -> Pair(Color(0xFFFFF3CD), Color(0xFF856404))
-        OrderStatus.PROCESSING, OrderStatus.CONFIRMED -> Pair(Color(0xFFE3F2FD), Color(0xFF1976D2))
-        OrderStatus.SHIPPED -> Pair(Color(0xFFF3E5F5), Color(0xFF7B1FA2))
-        OrderStatus.DELIVERED -> Pair(Color(0xFFE8F5E8), Color(0xFF2E7D2E))
-        OrderStatus.CANCELLED -> Pair(Color(0xFFF8D7DA), Color(0xFF721C24))
-        OrderStatus.NEW -> Pair(Color(0xFFFFF3CD), Color(0xFF856404))
-        OrderStatus.COMPLETED -> Pair(Color(0xFFE8F5E8), Color(0xFF2E7D2E))
-    }
-    Surface(shape = RoundedCornerShape(10.dp), color = backgroundColor) {
-        Text(
-            text = status.getDisplayName(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = textColor,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Visible
-        )
     }
 }
 
@@ -1086,52 +1039,27 @@ fun TrackOrderButton(
 
 @Composable
 fun EmptyOrdersState(filterType: OrderStatus?, onBrowseProducts: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = null, tint = Primary.copy(alpha = 0.5f), modifier = Modifier.size(46.dp))
-        }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = if (filterType == null) "No orders yet" else "No ${filterType.getDisplayName().lowercase()} orders",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = if (filterType == null) "Start shopping to see your orders here" else "No orders with this status",
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
-        if (filterType == null) {
-            Spacer(modifier = Modifier.height(28.dp))
-            Button(
-                onClick = onBrowseProducts,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(0.dp),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .height(48.dp)
-                    .widthIn(min = 180.dp)
-                    .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)), RoundedCornerShape(14.dp))
-            ) {
-                Text(text = "Browse Products", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+    // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
+    val title = if (filterType == null) "No Orders Yet" else "No ${filterType.getDisplayName()} Orders"
+    val message = if (filterType == null) "Start shopping to see your orders here" else ""
+
+    EmptyStateComponent(
+        icon = Icons.Default.ShoppingBag,
+        title = title,
+        message = message,
+        actionButton = if (filterType == null) {
+            {
+                CraftoriaButton(
+                    text = "Browse Products",
+                    onClick = onBrowseProducts,
+                    modifier = Modifier.widthIn(min = 180.dp)
+                )
             }
-        }
-    }
+        } else null
+    )
 }
 
 // ── Date Helpers ──────────────────────────────────────────────────────────────
 
 private fun formatMyOrdersDate(timestamp: Long): String = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(timestamp))
+

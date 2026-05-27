@@ -194,46 +194,42 @@ fun SellerVerificationScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Check if user is still BUYER with PENDING seller application
-            if (currentUser?.role == UserRole.BUYER &&
-                currentUser?.sellerApplicationStatus == SellerApplicationStatus.PENDING
-            ) {
-                SellerApplicationPendingContent()
-            } else {
-                when (verificationState) {
-                    VerificationStatus.NOT_SUBMITTED -> VerifNotSubmittedContent(
-                        sellerName = sellerName,
-                        sellerEmail = sellerEmail,
-                        sellerPhone = sellerPhone,
-                        imageUri = imageUri,
-                        onStartVerification = { showImageSourceSheet = true },
-                        onSubmit = {
-                            imageUri?.let { uri ->
-                                if (mlKitVerificationResult != null) {
-                                    handleSubmitVerification(uri)
-                                } else {
-                                    verificationState = VerificationStatus.PENDING
-                                    onSubmitVerification(uri)
-                                }
+            // ✅ FIX: Removed BUYER + PENDING check
+            // First-time sellers are now SELLER immediately with seller_application_status = "none"
+            // Show verification flow based on verification status only
+            when (verificationState) {
+                VerificationStatus.NOT_SUBMITTED -> VerifNotSubmittedContent(
+                    sellerName = sellerName,
+                    sellerEmail = sellerEmail,
+                    sellerPhone = sellerPhone,
+                    imageUri = imageUri,
+                    onStartVerification = { showImageSourceSheet = true },
+                    onSubmit = {
+                        imageUri?.let { uri ->
+                            if (mlKitVerificationResult != null) {
+                                handleSubmitVerification(uri)
+                            } else {
+                                verificationState = VerificationStatus.PENDING
+                                onSubmitVerification(uri)
                             }
-                        },
-                        onHelpClick = { showHelpSheet = true }
-                    )
-                    VerificationStatus.PENDING -> VerifPendingContent()
-                    VerificationStatus.APPROVED -> VerifApprovedContent(
-                        onContinue = onNavigateToSellerDashboard
-                    )
-                    VerificationStatus.REJECTED -> VerifRejectedContent(
-                        reason = rejectionReason
-                            ?: "Your verification was rejected. Please try again.",
-                        onRetry = {
-                            imageUri = null
-                            mlKitViewModel.resetVerification()
-                            verificationState = VerificationStatus.NOT_SUBMITTED
-                        },
-                        onContactSupport = { showHelpSheet = true }
-                    )
-                }
+                        }
+                    },
+                    onHelpClick = { showHelpSheet = true }
+                )
+                VerificationStatus.PENDING -> VerifPendingContent()
+                VerificationStatus.APPROVED -> VerifApprovedContent(
+                    onContinue = onNavigateToSellerDashboard
+                )
+                VerificationStatus.REJECTED -> VerifRejectedContent(
+                    reason = rejectionReason
+                        ?: "Your verification was rejected. Please try again.",
+                    onRetry = {
+                        imageUri = null
+                        mlKitViewModel.resetVerification()
+                        verificationState = VerificationStatus.NOT_SUBMITTED
+                    },
+                    onContactSupport = { showHelpSheet = true }
+                )
             }
         }
     }
@@ -379,118 +375,6 @@ fun SellerVerificationScreen(
             sheetState = helpSheetState,
             onDismiss = { showHelpSheet = false }
         )
-    }
-}
-
-// ── Seller Application Pending ────────────────────────────────────────────────
-
-@Composable
-private fun SellerApplicationPendingContent() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Spinner in tinted circle — consistent with VerifPendingContent
-        Box(
-            modifier = Modifier
-                .size(90.dp)
-                .background(Color(0xFF856404).copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(60.dp),
-                color = Color(0xFF856404),
-                strokeWidth = 5.dp
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Seller Application Under Review",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                "Your seller application is being reviewed by our admin team. You'll be notified once approved to proceed with verification.",
-                fontSize = 13.sp,
-                color = TextSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
-        }
-        // Review time card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(
-                0.5.dp, Color(0xFF856404).copy(alpha = 0.20f)
-            ),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(0.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Schedule,
-                        contentDescription = null,
-                        tint = Color(0xFF856404),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        "Estimated Review Time",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-                Text(
-                    "24 – 48 hours",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF856404)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "You'll receive a notification once your application is reviewed.",
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 17.sp
-                )
-            }
-        }
-        // Steps card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(0.5.dp, BorderColor),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(0.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    "WHAT HAPPENS NEXT",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary,
-                    letterSpacing = 0.5.sp,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-                VerifInfoStep("1", "Admin reviews your seller application")
-                VerifInfoStep("2", "If approved, you can proceed with identity verification")
-                VerifInfoStep("3", "Once verified, you can start selling immediately")
-            }
-        }
     }
 }
 

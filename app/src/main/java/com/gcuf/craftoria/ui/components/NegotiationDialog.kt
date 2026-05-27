@@ -177,7 +177,7 @@ fun NegotiationDialog(
                             }
                         },
                         enabled = offerAmount.isNotBlank() && !isLoadingProduct && negotiationState !is NegotiationState.Loading,
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(12.dp)

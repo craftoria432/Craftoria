@@ -255,6 +255,7 @@ class ProductRepository {
             .whereEqualTo("is_active", true)
             .whereEqualTo("is_draft", false)
             .whereEqualTo("approval_status", "approved")  // ✅ NEW: Only show approved products
+            .whereEqualTo("is_removed", false)  // ✅ ADD THIS
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Failed to get products", error)
@@ -348,6 +349,7 @@ class ProductRepository {
             .whereEqualTo("category", category)
             .whereEqualTo("is_active", true)
             .whereEqualTo("is_draft", false)
+            .whereEqualTo("is_removed", false)  // ✅ ADD THIS
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)

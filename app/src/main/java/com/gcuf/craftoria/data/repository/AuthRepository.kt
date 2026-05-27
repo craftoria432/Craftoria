@@ -62,7 +62,13 @@ class AuthRepository {
                 email = email,
                 name = name,
                 role = role, // stored as uppercase
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                // ✅ CRITICAL: Explicitly set verification status for sellers
+                verificationStatus = VerificationStatus.NOT_SUBMITTED,
+                // ✅ CRITICAL: Explicitly set seller application status
+                sellerApplicationStatus = SellerApplicationStatus.NONE,
+                // ✅ CRITICAL: Explicitly set status (not deleted)
+                status = ""
             )
 
             usersCollection.document(firebaseUser.uid).set(user.toMap()).await()
@@ -232,7 +238,9 @@ class AuthRepository {
                     name = firebaseUser.displayName ?: "",
                     role = UserRole.BUYER,
                     profileImage = firebaseUser.photoUrl?.toString() ?: "",
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    sellerApplicationStatus = SellerApplicationStatus.NONE,
+                    verificationStatus = VerificationStatus.NOT_SUBMITTED
                 )
                 usersCollection.document(firebaseUser.uid).set(newUser.toMap()).await()
                 newUser
@@ -250,14 +258,44 @@ class AuthRepository {
     /**
      * Set initial role for new Google sign-in users
      * Called after user selects role on RoleSelectionScreen
+     * 
+     * CRITICAL: For first-time account creation:
+     * - BUYER: Set role to BUYER with no seller information
+     * - SELLER: Set role to SELLER immediately (unverified), they must complete verification
+     * 
+     * ✅ FIX: Direct seller flow - no application needed for first-time accounts
+     * ✅ FIX: Uses .set() with merge instead of .update() to match ViewModel pattern
+     * ✅ FIX: Buyers do NOT have verification_status field at all (omit it entirely)
      */
-    suspend fun setInitialRole(userId: String, role: UserRole): Result<Unit> {
+    suspend fun setInitialRole(userId: String, role: UserRole): Result<User> {
         return try {
-            usersCollection.document(userId).update(
-                mapOf("role" to role.name.lowercase())
-            ).await()
-            Log.d(TAG, "✅ Initial role set for user $userId: $role")
-            Result.success(Unit)
+            val updates = if (role == UserRole.SELLER) {
+                // ✅ NEW: Direct seller flow for first-time accounts
+                // User is SELLER immediately and can proceed to verification
+                mapOf(
+                    "role" to "seller",
+                    "verification_status" to "not_submitted",
+                    "verified" to false,
+                    "seller_application_status" to "none",  // ✅ No application needed
+                    "account_created_at" to System.currentTimeMillis()
+                )
+            } else {
+                // ✅ NEW: Buyers should NOT have verification_status field at all
+                // Omit it entirely instead of setting to null
+                mapOf(
+                    "role" to "buyer",
+                    "seller_application_status" to "none",
+                    "verified" to false,
+                    "account_created_at" to System.currentTimeMillis()
+                )
+            }
+            usersCollection.document(userId).set(updates, SetOptions.merge()).await()
+            Log.d(TAG, "✅ Initial role set for user $userId: $role (direct flow)")
+            
+            // ✅ Fetch and return updated user data
+            getCurrentUser().getOrThrow()?.let { user ->
+                Result.success(user)
+            } ?: Result.failure(Exception("Failed to fetch updated user data"))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set initial role", e)
             Result.failure(e)

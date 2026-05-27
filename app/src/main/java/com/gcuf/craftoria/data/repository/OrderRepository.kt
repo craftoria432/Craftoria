@@ -96,7 +96,11 @@ class OrderRepository {
                 ordersCollection.document()
             }
 
-            val orderWithId = order.copy(id = docRef.id)
+            val involvedSellerIds = resolveInvolvedSellerIds(order)
+            val orderWithId = order.copy(
+                id = docRef.id,
+                involvedSellerIds = involvedSellerIds
+            )
             docRef.set(orderWithId.toMap()).await()
 
             Log.d(TAG, "✅ Order created: ${docRef.id}")
@@ -127,6 +131,29 @@ class OrderRepository {
             Log.e(TAG, "❌ Failed to create order", e)
             Result.failure(e)
         }
+    }
+
+    /** Primary seller, line-item sellers, and co-seller store members who can view the order. */
+    private suspend fun resolveInvolvedSellerIds(order: Order): List<String> {
+        val sellerIds = linkedSetOf<String>()
+        if (order.sellerId.isNotEmpty()) sellerIds.add(order.sellerId)
+        order.items.mapNotNullTo(sellerIds) { item ->
+            item.sellerId.takeIf { it.isNotEmpty() }
+        }
+        if (order.coSellerStoreId.isNotEmpty()) {
+            try {
+                val storeDoc = db.collection("co_seller_stores")
+                    .document(order.coSellerStoreId)
+                    .get()
+                    .await()
+                (storeDoc.get("member_ids") as? List<*>)?.filterIsInstance<String>()?.let {
+                    sellerIds.addAll(it)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not load store members for order access: ${e.message}")
+            }
+        }
+        return sellerIds.toList()
     }
 
     private suspend fun sendNewOrderNotification(
@@ -473,7 +500,7 @@ class OrderRepository {
             // Count pending orders (status buyers create when placing an order)
             val snapshot = ordersCollection
                 .whereEqualTo("seller_id", sellerId)
-                .whereEqualTo("status", OrderStatus.PENDING.toString())
+                .whereIn("status", listOf(OrderStatus.PENDING.toString(), OrderStatus.PENDING.name))
                 .get()
                 .await()
 
@@ -508,9 +535,10 @@ class OrderRepository {
     }
 
     fun observeNewOrdersCount(sellerId: String, onUpdate: (Int) -> Unit): com.google.firebase.firestore.ListenerRegistration {
+        // Include legacy uppercase status values written before the checkout fix
         return ordersCollection
             .whereEqualTo("seller_id", sellerId)
-            .whereEqualTo("status", OrderStatus.PENDING.toString())
+            .whereIn("status", listOf(OrderStatus.PENDING.toString(), OrderStatus.PENDING.name))
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Failed to observe new orders count", error)
@@ -740,7 +768,7 @@ class OrderRepository {
 
             // Build update data with null-safe timeline handling
             val updateData = mutableMapOf<String, Any>(
-                "status" to OrderStatus.COMPLETED.toString(),
+                "status" to OrderStatus.DELIVERED.toString(),
                 "delivered_at" to currentTime,
                 "updated_at" to currentTime
             )

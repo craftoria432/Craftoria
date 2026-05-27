@@ -281,8 +281,8 @@ fun ProductDetailsScreen(
                                     else if (product.isNegotiable)
                                         BadgeChip(
                                             "Negotiable",
-                                            Primary.copy(alpha = 0.08f),
-                                            Primary,
+                                            Color(0xFF1E88E5).copy(alpha = 0.12f),
+                                            Color(0xFF1E88E5),
                                             Icons.Default.CheckCircle
                                         )
                                 }
@@ -669,7 +669,11 @@ fun SellerCard(
                 .document(sellerId)
                 .addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && snapshot.exists()) {
-                        currentSellerProfileImage = snapshot.getString("profile_image") ?: ""
+                        // ✅ NEW: Check if seller is deleted
+                        val status = snapshot.getString("status") ?: ""
+                        if (status != "deleted") {
+                            currentSellerProfileImage = snapshot.getString("profile_image") ?: ""
+                        }
                     }
                 }
         } catch (e: Exception) {
@@ -935,24 +939,24 @@ fun BadgeChip(
     textColor: Color,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null
 ) {
-    Surface(shape = RoundedCornerShape(8.dp), color = backgroundColor) {
+    Surface(shape = RoundedCornerShape(20.dp), color = backgroundColor) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (icon != null) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = textColor,
-                    modifier = Modifier.size(11.dp)
+                    modifier = Modifier.size(12.dp)
                 )
             }
             Text(
                 text = text,
                 color = textColor,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }

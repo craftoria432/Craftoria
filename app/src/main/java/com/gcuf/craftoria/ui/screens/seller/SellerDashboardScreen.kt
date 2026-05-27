@@ -94,6 +94,7 @@ import com.gcuf.craftoria.ui.theme.TextLight
 import com.gcuf.craftoria.ui.theme.TextPrimary
 import com.gcuf.craftoria.ui.theme.TextSecondary
 import com.gcuf.craftoria.viewmodel.DashboardViewModel
+import com.gcuf.craftoria.data.model.NegotiationStatus
 import com.gcuf.craftoria.data.model.RefundStatus
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -175,7 +176,7 @@ fun SellerDashboardScreen(
         val negotiationsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("negotiations")
             .whereEqualTo("seller_id", user.id)
-            .whereEqualTo("status", "PENDING")
+            .whereEqualTo("status", NegotiationStatus.PENDING.toString())
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
                 if (snapshot != null) pendingNegotiationsCount = snapshot.size()

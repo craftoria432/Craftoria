@@ -1,5 +1,6 @@
 package com.gcuf.craftoria.ui.screens.coseller
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,27 +19,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +51,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.data.model.SellerPayment
+import com.gcuf.craftoria.ui.components.CoSellerPaymentFilterTabs
+import com.gcuf.craftoria.ui.components.EmptyStates
+import com.gcuf.craftoria.ui.components.PaymentStatusBadge
 import com.gcuf.craftoria.data.model.getCreatedAtLong
 import com.gcuf.craftoria.data.repository.StoreRevenueSummary
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
@@ -188,11 +195,10 @@ fun CoSellerStorePaymentScreen(
                 onDateRangeSelected = viewModel::setDateRange
             )
 
-            CoSellerFilterTabs(
+            CoSellerPaymentFilterTabs(
                 selectedStatus = selectedStatus,
                 onFilterSelected = viewModel::filterByStatus
             )
-            HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
 
             when (paymentState) {
                 is CoSellerPaymentUiState.Loading -> {
@@ -208,7 +214,10 @@ fun CoSellerStorePaymentScreen(
                     )
 
                     if (filteredPayments.isEmpty()) {
-                        CoSellerEmptyPaymentsState(rangeLabel = selectedDateRange.displayName)
+                        EmptyStates.NoCoSellerPayments(
+                            rangeLabel = selectedDateRange.displayName,
+                            hasFilter = selectedStatus != "all"
+                        )
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -291,7 +300,7 @@ private fun StoreRevenueSummaryCards(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.TrendingUp,
+                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                         contentDescription = null,
                         tint = if (showHeader) Color.White else Primary,
                         modifier = Modifier.size(18.dp)
@@ -340,6 +349,12 @@ private fun CoSellerDateRangeSelector(
     selectedDateRange: CoSellerPaymentDateRange,
     onDateRangeSelected: (CoSellerPaymentDateRange) -> Unit
 ) {
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (isDropdownExpanded) 180f else 0f,
+        label = "dropdownRotation"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,63 +367,66 @@ private fun CoSellerDateRangeSelector(
             fontWeight = FontWeight.SemiBold,
             color = TextSecondary
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CoSellerPaymentDateRange.entries.forEach { range ->
-                val isSelected = selectedDateRange == range
-                Surface(
-                    onClick = { onDateRangeSelected(range) },
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isSelected) Primary else Color.White,
-                    border = androidx.compose.foundation.BorderStroke(
-                        width = if (isSelected) 0.dp else 0.5.dp,
-                        color = if (isSelected) Primary else BorderColor
-                    ),
-                    modifier = Modifier.height(32.dp)
+
+        // ✅ Professional Dropdown Menu
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                onClick = { isDropdownExpanded = !isDropdownExpanded },
+                shape = RoundedCornerShape(10.dp),
+                color = Color.White,
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = range.displayName,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) Color.White else TextSecondary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        text = selectedDateRange.displayName,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = "Expand",
+                        tint = TextSecondary,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .rotate(rotation)
                     )
                 }
             }
-        }
-    }
-}
 
-@Composable
-private fun CoSellerFilterTabs(selectedStatus: String, onFilterSelected: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        listOf("all" to "All", "pending" to "Pending", "completed" to "Completed").forEach { (key, label) ->
-            val isSelected = selectedStatus == key
-            Surface(
-                onClick = { onFilterSelected(key) },
-                shape = RoundedCornerShape(20.dp),
-                color = if (isSelected) Primary else Color.White,
-                border = androidx.compose.foundation.BorderStroke(
-                    width = if (isSelected) 0.dp else 0.5.dp,
-                    color = if (isSelected) Primary else BorderColor
-                ),
-                modifier = Modifier.height(30.dp)
+            // ✅ Dropdown Menu with Professional Styling
+            DropdownMenu(
+                expanded = isDropdownExpanded,
+                onDismissRequest = { isDropdownExpanded = false },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text(
-                    text = label,
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isSelected) Color.White else TextSecondary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                CoSellerPaymentDateRange.entries.forEach { range ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = range.displayName,
+                                fontSize = 13.sp,
+                                fontWeight = if (selectedDateRange == range) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (selectedDateRange == range) Primary else TextPrimary
+                            )
+                        },
+                        onClick = {
+                            onDateRangeSelected(range)
+                            isDropdownExpanded = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),  // remove containerColor entirely
+                    )
+                }
             }
         }
     }
@@ -477,7 +495,7 @@ private fun CoSellerPaymentCard(
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-                CoSellerStatusBadge(viewModel.getStatusDisplayName(payment.status), payment.status)
+                PaymentStatusBadge(status = payment.status)
             }
 
             HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
@@ -602,79 +620,6 @@ private fun CoSellerPaymentCard(
 }
 
 @Composable
-private fun CoSellerStatusBadge(label: String, status: String) {
-    val (bg, fg) = when (status.lowercase()) {
-        "completed" -> Success.copy(alpha = 0.10f) to Success
-        "pending" -> Warning.copy(alpha = 0.15f) to Warning
-        "processing" -> Color(0xFF2196F3).copy(alpha = 0.10f) to Color(0xFF2196F3)
-        "failed" -> Error.copy(alpha = 0.10f) to Error
-        "refunded" -> Color(0xFF9C27B0).copy(alpha = 0.10f) to Color(0xFF9C27B0)
-        "refund_pending" -> Warning.copy(alpha = 0.15f) to Warning
-        "refund_processing" -> Color(0xFF2196F3).copy(alpha = 0.10f) to Color(0xFF2196F3)
-        "refund_rejected" -> Color(0xFF757575).copy(alpha = 0.10f) to Color(0xFF757575)
-        else -> BackgroundSecondary to TextSecondary
-    }
-    Surface(shape = RoundedCornerShape(6.dp), color = bg) {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = fg,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
-}
-
-@Composable
-private fun CoSellerEmptyPaymentsState(rangeLabel: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundSecondary)
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Professional empty state icon
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Receipt,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.60f),
-                modifier = Modifier.size(50.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Main heading
-        Text(
-            text = "No Payments Found",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Description text
-        Text(
-            text = "No payments found for the $rangeLabel date range.\n\nTry selecting a different date range to view your earnings.",
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
-    }
-}
-
-@Composable
 private fun CoSellerErrorState(errorMessage: String, onRetry: () -> Unit) {
     val isIndexError = errorMessage.contains("FAILED_PRECONDITION") ||
         errorMessage.contains("index") ||
@@ -720,23 +665,18 @@ private fun CoSellerErrorState(errorMessage: String, onRetry: () -> Unit) {
             lineHeight = 19.sp
         )
         Spacer(modifier = Modifier.height(20.dp))
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            contentPadding = PaddingValues(0.dp),
-            shape = RoundedCornerShape(10.dp),
+        Box(
             modifier = Modifier
                 .height(40.dp)
-                .background(
-                    Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
-                    RoundedCornerShape(10.dp)
-                )
+                .background(Brush.horizontalGradient(listOf(Primary, PrimaryLight)), RoundedCornerShape(10.dp))
+                .clickable { onRetry() }
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "Retry",
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 24.dp)
+                color = Color.White
             )
         }
     }

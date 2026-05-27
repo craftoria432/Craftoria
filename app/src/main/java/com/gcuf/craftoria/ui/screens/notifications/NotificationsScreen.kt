@@ -32,6 +32,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.data.model.Notification
 import com.gcuf.craftoria.data.model.NotificationActionType
 import com.gcuf.craftoria.data.model.NotificationCategory
+import com.gcuf.craftoria.ui.components.NotificationCategoryFilterTabs
+import com.gcuf.craftoria.ui.components.EmptyStateComponent
 import androidx.compose.foundation.BorderStroke
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.ui.theme.*
@@ -43,6 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import android.util.Log
+import androidx.compose.material.icons.filled.Notifications
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -243,12 +246,12 @@ fun NotificationsScreen(
                 .padding(paddingValues)
         ) {
             // Filter tabs — pill style, consistent with all other filter tabs in project
-            NotificationFilterTabs(
+            NotificationCategoryFilterTabs(
                 currentFilter = currentFilter,
                 onFilterSelected = { filter ->
                     notificationViewModel.filterNotifications(filter, user.id)
                 },
-                userRole = if (user.role == UserRole.SELLER) "seller" else "buyer"  // ✅ Convert enum to string
+                userRole = if (user.role == UserRole.SELLER) "seller" else "buyer"
             )
 
             when (uiState) {
@@ -431,83 +434,6 @@ fun NotificationsScreen(
                 }
             }
         )
-    }
-}
-
-// ── Filter Tabs ───────────────────────────────────────────────────────────────
-
-@Composable
-fun NotificationFilterTabs(
-    currentFilter: NotificationCategory,
-    onFilterSelected: (NotificationCategory) -> Unit,
-    userRole: String = "buyer"  // "buyer" or "seller"
-) {
-    // ✅ PROFESSIONAL: Role-based filter tabs
-    // Buyer: Unread · All · Orders · Payments · Refunds · Messages · Promotions · System
-    // Seller: Unread · All · Orders · Payments · Refunds · Messages · System · Store Rating · Reports
-    val buyerFilters = listOf(
-        NotificationCategory.UNREAD to "Unread",
-        NotificationCategory.ALL to "All",
-        NotificationCategory.ORDERS to "Orders",
-        NotificationCategory.PAYMENTS to "Payments",
-        NotificationCategory.REFUNDS to "Refunds",
-        NotificationCategory.MESSAGES to "Messages",
-        NotificationCategory.PROMOTIONS to "Promotions",
-        NotificationCategory.SYSTEM to "System"
-    )
-    
-    val sellerFilters = listOf(
-        NotificationCategory.UNREAD to "Unread",
-        NotificationCategory.ALL to "All",
-        NotificationCategory.ORDERS to "Orders",
-        NotificationCategory.PAYMENTS to "Payments",
-        NotificationCategory.REFUNDS to "Refunds",
-        NotificationCategory.MESSAGES to "Messages",
-        NotificationCategory.STORE_RATING to "Store Rating",
-        NotificationCategory.SYSTEM to "System",
-        NotificationCategory.REPORT to "Reports"
-    )
-    
-    val filters = if (userRole == "seller") sellerFilters else buyerFilters
-
-    // White surface with 0.5.dp bottom divider — consistent with FilterTabs in ManageProductsScreen
-    Surface(
-        color = Color.White,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(filters.size) { index ->
-                    val (category, label) = filters[index]
-                    val isSelected = currentFilter == category
-                    // Pill style — selected=Primary fill, unselected=0.5.dp BorderColor outlined
-                    Surface(
-                        onClick = { onFilterSelected(category) },
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) Primary else Color.White,
-                        border = BorderStroke(
-                            width = if (isSelected) 0.dp else 0.5.dp,
-                            color = if (isSelected) Primary else BorderColor
-                        ),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else TextSecondary,
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp)
-                        )
-                    }
-                }
-            }
-            HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-        }
     }
 }
 
@@ -1067,62 +993,30 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
 
 @Composable
 fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationCategory.ALL) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(60.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.5f),
-                modifier = Modifier.size(40.dp)
-            )
+    // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
+    val title = if (currentFilter != NotificationCategory.ALL) {
+        val filterName = when (currentFilter) {
+            NotificationCategory.UNREAD -> "unread"
+            NotificationCategory.ORDERS -> "order"
+            NotificationCategory.PAYMENTS -> "payment"
+            NotificationCategory.REFUNDS -> "refund"
+            NotificationCategory.MESSAGES -> "message"
+            NotificationCategory.PROMOTIONS -> "promotion"
+            NotificationCategory.SYSTEM -> "system"
+            NotificationCategory.STORE_RATING -> "store rating"
+            NotificationCategory.REPORT -> "report"
+            else -> "notification"
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        
-        // ✅ BUG FIX 7: Filter-aware empty state message
-        val (title, subtitle) = if (currentFilter != NotificationCategory.ALL) {
-            val filterName = when (currentFilter) {
-                NotificationCategory.UNREAD -> "Unread"
-                NotificationCategory.ORDERS -> "Order"
-                NotificationCategory.PAYMENTS -> "Payment"
-                NotificationCategory.REFUNDS -> "Refund"
-                NotificationCategory.MESSAGES -> "Message"
-                NotificationCategory.PROMOTIONS -> "Promotion"
-                NotificationCategory.SYSTEM -> "System"
-                NotificationCategory.STORE_RATING -> "Store Rating"
-                NotificationCategory.REPORT -> "Report"
-                else -> "Notification"
-            }
-            "No $filterName notifications" to "Nothing here for this filter"
-        } else {
-            "No notifications yet" to "When you get notifications, they'll show up here"
-        }
-        
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = subtitle,
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
+        "No $filterName notifications yet"
+    } else {
+        "No notifications yet"
     }
+    
+    EmptyStateComponent(
+        icon = Icons.Default.Notifications,
+        title = title,
+        message = ""
+    )
 }
 
 @Composable

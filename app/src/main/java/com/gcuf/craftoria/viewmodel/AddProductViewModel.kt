@@ -138,6 +138,19 @@ class AddProductViewModel(
             try {
                 _productState.value = ProductState.Loading
 
+                // ✅ CRITICAL FIX: Verify seller status directly from Firestore
+                // Never trust the client-passed sellerVerified boolean
+                val sellerDoc = FirebaseFirestore.getInstance().collection("users").document(sellerId).get().await()
+                val verificationStatus = sellerDoc.getString("verification_status") ?: ""
+                val userStatus = sellerDoc.getString("status") ?: ""
+
+                // Block unverified and deleted sellers
+                if (verificationStatus != "approved" || userStatus == "deleted") {
+                    _productState.value = ProductState.Error("Only verified sellers can publish products. Please complete seller verification first.")
+                    Log.w("AddProductViewModel", "⚠️ SECURITY: Unverified seller attempted to publish: $sellerId (status: $verificationStatus)")
+                    return@launch
+                }
+
                 // Validate
                 if (title.isBlank() || description.isBlank() || category.isBlank()) {
                     _productState.value = ProductState.Error("Please fill all required fields")
@@ -315,16 +328,16 @@ class AddProductViewModel(
                     priceState.value = (doc.getDouble("price") ?: 0.0).toInt().toString()
                     stockState.value = (doc.getLong("stock") ?: 0L).toString()
                     categoryState.value = doc.getString("category") ?: ""
-                    weightKgState.value = (doc.getDouble("weightKg") ?: 0.0).toString()
-                    selectedStoreIdState.value = doc.getString("coSellerStoreId") ?: ""
-                    minimumPriceState.value = (doc.getDouble("minimumPrice") ?: 0.0).let {
+                    weightKgState.value = (doc.getDouble("weight_kg") ?: 0.0).toString()  // ✅ FIX: snake_case
+                    selectedStoreIdState.value = doc.getString("co_seller_store_id") ?: ""  // ✅ FIX: snake_case
+                    minimumPriceState.value = (doc.getDouble("minimum_price") ?: 0.0).let {  // ✅ FIX: snake_case
                         if (it > 0) it.toInt().toString() else ""
                     }
-                    autoAcceptDiscountState.value = (doc.getLong("autoAcceptDiscount") ?: 0L).let {
+                    autoAcceptDiscountState.value = (doc.getLong("auto_accept_discount") ?: 0L).let {  // ✅ FIX: snake_case
                         if (it > 0) it.toString() else ""
                     }
-                    _isNegotiationEnabled.value = doc.getBoolean("isNegotiable") ?: false
-                    _existingImageUrls.value = (doc.get("imageUrls") as? List<*>)
+                    _isNegotiationEnabled.value = doc.getBoolean("is_negotiable") ?: false  // ✅ FIX: snake_case
+                    _existingImageUrls.value = (doc.get("image_urls") as? List<*>)  // ✅ FIX: snake_case
                         ?.filterIsInstance<String>() ?: emptyList()
                     
                     // Load specifications
@@ -367,14 +380,14 @@ class AddProductViewModel(
                     "category" to category,
                     "price" to price,
                     "stock" to stock,
-                    "weightKg" to weightKg,
-                    "coSellerStoreId" to coSellerStoreId,
-                    "isNegotiable" to _isNegotiationEnabled.value,
-                    "minimumPrice" to if (_isNegotiationEnabled.value) minimumPrice else 0.0,
-                    "autoAcceptPrice" to autoAcceptPrice,
-                    "autoAcceptDiscount" to autoAcceptDiscount,
+                    "weight_kg" to weightKg,
+                    "co_seller_store_id" to coSellerStoreId,
+                    "is_negotiable" to _isNegotiationEnabled.value,
+                    "minimum_price" to if (_isNegotiationEnabled.value) minimumPrice else 0.0,
+                    "auto_accept_price" to autoAcceptPrice,
+                    "auto_accept_discount" to autoAcceptDiscount,
                     "specifications" to _specifications.value,
-                    "updatedAt" to System.currentTimeMillis()
+                    "updated_at" to System.currentTimeMillis()
                 )
 
                 val result = if (_selectedImages.value.isNotEmpty()) {

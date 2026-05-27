@@ -228,7 +228,7 @@ fun ProductCard(
                         ProductBadge(label = "Out of stock", bgColor = Color(0xFFFFEBEE), textColor = Color(0xFFC62828))
                     }
                     if (product.isNegotiable) {
-                        ProductBadge(label = "Negotiable", bgColor = Color(0xFFE3F2FD), textColor = Color(0xFF1565C0))
+                        ProductBadge(label = "Negotiable", bgColor = Color(0xFF1E88E5).copy(alpha = 0.12f), textColor = Color(0xFF1E88E5))
                     }
                 }
 
@@ -244,14 +244,14 @@ fun ProductCard(
                             disabledContentColor = TextLight
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                        modifier = Modifier.fillMaxWidth().height(34.dp)
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(13.dp))
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (product.stock > 0) "Add to Cart" else "Out of Stock",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

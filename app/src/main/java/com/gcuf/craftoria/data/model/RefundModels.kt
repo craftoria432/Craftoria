@@ -351,8 +351,19 @@ fun RefundRequest.getLastRetryAtLong(): Long = convertRefundTimestamp(lastRetryA
 
 /* -------------------- Helpers -------------------- */
 
-fun RefundRequest.getStatusEnum(): RefundStatus =
-    try { RefundStatus.valueOf(status.uppercase()) } catch (e: Exception) { RefundStatus.REQUESTED }
+fun RefundRequest.getStatusEnum(): RefundStatus = parseRefundStatus(status)
+
+/** Maps Firestore status strings (including legacy processor values) to canonical RefundStatus. */
+fun parseRefundStatus(value: String): RefundStatus = when (value.lowercase()) {
+    "approved" -> RefundStatus.APPROVED_BY_SELLER
+    "rejected" -> RefundStatus.REJECTED_BY_SELLER
+    "disputed" -> RefundStatus.UNDER_REVIEW
+    else -> try {
+        RefundStatus.valueOf(value.uppercase())
+    } catch (_: Exception) {
+        RefundStatus.REQUESTED
+    }
+}
 
 fun RefundRequest.getTypeEnum(): RefundType =
     try { RefundType.valueOf(refundType.uppercase()) } catch (e: Exception) { RefundType.FULL }

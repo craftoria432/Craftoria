@@ -373,22 +373,17 @@ fun BuyerChatListItem(chat: Chat, currentUserId: String, onClick: () -> Unit) {
     // Real-time profile picture listener
     var currentProfileImage by remember { mutableStateOf(chat.participantAvatars[sellerId] ?: "") }
     
-    LaunchedEffect(sellerId) {
-        if (sellerId.isNotEmpty()) {
-            try {
-                val db = FirebaseFirestore.getInstance()
-                db.collection("users").document(sellerId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error == null && snapshot != null && snapshot.exists()) {
-                            val profileImage = snapshot.getString("profile_image") ?: ""
-                            currentProfileImage = profileImage
-                            android.util.Log.d("BuyerChatListItem", "✅ Updated profile image for $sellerId: ${if (profileImage.isNotEmpty()) "loaded" else "empty"}")
-                        }
-                    }
-            } catch (e: Exception) {
-                android.util.Log.e("BuyerChatListItem", "❌ Error listening to profile image: ${e.message}")
+    DisposableEffect(sellerId) {
+        if (sellerId.isEmpty()) return@DisposableEffect onDispose {}
+        val listener = FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(sellerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    currentProfileImage = snapshot.getString("profile_image") ?: ""
+                }
             }
-        }
+        onDispose { listener.remove() }
     }
 
     Surface(

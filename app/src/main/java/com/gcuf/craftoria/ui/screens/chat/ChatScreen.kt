@@ -142,22 +142,19 @@ fun ChatScreen(
             otherUserName = otherUserName,
             productId = productId
         )
-        // Real-time listener for other user's profile image
-        if (otherUserId.isNotEmpty()) {
-            try {
-                val db = Firebase.firestore
-                db.collection("users").document(otherUserId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error == null && snapshot != null && snapshot.exists()) {
-                            val profileImage = snapshot.getString("profile_image") ?: ""
-                            otherUserProfileImage = profileImage
-                            Log.d("ChatScreen", "✅ Updated user profile image: ${if (profileImage.isNotEmpty()) "loaded" else "empty"}")
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.e("ChatScreen", "Error listening to user profile image: ${e.message}")
+    }
+
+    DisposableEffect(otherUserId) {
+        if (otherUserId.isEmpty()) return@DisposableEffect onDispose {}
+        val listener = Firebase.firestore
+            .collection("users")
+            .document(otherUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    otherUserProfileImage = snapshot.getString("profile_image") ?: ""
+                }
             }
-        }
+        onDispose { listener.remove() }
     }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }

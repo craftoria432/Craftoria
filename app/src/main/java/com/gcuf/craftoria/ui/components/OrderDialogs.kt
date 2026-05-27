@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
+import androidx.compose.ui.text.style.TextOverflow
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -90,12 +91,12 @@ fun OrderDetailsDialog(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.93f)
-                .fillMaxHeight(0.88f),
+                .fillMaxWidth(0.88f)
+                .wrapContentHeight(align = Alignment.Center),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
 
                 // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
@@ -134,7 +135,8 @@ fun OrderDetailsDialog(
                 // ── Scrollable Content ────────────────────────────────────────
                 Column(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
+                        .heightIn(max = 600.dp)
                         .verticalScroll(rememberScrollState())
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -213,6 +215,68 @@ fun OrderDetailsDialog(
                                 price = order.productPrice.takeIf { it > 0.0 }
                                     ?: if (order.quantity > 0) order.subtotal / order.quantity else order.totalPrice
                             )
+                        }
+                    }
+
+                    // ✅ NEW: Store Information (for co-seller orders)
+                    if (order.coSellerStoreId.isNotEmpty()) {
+                        DialogSectionCard(
+                            icon = Icons.Default.ShoppingBag,
+                            title = "Store Information"
+                        ) {
+                            var coSellerStoreName by remember { mutableStateOf<String?>(null) }
+                            var isLoadingStore by remember { mutableStateOf(true) }
+
+                            LaunchedEffect(order.coSellerStoreId) {
+                                try {
+                                    val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
+                                    val result = storeRepository.getStoreById(order.coSellerStoreId)
+                                    if (result.isSuccess) {
+                                        coSellerStoreName = result.getOrNull()?.storeName ?: "Co-seller Store"
+                                    } else {
+                                        coSellerStoreName = "Co-seller Store"
+                                    }
+                                } catch (e: Exception) {
+                                    coSellerStoreName = "Co-seller Store"
+                                } finally {
+                                    isLoadingStore = false
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Primary.copy(alpha = 0.08f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ShoppingBag,
+                                        contentDescription = "Store",
+                                        tint = Primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    if (isLoadingStore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 1.5.dp,
+                                            color = Primary
+                                        )
+                                    } else {
+                                        Text(
+                                            text = coSellerStoreName ?: "Co-seller Store",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Primary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -313,7 +377,8 @@ fun OrderDetailsDialog(
                         .fillMaxWidth()
                         .background(Color.White)
                         .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Print — 0.5.dp border matching design system
                     OutlinedButton(
@@ -322,7 +387,7 @@ fun OrderDetailsDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp),
+                            .height(48.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
                         shape = RoundedCornerShape(10.dp)
@@ -333,7 +398,7 @@ fun OrderDetailsDialog(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Print", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Print", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     // Save — gradient Box fill
@@ -343,7 +408,7 @@ fun OrderDetailsDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp),
+                            .height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
@@ -369,7 +434,7 @@ fun OrderDetailsDialog(
                                 )
                                 Text(
                                     text = "Save",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White
                                 )
@@ -447,7 +512,7 @@ fun CancelOrderDialog(
                         onClick = onDismiss,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp),
+                            .heightIn(min = 46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
@@ -475,7 +540,7 @@ fun CancelOrderDialog(
                         onClick = onConfirm,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp),
+                            .heightIn(min = 46.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Error),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Error),
                         shape = RoundedCornerShape(10.dp)
@@ -677,7 +742,7 @@ fun OrderTrackingDialog(
                         onClick = onDismiss,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp),
+                            .heightIn(min = 46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)

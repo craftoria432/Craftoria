@@ -74,6 +74,8 @@ import com.gcuf.craftoria.data.model.SellerPayment
 import com.gcuf.craftoria.viewmodel.CoSellerStoreViewModel
 import com.gcuf.craftoria.ui.screens.coseller.CoSellerStorePaymentScreen
 import com.gcuf.craftoria.ui.screens.coseller.CoSellerOrderDetailScreen
+import com.gcuf.craftoria.ui.screens.coseller.RateStoreScreen
+import com.gcuf.craftoria.ui.screens.coseller.StoreRatingsScreen
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -281,14 +283,20 @@ fun NavGraph(
             RoleSelectionScreen(
                 userId = userId,
                 userName = userName,
-                onRoleSelected = { selectedRole ->
-                    // After role selection, navigate based on role
-                    val destination = if (selectedRole == UserRole.SELLER) {
-                        Screen.Verification.route
-                    } else {
-                        Screen.Home.route
+                onRoleSelected = { intendedRole ->
+                    // ─────────────────────────────────────────────────────────────────────────────
+                    // intendedRole = what the user originally tapped (BUYER or SELLER).
+                    // For SELLER, Firestore stores SELLER + APPROVED (seller_application_status)
+                    // with verification_status = NOT_SUBMITTED, and we route to Verification
+                    // so the user can submit their identity verification selfie.
+                    // ─────────────────────────────────────────────────────────────────────────────
+                    val destination = when (intendedRole) {
+                        UserRole.SELLER -> Screen.Verification.route
+                        else -> Screen.Home.route
                     }
                     navController.navigate(destination) {
+                        // Remove RoleSelection from back-stack so pressing back from
+                        // Verification (or Home) does NOT return here.
                         popUpTo(Screen.RoleSelection.route) { inclusive = true }
                     }
                 },
@@ -310,8 +318,27 @@ fun NavGraph(
                 sellerEmail = user?.email ?: "",
                 sellerPhone = user?.phone ?: "",
                 onBackClick = {
-                    if (!navController.popBackStack()) {
-                        navController.navigate(Screen.Home.route)
+                    // ✅ FIX: For first-time sellers in verification, prevent going back
+                    // They must complete verification or logout
+                    // Only allow back if they're coming from Profile (already have an account)
+                    val isFirstTimeSetup = user?.role == UserRole.SELLER && 
+                                          user.verificationStatus == VerificationStatus.NOT_SUBMITTED
+                    
+                    if (isFirstTimeSetup) {
+                        // Don't allow back navigation for first-time setup
+                        // User must complete verification or logout
+                        // Show a message or do nothing
+                    } else {
+                        // Allow back for existing users checking their status
+                        if (user?.role == UserRole.SELLER) {
+                            navController.navigate(Screen.SellerDashboard.route) {
+                                popUpTo(Screen.Verification.route) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Verification.route) { inclusive = true }
+                            }
+                        }
                     }
                 },
                 onNavigateToSellerDashboard = {
@@ -736,6 +763,20 @@ fun NavGraph(
             )
         }
 
+        /* ---------------------- ORDER DETAILS ---------------------- */
+        composable(
+            route = Screen.OrderDetails.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            OrderDetailsScreen(
+                orderId = orderId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         /* ---------------------- REFUND REQUEST ---------------------- */
         composable(
             route = Screen.RefundRequest.route,
@@ -901,13 +942,30 @@ fun NavGraph(
             arguments = listOf(navArgument("refundId") { type = NavType.StringType })
         ) { backStackEntry ->
             val refundId = backStackEntry.arguments?.getString("refundId") ?: return@composable
+            val scope = rememberCoroutineScope()
+            
             if (currentUser?.role == UserRole.SELLER) {
                 SellerRefundDetailScreen(
                     refundId = refundId,
                     onBackClick = { navController.popBackStack() },
                     onContactBuyer = { buyerId ->
-                        // Navigate to chat with buyer
-                        navController.navigate("${Screen.Chat.route}/$buyerId/Buyer")
+                        // Fetch buyer name and navigate to chat
+                        scope.launch {
+                            try {
+                                val userDoc = FirebaseFirestore.getInstance()
+                                    .collection("users")
+                                    .document(buyerId)
+                                    .get()
+                                    .await()
+                                
+                                val buyerName = userDoc.getString("name") ?: "Buyer"
+                                navController.navigate("${Screen.Chat.route}/$buyerId/$buyerName")
+                            } catch (e: Exception) {
+                                Log.e("NavGraph", "Error fetching buyer name: ${e.message}")
+                                // Fallback to generic name
+                                navController.navigate("${Screen.Chat.route}/$buyerId/Buyer")
+                            }
+                        }
                     }
                 )
             } else {
@@ -1281,7 +1339,7 @@ fun NavGraph(
                             }
 
                             NotificationActionType.REPLY_MESSAGE -> {
-                                navController.navigate(Screen.Messages.route)
+                                navController.navigate(Screen.MyChats.route)
                             }
 
                             NotificationActionType.VIEW_PRODUCT -> {
@@ -1371,20 +1429,26 @@ fun NavGraph(
             }
         }
 
-        /* ---------------------- ALL ACTIVITY ---------------------- */
+        /* ---------------------- ALL ACTIVITY → Notifications ---------------------- */
         composable(Screen.AllActivity.route) {
-            PlaceholderScreen(
-                title = "All Activity",
-                onBackClick = { navController.popBackStack() }
-            )
+            LaunchedEffect(Unit) {
+                navController.navigate(Screen.Notifications.route) {
+                    popUpTo(Screen.AllActivity.route) { inclusive = true }
+                }
+            }
         }
 
-        /* ---------------------- MESSAGES ---------------------- */
+        /* ---------------------- MESSAGES (Buyer) ---------------------- */
         composable(Screen.Messages.route) {
-            PlaceholderScreen(
-                title = "Messages",
-                onBackClick = { navController.popBackStack() }
-            )
+            currentUser?.let { user ->
+                MyChatsScreen(
+                    userId = user.id,
+                    onBackClick = { navController.popBackStack() },
+                    onChatClick = { otherUserId, otherUserName ->
+                        navController.navigate("${Screen.Chat.route}/$otherUserId/$otherUserName")
+                    }
+                )
+            }
         }
 
         /* ---------------------- CHAT ---------------------- */
@@ -1434,21 +1498,17 @@ fun NavGraph(
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             currentUser?.let { user ->
                 if (user.role == UserRole.SELLER) {
-                    // Placeholder for StoreRatingsScreen
-                    // TODO: Implement StoreRatingsScreen to display all ratings for this store
-                    PlaceholderScreen(
-                        title = "Store Ratings",
+                    StoreRatingsScreen(
+                        storeId = storeId,
                         onBackClick = { navController.popBackStack() }
                     )
                 } else {
-                    LaunchedEffect(Unit) {
-                        navController.popBackStack()
-                    }
+                    LaunchedEffect(Unit) { navController.popBackStack() }
                 }
             }
         }
 
-        /* ---------------------- RATE STORE (Buyer Dialog) ---------------------- */
+        /* ---------------------- RATE STORE (Buyer) ---------------------- */
         composable(
             route = "rate_store/{storeId}/{orderId}",
             arguments = listOf(
@@ -1460,16 +1520,16 @@ fun NavGraph(
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             currentUser?.let { user ->
                 if (user.role != UserRole.SELLER) {
-                    // Placeholder for RateStoreDialog
-                    // TODO: Implement RateStoreDialog for buyers to submit ratings
-                    PlaceholderScreen(
-                        title = "Rate Store",
-                        onBackClick = { navController.popBackStack() }
+                    RateStoreScreen(
+                        storeId = storeId,
+                        orderId = orderId,
+                        buyerId = user.id,
+                        buyerName = user.name,
+                        onBackClick = { navController.popBackStack() },
+                        onRated = { navController.popBackStack() }
                     )
                 } else {
-                    LaunchedEffect(Unit) {
-                        navController.popBackStack()
-                    }
+                    LaunchedEffect(Unit) { navController.popBackStack() }
                 }
             }
         }

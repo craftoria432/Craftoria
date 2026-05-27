@@ -114,6 +114,7 @@ class OrderViewModel : ViewModel() {
     fun loadOrderDetails(orderId: String) {
         viewModelScope.launch {
             try {
+                _selectedOrder.value = null
                 val result = orderRepository.getOrderById(orderId)
 
                 if (result.isSuccess) {

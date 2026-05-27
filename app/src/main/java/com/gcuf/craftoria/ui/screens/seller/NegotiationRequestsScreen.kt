@@ -53,7 +53,7 @@ fun NegotiationRequestsScreen(
         try {
             val snapshot = firestore.collection("negotiations")
                 .whereEqualTo("seller_id", user.id)
-                .whereEqualTo("status", "PENDING")
+                .whereEqualTo("status", com.gcuf.craftoria.data.model.NegotiationStatus.PENDING.toString())
                 .get().await()
             val negotiationsList = mutableListOf<NegotiationWithDetails>()
             for (doc in snapshot.documents) {

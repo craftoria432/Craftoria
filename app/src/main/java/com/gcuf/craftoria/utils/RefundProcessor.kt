@@ -1,5 +1,7 @@
 package com.gcuf.craftoria.utils
 
+import com.gcuf.craftoria.data.model.RefundStatus
+import com.gcuf.craftoria.data.model.RefundReason
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.IgnoreExtraProperties
@@ -13,66 +15,7 @@ import java.util.UUID
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-// ==================== ENUMS ====================
-enum class RefundStatus {
-    REQUESTED,
-    APPROVED,
-    PROCESSING,
-    COMPLETED,
-    FAILED,
-    CANCELLED,
-    DISPUTED;
-
-    override fun toString(): String = name.lowercase()
-
-    fun getDisplayName(): String = when (this) {
-        REQUESTED -> "Requested"
-        APPROVED -> "Approved"
-        PROCESSING -> "Processing"
-        COMPLETED -> "Completed"
-        FAILED -> "Failed"
-        CANCELLED -> "Cancelled"
-        DISPUTED -> "Disputed"
-    }
-
-    fun getStatusColor(): String = when (this) {
-        REQUESTED -> "#FFA500"
-        APPROVED -> "#4169E1"
-        PROCESSING -> "#1E90FF"
-        COMPLETED -> "#28A745"
-        FAILED -> "#DC3545"
-        CANCELLED -> "#6C757D"
-        DISPUTED -> "#FF6347"
-    }
-}
-
-enum class RefundReason {
-    BUYER_REQUEST,
-    SELLER_INITIATED,
-    ORDER_CANCELLED,
-    PRODUCT_DEFECTIVE,
-    PRODUCT_NOT_RECEIVED,
-    WRONG_PRODUCT,
-    CHARGEBACK,
-    PAYMENT_ERROR,
-    DUPLICATE_PAYMENT,
-    OTHER;
-
-    override fun toString(): String = name.lowercase()
-
-    fun getDisplayName(): String = when (this) {
-        BUYER_REQUEST -> "Buyer Request"
-        SELLER_INITIATED -> "Seller Initiated"
-        ORDER_CANCELLED -> "Order Cancelled"
-        PRODUCT_DEFECTIVE -> "Product Defective"
-        PRODUCT_NOT_RECEIVED -> "Product Not Received"
-        WRONG_PRODUCT -> "Wrong Product"
-        CHARGEBACK -> "Chargeback"
-        PAYMENT_ERROR -> "Payment Error"
-        DUPLICATE_PAYMENT -> "Duplicate Payment"
-        OTHER -> "Other"
-    }
-}
+// RefundStatus and RefundReason are canonical in com.gcuf.craftoria.data.model.RefundModels
 
 // ==================== DATA MODELS ====================
 @IgnoreExtraProperties
@@ -328,7 +271,7 @@ class RefundProcessor(private val db: FirebaseFirestore = FirebaseFirestore.getI
 
             refundsCollection.document(refundId).update(
                 mapOf(
-                    "status" to RefundStatus.APPROVED.toString(),
+                    "status" to RefundStatus.APPROVED_BY_SELLER.toString(),
                     "approved_by" to approvedBy,
                     "approved_at" to System.currentTimeMillis(),
                     "updated_at" to System.currentTimeMillis()
@@ -363,8 +306,10 @@ class RefundProcessor(private val db: FirebaseFirestore = FirebaseFirestore.getI
                 ?: return Result.failure(Exception("Refund not found"))
 
             if (refund.status !in listOf(
-                    RefundStatus.APPROVED.toString(),
-                    RefundStatus.REQUESTED.toString()
+                    RefundStatus.APPROVED_BY_SELLER.toString(),
+                    RefundStatus.APPROVED_BY_ADMIN.toString(),
+                    RefundStatus.REQUESTED.toString(),
+                    "approved" // legacy processor status
                 )
             ) {
                 return Result.failure(Exception("Refund cannot be processed in ${refund.status} status"))
@@ -445,7 +390,8 @@ class RefundProcessor(private val db: FirebaseFirestore = FirebaseFirestore.getI
 
             if (refund.status !in listOf(
                     RefundStatus.REQUESTED.toString(),
-                    RefundStatus.APPROVED.toString()
+                    RefundStatus.APPROVED_BY_SELLER.toString(),
+                    RefundStatus.APPROVED_BY_ADMIN.toString(),
                 )
             ) {
                 return Result.failure(Exception("Cannot cancel refund in ${refund.status} status"))

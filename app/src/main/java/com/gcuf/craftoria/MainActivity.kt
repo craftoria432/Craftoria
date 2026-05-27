@@ -24,6 +24,7 @@ import com.gcuf.craftoria.services.ThemeInitializationService
 import com.gcuf.craftoria.ui.navigation.NavGraph
 import com.gcuf.craftoria.ui.theme.CraftoriaTheme
 import com.gcuf.craftoria.ui.theme.ThemeManager
+import com.gcuf.craftoria.BuildConfig
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.utils.SampleDataHelper
 import com.gcuf.craftoria.viewmodel.AuthViewModel
@@ -253,10 +254,9 @@ class MainActivity : ComponentActivity() {
                 val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
 
                 // ─────────────────────────────────────────
-                // Step 1: Add Products (Once)
-                // ─────────────────────────────────────────
+                // Step 1: Add Products (debug builds only — never seed production catalogs)
                 val productsAdded = prefs.getBoolean("sample_products_added", false)
-                if (!productsAdded) {
+                if (BuildConfig.DEBUG && !productsAdded) {
                     Log.d("Craftoria", "")
                     Log.d("Craftoria", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     Log.d("Craftoria", "🛒 ADDING SELLER PRODUCTS")

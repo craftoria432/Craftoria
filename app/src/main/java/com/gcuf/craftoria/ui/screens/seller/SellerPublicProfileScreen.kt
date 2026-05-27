@@ -61,6 +61,15 @@ fun SellerPublicProfileScreen(
             val userDoc = FirebaseFirestore.getInstance()
                 .collection("users").document(sellerId).get().await()
             
+            // ✅ NEW: Check if user is deleted
+            val userStatus = userDoc.getString("status") ?: ""
+            if (userStatus == "deleted") {
+                Log.e("SellerPublicProfile", "❌ Seller account is deleted: $sellerId")
+                errorMessage = "This seller's account has been deleted"
+                isLoading = false
+                return@LaunchedEffect
+            }
+            
             // ✅ Manual safe mapping with proper UserRole deserialization
             val data = userDoc.data
             if (data != null) {

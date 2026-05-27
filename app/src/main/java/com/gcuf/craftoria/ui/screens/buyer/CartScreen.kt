@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.CartItem
 import com.gcuf.craftoria.data.model.NegotiationStatus
+import com.gcuf.craftoria.ui.components.EmptyStates
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.ui.theme.BorderStyles
@@ -47,19 +48,11 @@ fun CartScreen(
     cartViewModel: CartViewModel
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
+    val isCartLoading by cartViewModel.isCartLoading.collectAsState()
     val subtotal = remember(cartItems) { cartViewModel.getSubtotal() }
     val shipping = CartViewModel.SHIPPING_COST
     val total = remember(cartItems) { cartViewModel.getTotal() }
     var showClearDialog by remember { mutableStateOf(false) }
-    
-    // ✅ Track if we've ever loaded cart data to prevent empty state flash
-    var hasLoadedOnce by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(cartItems) {
-        if (cartItems.isNotEmpty()) {
-            hasLoadedOnce = true
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -100,33 +93,33 @@ fun CartScreen(
             )
         }
     ) { paddingValues ->
-        // ✅ Only show empty state if we've loaded and cart is truly empty
-        // This prevents the flash of empty state when navigating to cart after adding items
-        if (cartItems.isEmpty() && hasLoadedOnce) {
-            EmptyCartState(modifier = Modifier.padding(paddingValues), onContinueShopping = onContinueShopping)
-        } else if (cartItems.isEmpty()) {
-            // Show loading state instead of empty state on first load
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(BackgroundSecondary)
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary)
+        when {
+            isCartLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BackgroundSecondary)
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Primary)
+                }
             }
-        } else {
+            cartItems.isEmpty() -> {
+                EmptyStates.EmptyCart(modifier = Modifier.padding(paddingValues), onContinueShopping = onContinueShopping)
+            }
+            else -> {
+            val itemsBySeller = remember(cartItems) { cartItems.groupBy { it.product.sellerId } }
+            val sellerEntries = itemsBySeller.entries.toList()
             Box(modifier = Modifier.fillMaxSize().background(BackgroundSecondary).padding(paddingValues)) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(bottom = 88.dp),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val itemsBySeller = cartItems.groupBy { it.product.sellerId }
-                    val sellerEntries = itemsBySeller.entries.toList()
                     sellerEntries.forEachIndexed { sellerIndex, (sellerId, sellerItems) ->
                         item { SellerGroupHeader(sellerId = sellerId, sellerName = sellerItems.first().product.sellerName, itemCount = sellerItems.size) }
-                        items(sellerItems) { item ->
+                        items(sellerItems, key = { it.id }) { item ->
                             CartItemCard(item = item, onQuantityChange = { newQty -> cartViewModel.updateQuantity(item.id, newQty) }, onRemove = { cartViewModel.removeFromCart(item.id) }, onClick = { onProductClick(item.product.id) })
                         }
                         if (sellerIndex < sellerEntries.size - 1) { item { SellerGroupDivider() } }
@@ -140,6 +133,7 @@ fun CartScreen(
                     CartCheckoutButton(total = total, itemCount = cartItems.size, onCheckout = onCheckout)
                 }
             }
+            }
         }
     }
 
@@ -147,7 +141,7 @@ fun CartScreen(
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             containerColor = Color.White,
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(50.dp),
             icon = {
                 Box(modifier = Modifier.size(56.dp).background(Error.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
                     Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = Error, modifier = Modifier.size(28.dp))
@@ -183,7 +177,7 @@ fun SellerGroupHeader(sellerId: String, sellerName: String, itemCount: Int) {
             color = TextPrimary
         )
         Spacer(modifier = Modifier.weight(1f))
-        Surface(color = Primary.copy(alpha = 0.10f), shape = RoundedCornerShape(10.dp)) {
+        Surface(color = Primary.copy(alpha = 0.10f), shape = RoundedCornerShape(30.dp)) {
             Text(text = "$itemCount ${if (itemCount == 1) "item" else "items"}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
         }
     }
@@ -234,50 +228,47 @@ fun CartItemCard(item: CartItem, onQuantityChange: (Int) -> Unit, onRemove: () -
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Text(text = "PKR ${String.format("%.0f", item.price)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Primary)
-                        // ✅ Enhanced badge display with better visibility
+                        // ✅ Unified badge styling — consistent with Members tab
                         when (item.negotiationStatus) {
                             NegotiationStatus.PENDING -> {
                                 Surface(
-                                    color = Warning.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Warning.copy(alpha = 0.3f))
+                                    color = Color(0xFFFFF3CD),
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Text(
                                         text = "Pending",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Warning,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF856404),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
                             }
                             NegotiationStatus.ACCEPTED, NegotiationStatus.AUTO_ACCEPTED -> {
                                 Surface(
-                                    color = Success.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Success.copy(alpha = 0.3f))
+                                    color = Color(0xFFD4EDDA),
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Text(
                                         text = "Accepted",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Success,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF155724),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
                             }
                             NegotiationStatus.REJECTED, NegotiationStatus.DECLINED -> {
                                 Surface(
-                                    color = Error.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Error.copy(alpha = 0.3f))
+                                    color = Color(0xFFF8D7DA),
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Text(
                                         text = "Rejected",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Error,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF721C24),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -385,31 +376,6 @@ fun CartCheckoutButton(total: Double, itemCount: Int, onCheckout: () -> Unit) {
                     Text(text = "→", fontSize = 15.sp, color = Color.White)
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun EmptyCartState(modifier: Modifier = Modifier, onContinueShopping: () -> Unit) {
-    Column(modifier = modifier.fillMaxSize().background(BackgroundSecondary).padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(modifier = Modifier.size(88.dp).background(color = Primary.copy(alpha = 0.10f), shape = CircleShape), contentAlignment = Alignment.Center) {
-            Icon(imageVector = Icons.Outlined.ShoppingCart, contentDescription = null, tint = Primary.copy(alpha = 0.70f), modifier = Modifier.size(44.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(text = "Your Cart is Empty", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(text = "Discover beautiful handcrafted items\nand add them to your cart", fontSize = 14.sp, color = TextSecondary, textAlign = TextAlign.Center, lineHeight = 22.sp)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onContinueShopping,
-            modifier = Modifier.fillMaxWidth().height(50.dp).background(brush = Brush.horizontalGradient(listOf(Primary, PrimaryLight)), shape = RoundedCornerShape(14.dp)),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            shape = RoundedCornerShape(14.dp),
-            contentPadding = PaddingValues(0.dp)
-        ) {
-            Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Continue Shopping", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }

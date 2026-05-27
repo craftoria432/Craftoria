@@ -81,6 +81,11 @@ data class Order(
     @set:PropertyName("co_seller_store_id")
     var coSellerStoreId: String = "",
 
+    /** All sellers with access to this order (primary seller + co-seller store members). */
+    @get:PropertyName("involved_seller_ids")
+    @set:PropertyName("involved_seller_ids")
+    var involvedSellerIds: List<String> = emptyList(),
+
     // Status
     var status: String = OrderStatus.NEW.toString(),
 
@@ -210,7 +215,11 @@ data class OrderItem(
 
     @get:PropertyName("payment_status")
     @set:PropertyName("payment_status")
-    var paymentStatus: String = "pending"
+    var paymentStatus: String = "pending",
+
+    @get:PropertyName("co_seller_store_id")
+    @set:PropertyName("co_seller_store_id")
+    var coSellerStoreId: String = ""
 )
 
 data class DeliveryInfo(
@@ -305,6 +314,7 @@ fun Order.toMap(): Map<String, Any> = mapOf(
     "total_amount" to totalAmount,
     "shipping_cost" to (shippingCost ?: 0.0),
     "co_seller_store_id" to coSellerStoreId,
+    "involved_seller_ids" to involvedSellerIds,
     "status" to status,
     "refund_status" to refundStatus,
     "is_viewed" to isViewed,
@@ -339,7 +349,8 @@ fun OrderItem.toMap(): Map<String, Any> = mapOf(
     "quantity" to quantity,
     "price" to price,
     "is_negotiated" to isNegotiated,
-    "payment_status" to paymentStatus
+    "payment_status" to paymentStatus,
+    "co_seller_store_id" to coSellerStoreId
 )
 
 fun DeliveryInfo.toMap(): Map<String, Any> = mapOf(

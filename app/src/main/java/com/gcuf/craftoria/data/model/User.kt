@@ -51,7 +51,10 @@ data class User(
 
     @get:PropertyName("theme_preference")
     @set:PropertyName("theme_preference")
-    var themePreference: String = "rose"  // Default to rose theme
+    var themePreference: String = "rose",  // Default to rose theme
+
+    // ✅ Account status for soft deletion
+    var status: String = ""  // "active" | "deleted"
 )
 
 enum class UserRole {
@@ -98,6 +101,7 @@ fun User.toMap(): Map<String, Any> = mapOf(
     "rejection_reason" to rejectionReason,
     "main_seller_id" to mainSellerId,
     "seller_application_status" to sellerApplicationStatus.name.lowercase(),
-    "theme_preference" to themePreference
+    "theme_preference" to themePreference,
+    "status" to status  // ✅ Account status for soft deletion
 )
 

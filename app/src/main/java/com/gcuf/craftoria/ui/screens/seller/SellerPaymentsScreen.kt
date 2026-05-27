@@ -2,11 +2,9 @@ package com.gcuf.craftoria.ui.screens.seller
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,9 +22,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.gcuf.craftoria.data.model.PaymentStatus
 import com.gcuf.craftoria.data.model.SellerPayment
 import com.gcuf.craftoria.data.model.getDisplayDate
+import com.gcuf.craftoria.ui.components.EmptyStates
+import com.gcuf.craftoria.ui.components.PaymentStatusBadge
+import com.gcuf.craftoria.ui.components.PaymentStatusFilterTabs
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.PaymentStatsUiState
@@ -88,6 +88,16 @@ fun SellerPaymentsScreen(
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
+            if (paymentState !is PaymentUiState.Error) {
+                PaymentStatusFilterTabs(
+                    selectedStatus = selectedStatus,
+                    onFilterSelected = { status ->
+                        if (status == null) viewModel.clearFilters()
+                        else viewModel.setStatusFilter(status)
+                    }
+                )
+            }
+
             when (val p = paymentState) {
                 is PaymentUiState.Loading -> {
                     Box(
@@ -103,31 +113,21 @@ fun SellerPaymentsScreen(
                 is PaymentUiState.Success -> {
                     // ── Stats card ────────────────────────────────────────────────────
                     when (val s = statsState) {
-                        is PaymentStatsUiState.Loading -> {
-                            // Render nothing — stats will appear when ready
-                        }
+                        is PaymentStatsUiState.Loading -> { /* stats load in background */ }
                         is PaymentStatsUiState.Success -> PaymentStatsCards(s.stats)
                         is PaymentStatsUiState.Error   -> { /* omit stats on error */ }
                         is PaymentStatsUiState.Idle -> { /* no-op */ }
                     }
 
-                    // ── Filter tabs ───────────────────────────────────────────────────
-                    SellerPaymentFilterTabs(
-                        selectedStatus  = selectedStatus,
-                        onFilterSelected = { status ->
-                            if (status == null) viewModel.clearFilters()
-                            else viewModel.setStatusFilter(status)
-                        },
-                        payments = p.payments
-                    )
-
                     // ── Payment list ──────────────────────────────────────────────────
                     val filtered = viewModel.getFilteredPayments(p.payments)
                     if (filtered.isEmpty()) {
-                        SellerEmptyPaymentsState(
-                            hasFilter  = selectedStatus != null,
-                            filterName = selectedStatus?.getDisplayName() ?: ""
-                        )
+                        val currentStatus = selectedStatus
+                        if (currentStatus != null) {
+                            EmptyStates.NoPaymentsFiltered(filterName = currentStatus.getDisplayName())
+                        } else {
+                            EmptyStates.NoPaymentsYet(forBuyer = false)
+                        }
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -289,170 +289,6 @@ private fun PaymentCard(payment: SellerPayment, onClick: () -> Unit) {
             ) {
                 Text(text = "PKR ${String.format(java.util.Locale.US, "%.0f", payment.amount)}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Success)
                 Text(text = formatSellerPaymentDate(payment.getDisplayDate()), fontSize = 11.sp, color = TextSecondary)
-            }
-        }
-    }
-}
-
-// ── Status Badge — theme tokens replacing hardcoded hex ───────────────────────
-
-@Composable
-private fun PaymentStatusBadge(status: String) {
-    val (backgroundColor, textColor, label) = when (status.lowercase()) {
-        "completed"         -> Triple(Success.copy(alpha = 0.10f),           Success,           "Completed")
-        "pending"           -> Triple(Warning.copy(alpha = 0.15f),           Warning,           "Pending")
-        "processing"        -> Triple(Color(0xFF2196F3).copy(alpha = 0.10f), Color(0xFF2196F3), "Processing")
-        "failed"            -> Triple(Error.copy(alpha = 0.10f),             Error,             "Failed")
-        "refund_pending"    -> Triple(Warning.copy(alpha = 0.15f),           Warning,           "Refund Pending")
-        "refund_processing" -> Triple(Color(0xFF2196F3).copy(alpha = 0.10f), Color(0xFF2196F3), "Refund Processing")
-        "refunded"          -> Triple(Color(0xFF9C27B0).copy(alpha = 0.10f), Color(0xFF9C27B0), "Refunded")
-        "refund_rejected"   -> Triple(Color(0xFF757575).copy(alpha = 0.10f), Color(0xFF757575), "Refund Rejected")
-        else                -> Triple(BorderColor, TextSecondary,
-            status.replaceFirstChar { it.uppercase() })
-    }
-    Surface(shape = RoundedCornerShape(6.dp), color = backgroundColor) {
-        Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = textColor, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-    }
-}
-
-// ── Filter tabs ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun SellerPaymentFilterTabs(
-    selectedStatus: PaymentStatus?,
-    onFilterSelected: (PaymentStatus?) -> Unit,
-    payments: List<SellerPayment>
-) {
-    Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // ✅ ALL tab — always shown
-            FilterTab("All", selectedStatus == null) { onFilterSelected(null) }
-
-            // ✅ All payment statuses — ALWAYS shown regardless of data
-            // This ensures consistent UI and helps sellers understand all possible states
-            PaymentStatus.entries.forEach { status ->
-                FilterTab(
-                    label    = status.getDisplayName(),
-                    selected = selectedStatus == status,
-                    onClick  = { onFilterSelected(status) }
-                )
-            }
-        }
-        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-    }
-}
-
-@Composable
-private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape   = RoundedCornerShape(20.dp),
-        color   = if (selected) Primary else Color.White,
-        border  = androidx.compose.foundation.BorderStroke(
-            width = if (selected) 0.dp else 0.5.dp,
-            color = if (selected) Primary else BorderColor
-        ),
-        modifier = Modifier.height(34.dp)
-    ) {
-        Text(
-            text       = label,
-            fontSize   = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color      = if (selected) Color.White else TextSecondary,
-            modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
-        )
-    }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun SellerEmptyPaymentsState(hasFilter: Boolean = false, filterName: String = "") {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundSecondary)
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Professional empty state icon
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .background(
-                    if (hasFilter) Error.copy(alpha = 0.08f) else Success.copy(alpha = 0.08f),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (hasFilter) Icons.Default.FilterList else Icons.Default.Receipt,
-                contentDescription = null,
-                tint = if (hasFilter) Error.copy(alpha = 0.60f) else Success.copy(alpha = 0.60f),
-                modifier = Modifier.size(50.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Main heading
-        Text(
-            text = if (hasFilter) "No Payments Found" else "No Earnings Yet",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Description text
-        Text(
-            text = if (hasFilter) {
-                "No payments match the \"$filterName\" filter.\n\nTry selecting a different filter to view your earnings."
-            } else {
-                "Your earnings will appear here\nonce your first order is completed."
-            },
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            lineHeight = 20.sp
-        )
-
-        // Optional: Add action button if needed
-        if (hasFilter) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Surface(
-                onClick = { /* clear filter - handled by parent */ },
-                shape = RoundedCornerShape(8.dp),
-                color = Success.copy(alpha = 0.10f),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Success.copy(alpha = 0.30f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        tint = Success,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "Clear Filter",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Success
-                    )
-                }
             }
         }
     }

@@ -43,6 +43,7 @@ fun AllStoresScreen(
 ) {
     LaunchedEffect(Unit) { coSellerStoreViewModel.loadAllActiveStores() }
     val activeStores by coSellerStoreViewModel.activeStores.collectAsState()
+    val isLoading by coSellerStoreViewModel.isLoading.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -197,6 +198,16 @@ fun AllStoresScreen(
 
             // ── States ────────────────────────────────────────────────────────
             when {
+                isLoading -> {
+                    // Loading state — spinner centered
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Primary)
+                    }
+                }
+
                 filteredStores.isEmpty() && searchQuery.isNotBlank() -> {
                     // No search results — Primary tinted circle
                     Box(

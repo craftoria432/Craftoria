@@ -39,7 +39,9 @@ import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.gcuf.craftoria.ui.components.FilterTabRow
 import com.gcuf.craftoria.ui.components.OrderStatusBadge
+import com.gcuf.craftoria.ui.components.EmptyStateComponent
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.utils.OrderRefundState
@@ -216,7 +218,7 @@ fun SellerOrdersScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(orders) { order ->
+                    items(orders, key = { it.id }) { order ->
                         SellerOrderCard(
                             order = order,
                             isSelectionMode = isSelectionMode,
@@ -319,61 +321,23 @@ fun SellerOrderFilterTabs(
         OrderStatus.COMPLETED to "Completed",
         OrderStatus.CANCELLED to "Cancelled"
     )
+    val selectedIndex = filters.indexOfFirst { it.first == currentFilter }.coerceAtLeast(0)
+    val badgeCounts = filters.map { (status, _) ->
+        if (status == OrderStatus.PENDING) newOrdersCount else 0
+    }
 
     Surface(
         color = Color.White,
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        androidx.compose.foundation.lazy.LazyRow(
+        FilterTabRow(
+            tabs = filters.map { it.second },
+            selectedIndex = selectedIndex,
+            onTabSelected = { index -> onFilterSelected(filters[index].first) },
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(filters.size) { index ->
-                val (status, label) = filters[index]
-                val isSelected = currentFilter == status
-                Surface(
-                    onClick = { onFilterSelected(status) },
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isSelected) Primary else Color.White,
-                    border = BorderStroke(
-                        width = if (isSelected) 0.dp else 0.5.dp,
-                        color = if (isSelected) Primary else BorderColor
-                    ),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else TextSecondary
-                        )
-                        if (status == OrderStatus.PENDING && newOrdersCount > 0) {
-                            Surface(
-                                color = if (isSelected) Color.White.copy(alpha = 0.25f) else Primary.copy(alpha = 0.1f),
-                                shape = CircleShape,
-                                modifier = Modifier.size(18.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = newOrdersCount.toString(),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else Primary
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+            badgeCounts = badgeCounts
+        )
     }
 }
 
@@ -657,39 +621,12 @@ fun SellerOrderCard(
 
 @Composable
 fun SellerEmptyOrdersState() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .background(Primary.copy(alpha = 0.05f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShoppingBag,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.4f),
-                modifier = Modifier.size(50.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "No orders found",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-        Text(
-            text = "Try changing your filters or check back later",
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 40.dp)
-        )
-    }
+    // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
+    EmptyStateComponent(
+        icon = Icons.Default.ShoppingBag,
+        title = "No orders yet",
+        message = ""
+    )
 }
 
 /**
@@ -704,17 +641,17 @@ fun CoSellerStoreBadge(
     storeName: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
-    
     // ✅ If storeName is provided, use it directly (no loading state)
     var displayName by remember(storeId, storeName) { 
         mutableStateOf(storeName ?: "Co-seller Store")
     }
 
     // ✅ Only fetch if storeName is not provided
+    // ✅ Repository instantiated ONLY inside LaunchedEffect, not on every recomposition
     if (storeName == null) {
         LaunchedEffect(storeId) {
             try {
+                val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
                 val result = storeRepository.getStoreById(storeId)
                 if (result.isSuccess) {
                     val store = result.getOrNull()

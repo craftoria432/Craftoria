@@ -152,7 +152,7 @@ fun RateStoreDialog(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .heightIn(min = 40.dp)
                     .background(
                         if (rating > 0 && !isLoading)
                             Brush.horizontalGradient(listOf(Primary, PrimaryLight))
@@ -177,7 +177,7 @@ fun RateStoreDialog(
             OutlinedButton(
                 onClick = onDismiss,
                 enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth().height(40.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
                 border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
                 shape = RoundedCornerShape(10.dp)
             ) {

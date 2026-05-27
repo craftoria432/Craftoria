@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -40,6 +41,7 @@ import com.gcuf.craftoria.data.model.getOrderPlacedAtLong
 import com.gcuf.craftoria.data.model.getProcessingAtLong
 import com.gcuf.craftoria.data.model.getShippedAtLong
 import com.gcuf.craftoria.data.model.getDeliveredAtLong
+import com.gcuf.craftoria.data.model.getRefundStatusEnum
 import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.components.RealtimeNameDisplay
 import com.gcuf.craftoria.utils.formatDateTime
@@ -61,11 +63,11 @@ fun OrderDetailsDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.93f)
-                .fillMaxHeight(0.90f),
+                .wrapContentHeight(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
 
                 // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
@@ -103,7 +105,7 @@ fun OrderDetailsDialog(
                 // ── Content ───────────────────────────────────────────────────
                 Column(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -127,7 +129,24 @@ fun OrderDetailsDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Status", fontSize = 12.sp, color = TextSecondary)
-                            OrderStatusBadge(status = orderStatus)
+                            // ✅ Show refund badge if order is refunded, otherwise show order status
+                            if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                                Surface(
+                                    color = Color(0xFFE9D5FF),
+                                    shape = RoundedCornerShape(6.dp),
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Refunded",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF7C3AED),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            } else {
+                                OrderStatusBadge(status = orderStatus)
+                            }
                         }
                         SellerDetailRow("Payment", order.paymentMethod.ifEmpty { "Cash on Delivery" })
                     }
@@ -268,7 +287,7 @@ fun OrderDetailsDialog(
                         onClick = { InvoiceUtils.shareInvoice(context, order) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp),
+                            .heightIn(min = 46.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
                         shape = RoundedCornerShape(10.dp)
@@ -349,12 +368,20 @@ fun SellerDetailRow(label: String, value: String, valueColor: Color = TextPrimar
 
 @Composable
 fun OrderTimeline(order: Order) {
-    val timeline = listOf(
-        Triple("Order Placed", if (order.getOrderPlacedAtLong() > 0) formatDateTime(order.getOrderPlacedAtLong()) else "Pending", order.getOrderPlacedAtLong() > 0),
-        Triple("Processing", if (order.getProcessingAtLong() > 0) formatDateTime(order.getProcessingAtLong()) else "Pending", order.getProcessingAtLong() > 0),
-        Triple("Shipped", if (order.getShippedAtLong() > 0) formatDateTime(order.getShippedAtLong()) else "Pending", order.getShippedAtLong() > 0),
-        Triple("Delivered", if (order.getDeliveredAtLong() > 0) formatDateTime(order.getDeliveredAtLong()) else "Pending", order.getDeliveredAtLong() > 0)
-    )
+    // ✅ Build timeline dynamically based on refund status
+    val timeline = remember(order) {
+        buildList {
+            add(Triple("Order Placed", if (order.getOrderPlacedAtLong() > 0) formatDateTime(order.getOrderPlacedAtLong()) else "Pending", order.getOrderPlacedAtLong() > 0))
+            add(Triple("Processing", if (order.getProcessingAtLong() > 0) formatDateTime(order.getProcessingAtLong()) else "Pending", order.getProcessingAtLong() > 0))
+            add(Triple("Shipped", if (order.getShippedAtLong() > 0) formatDateTime(order.getShippedAtLong()) else "Pending", order.getShippedAtLong() > 0))
+            add(Triple("Delivered", if (order.getDeliveredAtLong() > 0) formatDateTime(order.getDeliveredAtLong()) else "Pending", order.getDeliveredAtLong() > 0))
+            
+            // ✅ Add refunded step if order is refunded
+            if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                add(Triple("Refunded", "Completed", true))
+            }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         timeline.forEachIndexed { index, (title, date, completed) ->
@@ -363,7 +390,12 @@ fun OrderTimeline(order: Order) {
                     Box(
                         modifier = Modifier
                             .size(28.dp)
-                            .background(if (completed) Success else BackgroundSecondary, CircleShape),
+                            .background(
+                                if (completed) {
+                                    if (title == "Refunded") Color(0xFF7C3AED) else Success
+                                } else BackgroundSecondary,
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (completed) {
@@ -377,7 +409,11 @@ fun OrderTimeline(order: Order) {
                             modifier = Modifier
                                 .width(2.dp)
                                 .height(24.dp)
-                                .background(if (completed) Success.copy(alpha = 0.4f) else BorderColor)
+                                .background(
+                                    if (completed) {
+                                        if (title == "Refunded") Color(0xFF7C3AED).copy(alpha = 0.4f) else Success.copy(alpha = 0.4f)
+                                    } else BorderColor
+                                )
                         )
                     }
                 }
@@ -508,7 +544,7 @@ fun RejectOrderDialog(order: Order, onConfirm: (String, String) -> Unit, onDismi
                     Button(
                         onClick = { if (selectedReason.isNotEmpty()) onConfirm(selectedReason, details) },
                         enabled = selectedReason.isNotEmpty(),
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Error),
                         shape = RoundedCornerShape(10.dp)
                     ) { Text("Confirm Rejection", fontSize = 13.sp, fontWeight = FontWeight.Bold) }
@@ -520,11 +556,13 @@ fun RejectOrderDialog(order: Order, onConfirm: (String, String) -> Unit, onDismi
 
 // ── Mark Shipped Dialog ───────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarkShippedDialog(onConfirm: (String, String, Long) -> Unit, onDismiss: () -> Unit) {
     var courierName by remember { mutableStateOf("") }
     var trackingNumber by remember { mutableStateOf("") }
-    var deliveryDate by remember { mutableStateOf("") }
+    var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Card(
@@ -555,24 +593,33 @@ fun MarkShippedDialog(onConfirm: (String, String, Long) -> Unit, onDismiss: () -
                     }
                     Column {
                         Text(text = "Expected Delivery Date *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                        OutlinedTextField(value = deliveryDate, onValueChange = { deliveryDate = it }, placeholder = { Text("YYYY-MM-DD", fontSize = 13.sp) }, singleLine = true, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
-                        Text(text = "e.g., 2026-04-27", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
+                        // ✅ Use DatePickerDialog instead of plain text input
+                        OutlinedButton(
+                            onClick = { showDatePicker = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (selectedDateMillis != null) TextPrimary else TextSecondary),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            if (selectedDateMillis != null) {
+                                Text(
+                                    text = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(selectedDateMillis!!)),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            } else {
+                                Text("Select delivery date", fontSize = 13.sp, color = TextSecondary)
+                            }
+                        }
                     }
                     Button(
                         onClick = {
-                            if (deliveryDate.isNotEmpty()) {
-                                try {
-                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                    val date = sdf.parse(deliveryDate)
-                                    val timestamp = date?.time ?: System.currentTimeMillis()
-                                    onConfirm(courierName, trackingNumber, timestamp)
-                                } catch (e: Exception) {
-                                    // Invalid date format - button won't be clicked if validation fails
-                                }
+                            if (selectedDateMillis != null) {
+                                onConfirm(courierName, trackingNumber, selectedDateMillis!!)
                             }
                         },
-                        enabled = deliveryDate.isNotEmpty() && isValidDateFormat(deliveryDate),
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        enabled = selectedDateMillis != null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
@@ -588,6 +635,36 @@ fun MarkShippedDialog(onConfirm: (String, String, Long) -> Unit, onDismiss: () -
                     }
                 }
             }
+        }
+    }
+
+    // ✅ Show DatePickerDialog when button is clicked
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDateMillis ?: System.currentTimeMillis(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    return utcTimeMillis >= System.currentTimeMillis()
+                }
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                Button(onClick = {
+                    selectedDateMillis = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
@@ -653,18 +730,4 @@ fun MarkDeliveredDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-
-// ── Helper Functions ─────────────────────────────────────────────────────────
-
-fun isValidDateFormat(dateString: String): Boolean {
-    return try {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        sdf.isLenient = false
-        sdf.parse(dateString)
-        true
-    } catch (e: Exception) {
-        false
-    }
 }

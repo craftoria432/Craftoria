@@ -1,13 +1,19 @@
 package com.gcuf.craftoria.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -122,9 +128,263 @@ fun CraftoriaTextField(
             // 🔥 KEY FIXES
             modifier = Modifier
                 .fillMaxWidth()
-                .height(minHeight.dp), // ✅ FIX: Use configurable height
+                .heightIn(min = minHeight.dp), // ✅ FIX: Use heightIn for minimum constraint, not fixed height
 
             singleLine = true
         )
+    }
+}
+
+
+// ✅ PROFESSIONAL SUCCESS MESSAGE
+@Composable
+fun SuccessAlert(
+    message: String,
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Default.CheckCircle
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF0FDF4), // Softer, more professional green background
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            Color(0xFF86EFAC) // Vibrant but professional green border
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Icon container with subtle background
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFDCFCE7), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF16A34A), // Professional green
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF166534), // Darker green for better readability
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (onDismiss != null) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ✅ PROFESSIONAL INFO MESSAGE
+@Composable
+fun InfoAlert(
+    message: String,
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF0F9FF), // Professional light blue background
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            Color(0xFF93C5FD) // Vibrant blue border
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Icon container with subtle background
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFDEEBF7), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Color(0xFF1E40AF), // Professional blue
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1E3A8A), // Darker blue for readability
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (onDismiss != null) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color(0xFF1E40AF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ✅ PROFESSIONAL WARNING MESSAGE
+@Composable
+fun WarningAlert(
+    message: String,
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFFEF3C7), // Professional warm amber background
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            Color(0xFFFCD34D) // Vibrant amber border
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Icon container with subtle background
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFFEF08A), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = Color(0xFFB45309), // Professional amber/orange
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF92400E), // Darker amber for readability
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (onDismiss != null) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color(0xFFB45309),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ✅ PROFESSIONAL ERROR MESSAGE
+@Composable
+fun ErrorAlert(
+    message: String,
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFFEE2E2), // Professional light red background
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            Color(0xFFFCA5A5) // Vibrant red border
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Icon container with subtle background
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFFECACA), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626), // Professional red
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF7F1D1D), // Darker red for readability
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (onDismiss != null) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
     }
 }

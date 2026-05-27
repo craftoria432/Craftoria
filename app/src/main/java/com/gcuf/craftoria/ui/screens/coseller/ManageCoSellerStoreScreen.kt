@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,7 +17,6 @@ import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,14 +35,11 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.*
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextFieldCompact
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
 import com.gcuf.craftoria.viewmodel.CoSellerStoreState
 import com.gcuf.craftoria.viewmodel.CoSellerStoreViewModel
-import com.gcuf.craftoria.ui.screens.coseller.ImageUploadBox
-import com.gcuf.craftoria.ui.screens.coseller.formatJoinedDate
-import com.gcuf.craftoria.ui.screens.coseller.SellerDirectoryScreen
-import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -607,15 +604,12 @@ fun MembersTab(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = inviteEmail, onValueChange = { inviteEmail = it },
-                    placeholder = { Text("Enter seller's email", fontSize = 13.sp, color = TextSecondary) },
+                StandardizedOutlinedTextFieldCompact(
+                    value = inviteEmail,
+                    onValueChange = { inviteEmail = it },
+                    placeholder = "Enter seller's email",
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary, unfocusedBorderColor = BorderColor,
-                        focusedContainerColor = Color.White, unfocusedContainerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp),
+                    minHeight = 48,
                     modifier = Modifier.weight(1f)
                 )
                 Button(
@@ -720,7 +714,7 @@ fun MemberCard(member: StoreMember, isOwner: Boolean, canRemove: Boolean, onRemo
     }
 }
 
-// ── Invitation Card — theme token badges ─────────────────────────────────────
+// ── Invitation Card — unified badge styling ──────────────────────────────────
 
 @Composable
 fun InvitationCard(invitation: StoreInvitation) {
@@ -742,19 +736,19 @@ fun InvitationCard(invitation: StoreInvitation) {
                 modifier = Modifier.weight(1f)
             )
 
-            // Status badge — theme tokens replacing hardcoded hex
+            // ✅ Unified badge styling — consistent with Cart screen
             val (bgColor, textColor) = when (invitation.status) {
-                InvitationStatus.PENDING  -> Warning.copy(alpha = 0.12f) to Color(0xFF856404)
-                InvitationStatus.ACCEPTED -> Success.copy(alpha = 0.10f) to Success
-                InvitationStatus.DECLINED -> Error.copy(alpha = 0.10f)   to Error
+                InvitationStatus.PENDING  -> Color(0xFFFFF3CD) to Color(0xFF856404)
+                InvitationStatus.ACCEPTED -> Color(0xFFD4EDDA) to Color(0xFF155724)
+                InvitationStatus.DECLINED -> Color(0xFFF8D7DA) to Color(0xFF721C24)
             }
-            Surface(shape = RoundedCornerShape(6.dp), color = bgColor) {
+            Surface(shape = RoundedCornerShape(20.dp), color = bgColor) {
                 Text(
                     text = invitation.status.toString(),
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = textColor,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
         }
@@ -787,25 +781,25 @@ fun SettingsTab(
     ) {
         item {
             Column {
-                Text(text = "Store Name *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                OutlinedTextField(
-                    value = storeName, onValueChange = { storeName = it },
+                StandardizedOutlinedTextFieldCompact(
+                    value = storeName,
+                    onValueChange = { storeName = it },
+                    placeholder = "",
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    minHeight = 48
                 )
             }
         }
         item {
             Column {
-                Text(text = "Store Description", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                OutlinedTextField(
-                    value = storeDescription, onValueChange = { storeDescription = it },
-                    minLines = 4, maxLines = 6,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                StandardizedOutlinedTextField(
+                    value = storeDescription,
+                    onValueChange = { storeDescription = it },
+                    label = "Store Description",
+                    placeholder = "",
+                    minLines = 4,
+                    maxLines = 6,
+                    minHeight = 120
                 )
             }
         }

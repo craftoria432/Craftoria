@@ -392,7 +392,7 @@ fun ViewModeContent(
                                     onClick = { 
                                         authViewModel.revertToBuyer(user.id)
                                     },
-                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         contentColor = TextSecondary
                                     ),
@@ -406,7 +406,7 @@ fun ViewModeContent(
                                         authViewModel.resetSellerApplication(user.id)
                                         onNavigateTo("verification") 
                                     },
-                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Primary
                                     ),
@@ -628,7 +628,7 @@ fun ViewModeContent(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
+                        .heightIn(min = 46.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Logout,
@@ -653,7 +653,7 @@ fun ViewModeContent(
                     border = BorderStroke(0.5.dp, Error.copy(alpha = 0.25f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
+                        .heightIn(min = 46.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -814,129 +814,95 @@ fun ChangePasswordDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> U
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
-    val isEnabled = currentPassword.isNotBlank() && newPassword.isNotBlank() &&
+    val isValid = currentPassword.isNotBlank() && newPassword.isNotBlank() &&
             confirmPassword.isNotBlank() && newPassword == confirmPassword
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // ── Gradient header band ─────────────────────────────────────
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(listOf(Primary, PrimaryLight))
-                        )
-                        .padding(horizontal = 18.dp, vertical = 16.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "Change Password",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Update your account password",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.80f)
-                        )
-                    }
-                }
-
-                // ── Form fields ──────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    CraftoriaTextField(
-                        value = currentPassword,
-                        onValueChange = { currentPassword = it },
-                        label = "Current Password",
-                        isPassword = true
-                    )
-                    CraftoriaTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = "New Password",
-                        isPassword = true
-                    )
-                    CraftoriaTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = "Confirm New Password",
-                        isPassword = true
-                    )
-
-                    // ── Action buttons ───────────────────────────────────────
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Cancel
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            border = BorderStroke(0.5.dp, BorderColor),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.Transparent,
-                                contentColor = TextSecondary
-                            )
-                        ) {
-                            Text(
-                                "Cancel",
-                                fontSize = 13.sp,
-                                color = TextSecondary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        // Update — gradient fill, disabled state uses TextLight
-                        Button(
-                            onClick = {
-                                if (isEnabled) onConfirm(currentPassword, newPassword)
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            enabled = isEnabled,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            contentPadding = PaddingValues(0.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        if (isEnabled)
-                                            Brush.horizontalGradient(listOf(Primary, PrimaryLight))
-                                        else
-                                            Brush.horizontalGradient(listOf(TextLight, TextLight)),
-                                        RoundedCornerShape(10.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "Update",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp),
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Primary.copy(alpha = 0.08f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                "Change Password",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CraftoriaTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = "Current Password",
+                    isPassword = true,
+                    showLabel = true
+                )
+                CraftoriaTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = "New Password",
+                    isPassword = true,
+                    showLabel = true
+                )
+                CraftoriaTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = "Confirm New Password",
+                    isPassword = true,
+                    showLabel = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(currentPassword, newPassword); onDismiss() },
+                enabled = isValid,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    disabledContainerColor = Primary.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.heightIn(min = 40.dp)
+            ) {
+                Text("Update", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(0.5.dp, BorderColor),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = TextSecondary
+                )
+            ) {
+                Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
-    }
+    )
 }
+
 
 @Composable
 fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
@@ -982,7 +948,7 @@ fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = Error),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             ) {
                 Text("Delete", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
@@ -992,7 +958,7 @@ fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 onClick = onDismiss,
                 border = BorderStroke(0.5.dp, BorderColor),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
                     contentColor = TextSecondary
@@ -1059,7 +1025,7 @@ fun EditNameDialog(
                     disabledContainerColor = Primary.copy(alpha = 0.5f)
                 ),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             ) {
                 Text("Save", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
@@ -1069,7 +1035,7 @@ fun EditNameDialog(
                 onClick = onDismiss,
                 border = BorderStroke(0.5.dp, BorderColor),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
                     contentColor = TextSecondary
@@ -1307,7 +1273,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
         },
         title = {
             Text(
-                "Become a Seller?",
+                "Start Selling?",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary,
@@ -1319,7 +1285,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "You're about to start your seller journey on Craftoria!",
+                    "Complete verification to start selling your handmade products.",
                     fontSize = 13.sp,
                     color = TextPrimary,
                     lineHeight = 20.sp,
@@ -1327,7 +1293,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "Next steps:",
+                    "What's next:",
                     fontSize = 12.sp,
                     color = TextSecondary,
                     fontWeight = FontWeight.SemiBold,
@@ -1338,19 +1304,19 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(
-                        "• Complete face verification",
+                        "• Verify your identity",
                         fontSize = 12.sp,
                         color = TextSecondary,
                         lineHeight = 18.sp
                     )
                     Text(
-                        "• Wait for admin approval (24-48 hours)",
+                        "• Admin review (24-48 hours)",
                         fontSize = 12.sp,
                         color = TextSecondary,
                         lineHeight = 18.sp
                     )
                     Text(
-                        "• Start selling your products",
+                        "• Start your store",
                         fontSize = 12.sp,
                         color = TextSecondary,
                         lineHeight = 18.sp
@@ -1364,7 +1330,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 contentPadding = PaddingValues(0.dp),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -1376,7 +1342,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "Start Now",
+                        "Continue",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = Color.White
@@ -1389,7 +1355,7 @@ fun BecomeSellerConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
                 onClick = onDismiss,
                 border = BorderStroke(0.5.dp, BorderColor),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
                     contentColor = TextSecondary
@@ -1445,7 +1411,7 @@ fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = Error),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             ) {
                 Text("Logout", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
@@ -1455,7 +1421,7 @@ fun LogoutConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 onClick = onDismiss,
                 border = BorderStroke(0.5.dp, BorderColor),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(40.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
                     contentColor = TextSecondary

@@ -330,7 +330,16 @@ class CoSellerStoreRepository {
                 .await()
 
             val members = snapshot.documents.mapNotNull { doc ->
-                doc.toObject(StoreMember::class.java)?.copy(id = doc.id)
+                val member = doc.toObject(StoreMember::class.java)?.copy(id = doc.id) ?: return@mapNotNull null
+                
+                // ✅ NEW: Check if the user is deleted
+                val userDoc = usersCollection.document(member.userId).get().await()
+                val userStatus = userDoc.getString("status") ?: ""
+                
+                // Exclude members whose user accounts are deleted
+                if (userStatus == "deleted") return@mapNotNull null
+                
+                member
             }.sortedBy { it.joinedAt }  // Sort in memory
 
             Result.success(members)

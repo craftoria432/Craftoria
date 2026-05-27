@@ -51,6 +51,10 @@ class CoSellerStoreViewModel(
     private val _activeStores = MutableStateFlow<List<CoSellerStore>>(emptyList())
     val activeStores: StateFlow<List<CoSellerStore>> = _activeStores.asStateFlow()
 
+    // ✅ Loading state for AllStoresScreen
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     fun loadUserStores(userId: String) {
         // Switch to realtime listener: listen to all active co_seller_stores and filter on client
         userStoresListener?.remove()
@@ -93,24 +97,43 @@ class CoSellerStoreViewModel(
     fun loadAllActiveStores() {
         if (activeStoresListener != null) return  // already observing
 
+        _isLoading.value = true
         activeStoresListener = firestore.collection("co_seller_stores")
             .whereEqualTo("is_active", true)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.e(TAG, "Failed to observe active stores", e)
+                    _isLoading.value = false
                     return@addSnapshotListener
                 }
 
                 if (snapshot == null) {
                     _activeStores.value = emptyList()
+                    _isLoading.value = false
                     return@addSnapshotListener
                 }
 
                 val stores = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(CoSellerStore::class.java)?.copy(id = doc.id)
                 }
-                _activeStores.value = stores
-                Log.d(TAG, "✅ Realtime: loaded ${stores.size} active stores")
+                
+                // ✅ NEW: Filter out stores whose owners are deleted
+                viewModelScope.launch {
+                    try {
+                        val filteredStores = stores.filter { store ->
+                            val ownerDoc = firestore.collection("users").document(store.ownerId).get().await()
+                            val ownerStatus = ownerDoc.getString("status") ?: ""
+                            ownerStatus != "deleted"
+                        }
+                        _activeStores.value = filteredStores
+                        _isLoading.value = false
+                        Log.d(TAG, "✅ Realtime: loaded ${filteredStores.size} active stores (${stores.size} before filtering)")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error filtering active stores", e)
+                        _activeStores.value = stores // Fallback to unfiltered
+                        _isLoading.value = false
+                    }
+                }
             }
     }
 

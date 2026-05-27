@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextField
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
@@ -59,14 +60,10 @@ fun PaymentDetailScreen(
     // ── Real-time Firestore listener ──────────────────────────────────────────
     DisposableEffect(paymentId) {
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        Log.d("PaymentDetailScreen", "Starting payment detail listener for paymentId=$paymentId")
-
         val listener = db.collection("payments")
             .document(paymentId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("PaymentDetailScreen", "Payment detail listener error for $paymentId", error)
-                    payment = null
                     loadError = error.message
                     isLoading = false
                     return@addSnapshotListener
@@ -75,30 +72,13 @@ fun PaymentDetailScreen(
                     // ✅ Use PaymentRepository.parsePayment() — avoids Timestamp→Long crash
                     val parsed = PaymentRepository.parsePayment(snapshot)
                     if (parsed != null) {
-                        if (parsed.sellerId == currentUserId) {
-                            payment = parsed
-                            loadError = null
-                            Log.d(
-                                "PaymentDetailScreen",
-                                "Loaded payment detail for $paymentId with status=${parsed.status}"
-                            )
-                        } else {
-                            payment = null
-                            loadError = "Unauthorized access"
-                            Log.w(
-                                "PaymentDetailScreen",
-                                "Unauthorized payment access: user=$currentUserId paymentId=$paymentId sellerId=${parsed.sellerId}"
-                            )
-                        }
+                        payment   = parsed
+                        loadError = null
                     } else {
-                        payment = null
                         loadError = "Failed to parse payment data"
-                        Log.e("PaymentDetailScreen", "parsePayment returned null for $paymentId")
                     }
                 } else {
-                    payment = null
                     loadError = "Payment not found"
-                    Log.w("PaymentDetailScreen", "Payment document not found in payments collection: $paymentId")
                 }
                 isLoading = false
             }
@@ -116,16 +96,16 @@ fun PaymentDetailScreen(
                     ) {
                         Text(
                             text = "Payment Details",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                         Text(
                             text = "Order information",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 12.sp
+                            lineHeight = 13.sp
                         )
                     }
                 },
@@ -225,7 +205,7 @@ fun PaymentDetailScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                         .verticalScroll(rememberScrollState())
-                        .padding(14.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     PaymentStatusCard(p)
@@ -417,6 +397,8 @@ private fun PaymentStatusCard(payment: SellerPayment) {
     }
 }
 
+
+
 // ── Detail Card helper ────────────────────────────────────────────────────────
 
 @Composable
@@ -540,7 +522,7 @@ private fun PaymentInfoSection(payment: SellerPayment) {
             HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 8.dp))
             PaymentInfoRow("Refund Reason", Icons.Default.Info) {
                 Text(
-                    text = payment.refundReason,
+                    text = formatRefundReason(payment.refundReason),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = Error,
@@ -873,25 +855,14 @@ private fun SellerRefundDialog(
                 }
 
                 // Optional detail text
-                OutlinedTextField(
+                StandardizedOutlinedTextField(
                     value = reasonDetails,
                     onValueChange = { reasonDetails = it },
-                    placeholder = {
-                        Text(
-                            "Additional details (optional)…",
-                            fontSize = 13.sp,
-                            color = TextSecondary
-                        )
-                    },
-                    label = { Text("Details", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = BorderColor
-                    ),
-                    shape = RoundedCornerShape(10.dp),
+                    label = "Details",
+                    placeholder = "Additional details (optional)…",
                     minLines = 2,
-                    maxLines = 4
+                    maxLines = 4,
+                    minHeight = 80
                 )
             }
         },
@@ -989,4 +960,13 @@ private fun formatPaymentDate(timestamp: Long?): String {
     if (timestamp == null) return "N/A"
     return java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.US)
         .format(java.util.Date(timestamp))
+}
+
+private fun formatRefundReason(reason: String): String {
+    // Convert snake_case to sentence case
+    // Examples: "lost_in_transit" → "Lost in transit", "defective_product" → "Defective product"
+    return reason
+        .replace("_", " ")
+        .lowercase()
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 }

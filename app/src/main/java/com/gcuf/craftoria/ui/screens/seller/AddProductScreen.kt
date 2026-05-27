@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,6 +47,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextFieldCompact
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,17 +171,15 @@ fun AddProductScreen(
             AddProductSectionCard(title = "Basic Information", icon = Icons.Outlined.Edit) {
                 CraftoriaTextField(value = title, onValueChange = { title = it }, label = "Product Title *", placeholder = "e.g., Hand-Embroidered Wall Hanging")
                 Spacer(modifier = Modifier.height(12.dp))
-                Column {
-                    Text(text = "Description *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                    OutlinedTextField(
-                        value = description, onValueChange = { description = it },
-                        placeholder = { Text("Describe your product, materials used, dimensions, etc.", fontSize = 13.sp, color = TextSecondary) },
-                        minLines = 4, maxLines = 6,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                StandardizedOutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = "Description *",
+                    placeholder = "Describe your product, materials used, dimensions, etc.",
+                    minLines = 4,
+                    maxLines = 6,
+                    minHeight = 120
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 CategoryDropdown(selectedCategory = category, onCategorySelected = { category = it })
             }
@@ -237,6 +237,8 @@ fun AddProductScreen(
                             sellerVerified = user.verificationStatus == VerificationStatus.APPROVED
                         )
                     },
+                    // ✅ ADD THIS: Block drafts from unverified sellers
+                    enabled = user.verificationStatus == VerificationStatus.APPROVED,
                     modifier = Modifier.weight(1f).height(48.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
@@ -266,7 +268,8 @@ fun AddProductScreen(
                             )
                         }
                     },
-                    enabled = productState !is ProductState.Loading && productState !is ProductState.DraftSaved,
+                    // ✅ ADD THIS: Disable button if seller not verified
+                    enabled = productState !is ProductState.Loading && productState !is ProductState.DraftSaved && user.verificationStatus == VerificationStatus.APPROVED,
                     modifier = Modifier.weight(1f).height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(0.dp),
@@ -640,13 +643,12 @@ fun AddSpecificationDialog(onDismiss: () -> Unit, onAdd: (String, String) -> Uni
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text(text = "Add product details to help buyers make informed decisions", fontSize = 13.sp, color = TextSecondary)
                     Column {
-                        Text(text = "Specification Name *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                        OutlinedTextField(
-                            value = specKey, onValueChange = { specKey = it },
-                            placeholder = { Text("e.g., Dimensions, Material", fontSize = 13.sp, color = TextSecondary) },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, cursorColor = Primary),
-                            singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = TextPrimary)
+                        StandardizedOutlinedTextFieldCompact(
+                            value = specKey,
+                            onValueChange = { specKey = it },
+                            placeholder = "e.g., Dimensions, Material",
+                            minHeight = 48,
+                            singleLine = true
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(text = "Quick Select:", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.padding(bottom = 4.dp))
@@ -659,13 +661,12 @@ fun AddSpecificationDialog(onDismiss: () -> Unit, onAdd: (String, String) -> Uni
                         }
                     }
                     Column {
-                        Text(text = "Value *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
-                        OutlinedTextField(
-                            value = specValue, onValueChange = { specValue = it },
-                            placeholder = { Text("e.g., 8 x 5 x 4 inches", fontSize = 13.sp, color = TextSecondary) },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary, unfocusedBorderColor = BorderColor, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, cursorColor = Primary),
-                            singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = TextPrimary)
+                        StandardizedOutlinedTextFieldCompact(
+                            value = specValue,
+                            onValueChange = { specValue = it },
+                            placeholder = "e.g., 8 x 5 x 4 inches",
+                            minHeight = 48,
+                            singleLine = true
                         )
                     }
                 }

@@ -44,6 +44,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.ui.components.*
+import com.gcuf.craftoria.ui.components.SuccessAlert
+import com.gcuf.craftoria.ui.components.InfoAlert
+import com.gcuf.craftoria.ui.components.WarningAlert
+import com.gcuf.craftoria.ui.components.ErrorAlert
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.AuthState
 import com.gcuf.craftoria.viewmodel.AuthViewModel
@@ -233,7 +237,7 @@ fun LoginScreen(
                     authState = authState,
                     onGoogleSignIn = {
                         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                            .requestIdToken("303478520606-cs6fu2kbpa8vv15msgsgvnjqk95qlf3k.apps.googleusercontent.com")
+                            .requestIdToken(context.getString(R.string.google_client_id))
                             .requestEmail().build()
                         val googleSignInClient = GoogleSignIn.getClient(context, gso)
                         googleSignInLauncher.launch(googleSignInClient.signInIntent)
@@ -266,8 +270,8 @@ fun SignUpForm(
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
 
         when (authState) {
-            is AuthState.Success -> MessageCard(message = authState.message, type = UIMessageType.SUCCESS)
-            is AuthState.Error -> MessageCard(message = authState.message, type = UIMessageType.ERROR)
+            is AuthState.Success -> SuccessAlert(message = authState.message)
+            is AuthState.Error -> ErrorAlert(message = authState.message)
             else -> {}
         }
 
@@ -322,7 +326,7 @@ fun SignUpForm(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .heightIn(min = 48.dp)
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Primary,
@@ -379,7 +383,7 @@ fun SignUpForm(
             },
             enabled = fullName.isNotBlank() && email.isNotBlank() && phoneNumber.isNotBlank() &&
                     password.isNotBlank() && confirmPassword.isNotBlank() && selectedRole.isNotBlank() && agreeToTerms,
-            isLoading = authState is AuthState.Loading
+            isLoading = authState is AuthState.EmailLoading
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -533,11 +537,11 @@ fun LoginForm(
 
         when (authState) {
             is AuthState.Success -> {
-                MessageCard(authState.message, UIMessageType.SUCCESS)
+                SuccessAlert(authState.message)
                 Spacer(modifier = Modifier.height(12.dp))
             }
             is AuthState.Error -> {
-                MessageCard(authState.message, UIMessageType.ERROR)
+                ErrorAlert(authState.message)
                 Spacer(modifier = Modifier.height(12.dp))
             }
             else -> {}
@@ -595,10 +599,10 @@ fun LoginForm(
         Spacer(modifier = Modifier.height(22.dp))
 
         CraftoriaButton(
-            text = "Login",
+            text = if (authState is AuthState.EmailLoading) "Authenticating..." else "Login",
             onClick = { viewModel?.login(email = email, password = password) },
-            enabled = email.isNotBlank() && password.isNotBlank(),
-            isLoading = authState is AuthState.Loading
+            enabled = email.isNotBlank() && password.isNotBlank() && authState !is AuthState.GoogleLoading && authState !is AuthState.EmailLoading,
+            isLoading = authState is AuthState.EmailLoading
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -624,7 +628,7 @@ fun LoginForm(
         // Google Sign In
         OutlinedButton(
             onClick = onGoogleSignIn,
-            enabled = authState !is AuthState.Loading,
+            enabled = authState !is AuthState.GoogleLoading && authState !is AuthState.EmailLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -632,7 +636,7 @@ fun LoginForm(
             border = BorderStroke(0.5.dp, BorderColor),
             shape = RoundedCornerShape(12.dp)
         ) {
-            if (authState is AuthState.Loading) {
+            if (authState is AuthState.GoogleLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
@@ -640,10 +644,9 @@ fun LoginForm(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Authenticating...",
+                    text = "Connecting to Google...",
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Primary
+                    fontWeight = FontWeight.SemiBold
                 )
             } else {
                 Icon(
@@ -685,7 +688,8 @@ fun LoginForm(
 
 @Composable
 fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
-    // Step 0 = enter email, Step 1 = enter OTP, Step 2 = enter new password, Step 3 = success
+    // Step 0 = enter email, Step 1 = enter OTP, else = success
+    // Note: Firebase handles password reset via email link, no new password entry needed
     var step by remember { mutableIntStateOf(0) }
     var email by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
@@ -742,7 +746,7 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    errorMessage?.let { MessageCard(message = it, type = UIMessageType.ERROR) }
+                    errorMessage?.let { ErrorAlert(message = it) }
 
                     when (step) {
                         // ── Step 0: Email input ───────────────────────────────
@@ -937,12 +941,11 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
 
                         // ── Step 3: Success ───────────────────────────────────
                         else -> {
-                            MessageCard(
+                            SuccessAlert(
                                 message = "✓ Identity verified! A password reset link has been sent to $email.\n\n" +
                                         "📧 Check your inbox for the reset email. If you don't see it within a few minutes, " +
                                         "please check your Spam/Junk folder.\n\n" +
-                                        "Click the link in the email to set your new password, then come back here to login.",
-                                type = UIMessageType.SUCCESS
+                                        "Click the link in the email to set your new password, then come back here to login."
                             )
 
                             Button(
@@ -968,33 +971,6 @@ fun ForgotPasswordDialog(viewModel: AuthViewModel?, onDismiss: () -> Unit) {
         }
     }
 }
-// ── Message Card ──────────────────────────────────────────────────────────────
-
-enum class UIMessageType { SUCCESS, ERROR, INFO }
-
-@Composable
-fun MessageCard(message: String, type: UIMessageType) {
-    val (bgColor, borderColor, textColor) = when (type) {
-        UIMessageType.SUCCESS -> Triple(Color(0xFFE8F5E8), Success, Color(0xFF2E7D2E))
-        UIMessageType.ERROR -> Triple(Color(0xFFF8D7DA), Error, Color(0xFF721C24))
-        else -> Triple(Color(0xFFE3F2FD), Color(0xFF2196F3), Color(0xFF1976D2))
-    }
-    Surface(
-        color = bgColor,
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(0.5.dp, borderColor),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(12.dp),
-            fontSize = 13.sp,
-            color = textColor,
-            lineHeight = 18.sp
-        )
-    }
-}
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginScreenPreview() {

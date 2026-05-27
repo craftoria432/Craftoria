@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.data.model.Product
+import com.gcuf.craftoria.ui.components.EmptyStates
 import com.gcuf.craftoria.ui.components.ProductCard
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.CartViewModel
@@ -120,7 +121,7 @@ fun WishlistScreen(
             }
 
             wishlistProducts.isEmpty() -> {
-                WishlistEmptyState(
+                EmptyStates.NoWishlist(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
@@ -166,52 +167,5 @@ fun WishlistScreen(
                 }
             }
         }
-    }
-}
-
-// ── Empty State ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun WishlistEmptyState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .background(BackgroundSecondary)
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // 88.dp tinted circle — consistent with all empty states in the project
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.55f),
-                modifier = Modifier.size(44.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "Your Wishlist is Empty",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Tap the heart icon on any product to save it here for later",
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
     }
 }

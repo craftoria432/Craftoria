@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.data.model.Product
+import com.gcuf.craftoria.ui.components.EmptyStates
 import com.gcuf.craftoria.ui.components.ProductCard
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.ProductViewModel
@@ -251,9 +252,9 @@ fun SearchScreen(
                     }
                 }
 
-                searchQuery.isEmpty() -> SearchEmptyState()
+                searchQuery.isEmpty() -> EmptyStates.SearchStart()
 
-                filteredProducts.isEmpty() -> NoResultsState(searchQuery)
+                filteredProducts.isEmpty() -> EmptyStates.NoSearchResults(query = searchQuery)
 
                 else -> {
                     LazyColumn(
@@ -289,120 +290,5 @@ fun SearchScreen(
                 }
             }
         }
-    }
-}
-
-// ── Empty State — no query typed ──────────────────────────────────────────────
-
-@Composable
-fun SearchEmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // 88.dp tinted circle — consistent with all empty states in the project
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .background(Primary.copy(alpha = 0.10f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.70f),
-                modifier = Modifier.size(44.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Start searching",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Find beautiful handicrafts from talented sellers",
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp
-        )
-    }
-}
-
-// ── Empty State — no results for query ───────────────────────────────────────
-
-@Composable
-fun NoResultsState(query: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Neutral circle with 0.5.dp BorderColor border — distinct from primary empty states
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .background(BackgroundSecondary, CircleShape)
-                .border(0.5.dp, BorderColor, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.SearchOff,
-                contentDescription = null,
-                tint = TextLight,
-                modifier = Modifier.size(44.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "No results found",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Query highlighted in SemiBold TextPrimary — more readable than plain concat
-        Text(
-            text = buildAnnotatedString {
-                append("We couldn't find any products for ")
-                withStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                ) {
-                    append("\"$query\"")
-                }
-            },
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Try a different keyword",
-            fontSize = 13.sp,
-            color = Primary,
-            fontWeight = FontWeight.Medium
-        )
     }
 }

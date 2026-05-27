@@ -48,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
+import com.gcuf.craftoria.ui.components.FilterTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -78,6 +79,7 @@ import com.gcuf.craftoria.data.model.Product
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.repository.ProductFilter
 import com.gcuf.craftoria.data.repository.ProductSort
+import com.gcuf.craftoria.ui.components.EmptyStates
 import com.gcuf.craftoria.ui.components.ManageProductCard
 import com.gcuf.craftoria.ui.theme.BackgroundSecondary
 import com.gcuf.craftoria.ui.theme.BorderColor
@@ -280,7 +282,7 @@ fun ManageProductsScreen(
                 }
 
                 is ManageProductsState.Empty -> {
-                    EmptyProductsState(onAddProductClick = onAddProductClick)
+                    EmptyStates.NoSellerProducts(onAddProductClick = onAddProductClick)
                 }
 
                 is ManageProductsState.Success -> {
@@ -296,7 +298,7 @@ fun ManageProductsScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(products) { product ->
+                        items(products, key = { it.id }) { product ->
                             ManageProductCard(
                                 product = product,
                                 onToggleStatus = {
@@ -368,6 +370,7 @@ fun ManageProductsScreen(
 }
 
 // ── Filter Tabs ───────────────────────────────────────────────────────────────
+// ✅ STANDARDIZED: Uses FilterTabRow with consistent styling
 
 @Composable
 fun FilterTabs(
@@ -383,42 +386,16 @@ fun FilterTabs(
         ProductFilter.PENDING to "Pending"
     )
 
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-        contentPadding = PaddingValues(horizontal = 14.dp)
-    ) {
-        items(filters) { (filter, label) ->
-            FilterChip(
-                selected = currentFilter == filter,
-                onClick = { onFilterSelected(filter) },
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = 12.sp,
-                        fontWeight = if (currentFilter == filter) FontWeight.SemiBold
-                        else FontWeight.Normal
-                    )
-                },
-                leadingIcon = null,
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = Color.White,
-                    selectedContainerColor = Primary,
-                    labelColor = TextSecondary,
-                    selectedLabelColor = Color.White
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    borderColor = BorderColor,
-                    selectedBorderColor = Primary,
-                    borderWidth = if (currentFilter == filter) 0.dp else 0.5.dp,
-                    enabled = true,
-                    selected = currentFilter == filter
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
+    val selectedIndex = filters.indexOfFirst { it.first == currentFilter }.coerceAtLeast(0)
+
+    Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+        FilterTabRow(
+            tabs = filters.map { it.second },
+            selectedIndex = selectedIndex,
+            onTabSelected = { index -> onFilterSelected(filters[index].first) },
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+        )
+        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
     }
 }
 
@@ -571,32 +548,6 @@ fun StockBadge(stock: Int) {
 }
 
 @Composable
-fun StatusBadge(isActive: Boolean) {
-    val (text, backgroundColor, textColor) = if (isActive) {
-        Triple("Active", Success.copy(alpha = 0.10f), Success)
-    } else {
-        Triple("Inactive", BorderColor, TextSecondary)
-    }
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = backgroundColor,
-        modifier = Modifier
-            .wrapContentSize()
-            .heightIn(min = 20.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = textColor,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
 fun ApprovalBadge(status: String) {
     val (backgroundColor, textColor, label) = when (status) {
         "pending" -> Triple(
@@ -632,82 +583,6 @@ internal data class ApprovalBadgeData(
     val textColor: Color,
     val emoji: String
 )
-
-// ── Empty State ───────────────────────────────────────────────────────────────
-
-@Composable
-fun EmptyProductsState(onAddProductClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // 90.dp tinted circle — consistent with all empty states
-        Box(
-            modifier = Modifier
-                .size(90.dp)
-                .background(Primary.copy(alpha = 0.08f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Inventory2,
-                contentDescription = null,
-                tint = Primary.copy(alpha = 0.5f),
-                modifier = Modifier.size(44.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "No products yet",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Add your first product to start selling",
-            fontSize = 13.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Button(
-            onClick = onAddProductClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier
-                .widthIn(min = 180.dp)
-                .height(46.dp)
-                .background(
-                    brush = Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
-                    shape = RoundedCornerShape(12.dp)
-                )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Add Product",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
 
 // ── Delete Dialog ─────────────────────────────────────────────────────────────
 

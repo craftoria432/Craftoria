@@ -29,7 +29,6 @@ import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.Product
 import com.gcuf.craftoria.ui.components.formatPrice
 import com.gcuf.craftoria.ui.screens.seller.ApprovalBadge
-import com.gcuf.craftoria.ui.screens.seller.StatusBadge
 import com.gcuf.craftoria.ui.screens.seller.StockBadge
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
@@ -215,7 +214,7 @@ fun ManageProductCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         StockBadge(stock = product.stock)
-                        StatusBadge(isActive = product.isActive)
+                        ProductActiveBadge(isActive = product.isActive)
                     }
 
                     // Row 2: Additional badges (Pending/Rejected + Co-Seller) — only if applicable

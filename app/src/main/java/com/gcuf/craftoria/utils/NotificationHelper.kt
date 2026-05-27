@@ -191,7 +191,7 @@ object NotificationHelper {
                     userId = buyerId,
                     title = "Refund Processed",
                     description = "Refund of PKR $amount has been processed for order #$orderNumber",
-                    category = NotificationCategory.PAYMENTS.name,
+                    category = NotificationCategory.REFUNDS.name,
                     actionType = NotificationActionType.VIEW_PAYMENT.name,
                     actionData = mapOf("order_id" to orderId),
                     orderId = orderId
