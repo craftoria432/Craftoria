@@ -28,6 +28,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.data.model.Notification
 import com.gcuf.craftoria.data.model.NotificationActionType
@@ -515,8 +519,42 @@ fun NotificationCard(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            
+                            // ✅ FIXED: Style amount text inline with primary pink color, bold, and dark
+                            val displayDescription = if (notification.categoryEnum == NotificationCategory.REFUNDS) {
+                                // Create annotated string with styled amount
+                                buildAnnotatedString {
+                                    val description = notification.description.replace("₹", "₨")
+                                    val amountPattern = Regex("(PKR|Rs|₨)\\s*([0-9,]+)")
+                                    val match = amountPattern.find(description)
+                                    
+                                    if (match != null) {
+                                        // Add text before amount
+                                        append(description.substring(0, match.range.first))
+                                        
+                                        // Add styled amount text
+                                        withStyle(
+                                            style = SpanStyle(
+                                                color = Primary,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
+                                        ) {
+                                            append(match.value)
+                                        }
+                                        
+                                        // Add text after amount
+                                        append(description.substring(match.range.last + 1))
+                                    } else {
+                                        append(description)
+                                    }
+                                }
+                            } else {
+                                AnnotatedString(notification.description.replace("₹", "₨"))
+                            }
+                            
                             Text(
-                                text = notification.description,
+                                text = displayDescription,
                                 fontSize = 12.sp,
                                 color = TextSecondary,
                                 lineHeight = 17.sp,
@@ -679,7 +717,7 @@ fun getCategoryIcon(category: NotificationCategory): ImageVector {
         NotificationCategory.ADMIN_MESSAGE -> Icons.Outlined.AdminPanelSettings
         NotificationCategory.STORE_RATING -> Icons.Outlined.Star  // ✅ NEW
         NotificationCategory.PAYMENTS -> Icons.Outlined.ShoppingBag
-        NotificationCategory.REFUNDS -> Icons.Outlined.MoneyOff  // ✅ NEW
+        NotificationCategory.REFUNDS -> Icons.Outlined.CurrencyExchange  // ✅ FIXED: Professional refund icon (currency exchange)
         else -> Icons.Outlined.Notifications
     }
 }
@@ -695,7 +733,7 @@ fun getCategoryIconTint(category: NotificationCategory): Color {
         NotificationCategory.ADMIN_MESSAGE -> Color(0xFFD32F2F)
         NotificationCategory.STORE_RATING -> Color(0xFFFFA500)  // ✅ NEW: Orange for ratings
         NotificationCategory.PAYMENTS -> Color(0xFF2E7D32)
-        NotificationCategory.REFUNDS -> Color(0xFF2E7D32)  // ✅ NEW: Green for refunds
+        NotificationCategory.REFUNDS -> Color(0xFF5A2D82)  // ✅ FIXED: Purple for refunds (consistent with refund badges)
         else -> Color(0xFF757575)
     }
 }
@@ -711,7 +749,7 @@ fun getIconBackground(category: NotificationCategory): Color {
         NotificationCategory.ADMIN_MESSAGE -> Color(0xFFFFEBEE)
         NotificationCategory.STORE_RATING -> Color(0xFFFFF3E0)  // ✅ NEW: Light orange background
         NotificationCategory.PAYMENTS -> Color(0xFFE8F5E9)
-        NotificationCategory.REFUNDS -> Color(0xFFE8F5E9)  // ✅ NEW: Light green background
+        NotificationCategory.REFUNDS -> Color(0xFFE2D5F3)  // ✅ FIXED: Light purple background (consistent with refund badges)
         else -> Color(0xFFF5F5F5)
     }
 }
@@ -994,7 +1032,7 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
 @Composable
 fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationCategory.ALL) {
     // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
-    val title = if (currentFilter != NotificationCategory.ALL) {
+    val (title, message, subtext) = if (currentFilter != NotificationCategory.ALL) {
         val filterName = when (currentFilter) {
             NotificationCategory.UNREAD -> "unread"
             NotificationCategory.ORDERS -> "order"
@@ -1007,15 +1045,24 @@ fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationC
             NotificationCategory.REPORT -> "report"
             else -> "notification"
         }
-        "No $filterName notifications yet"
+        Triple(
+            "No $filterName notifications yet",
+            "Try adjusting your filters to see more notifications",
+            "We'll notify you about important updates, messages, and activities"
+        )
     } else {
-        "No notifications yet"
+        Triple(
+            "No notifications yet",
+            "You're all caught up!",
+            "We'll notify you about order updates, messages, payments, and important announcements"
+        )
     }
     
     EmptyStateComponent(
         icon = Icons.Default.Notifications,
         title = title,
-        message = ""
+        message = message,
+        subtext = subtext
     )
 }
 

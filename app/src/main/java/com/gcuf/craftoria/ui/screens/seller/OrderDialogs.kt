@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CheckCircle
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -115,11 +117,15 @@ fun OrderDetailsDialog(
                     SellerDialogSectionCard(icon = Icons.Default.AccessTime, title = "Order Information", tinted = true) {
                         SellerDetailRow("Order ID", "#${order.id.take(8).uppercase()}")
                         SellerDetailRow("Order Date", formatDateTime(order.getCreatedAtLong()))
-                        // ✅ Convert status string to OrderStatus enum safely (outside composable)
-                        val orderStatus = try {
-                            OrderStatus.valueOf(order.status.uppercase())
-                        } catch (e: Exception) {
-                            OrderStatus.PENDING // Fallback if status is not valid
+                        // ✅ FIX #1: Safe status conversion using when() instead of try/catch
+                        val orderStatus = when (order.status.uppercase()) {
+                            "PENDING"    -> OrderStatus.PENDING
+                            "PROCESSING" -> OrderStatus.PROCESSING
+                            "SHIPPED"    -> OrderStatus.SHIPPED
+                            "DELIVERED"  -> OrderStatus.DELIVERED
+                            "COMPLETED"  -> OrderStatus.COMPLETED
+                            "CANCELLED"  -> OrderStatus.CANCELLED
+                            else         -> OrderStatus.PENDING
                         }
                         Row(
                             modifier = Modifier
@@ -131,9 +137,9 @@ fun OrderDetailsDialog(
                             Text(text = "Status", fontSize = 12.sp, color = TextSecondary)
                             // ✅ Show refund badge if order is refunded, otherwise show order status
                             if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
-                                // ✅ FIXED: Match "Completed" badge styling exactly
+                                // ✅ FIXED: Use consistent purple color for Refunded badge
                                 Surface(
-                                    color = Color(0xFFD4EDDA),
+                                    color = Color(0xFFE2D5F3),
                                     shape = RoundedCornerShape(20.dp),
                                     modifier = Modifier.padding(vertical = 2.dp)
                                 ) {
@@ -145,14 +151,14 @@ fun OrderDetailsDialog(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Undo,
                                             contentDescription = "Refunded",
-                                            tint = Color(0xFF155724),
+                                            tint = Color(0xFF5A2D82),
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = "Refunded",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF155724),
+                                            color = Color(0xFF5A2D82),
                                             lineHeight = 13.sp
                                         )
                                     }
@@ -201,6 +207,74 @@ fun OrderDetailsDialog(
                         }
                     }
 
+                    // ✅ NEW: Store Information (for co-seller orders)
+                    // ✅ FIX #3: Hoist repository outside LaunchedEffect to prevent leaks
+                    if (order.coSellerStoreId.isNotEmpty()) {
+                        val storeRepository = remember { com.gcuf.craftoria.data.repository.CoSellerStoreRepository() }
+                        var coSellerStoreName by remember { mutableStateOf<String?>(null) }
+                        var isLoadingStore by remember { mutableStateOf(true) }
+
+                        LaunchedEffect(order.coSellerStoreId) {
+                            try {
+                                val result = storeRepository.getStoreById(order.coSellerStoreId)
+                                coSellerStoreName = if (result.isSuccess) {
+                                    result.getOrNull()?.storeName ?: "Co-seller Store"
+                                } else {
+                                    "Co-seller Store"
+                                }
+                            } catch (e: Exception) {
+                                coSellerStoreName = "Co-seller Store"
+                            } finally {
+                                isLoadingStore = false
+                            }
+                        }
+
+                        SellerDialogSectionCard(icon = Icons.Default.Store, title = "Store Information") {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Primary.copy(alpha = 0.08f),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary.copy(alpha = 0.20f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Store,
+                                        contentDescription = "Store",
+                                        tint = Primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    if (isLoadingStore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 1.5.dp,
+                                            color = Primary
+                                        )
+                                    } else {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = coSellerStoreName ?: "Co-seller Store",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Primary,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                text = "Product ordered from this store",
+                                                fontSize = 11.sp,
+                                                color = TextSecondary,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Product Details
                     SellerDialogSectionCard(icon = Icons.Default.Inventory, title = "Product Details") {
                         if (order.items.isNotEmpty()) {
@@ -240,12 +314,22 @@ fun OrderDetailsDialog(
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = order.productTitle, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 2)
-                                    val actualPrice = if (order.productPrice > 0.0) order.productPrice
-                                    else if (order.subtotal > 0.0 && order.quantity > 0) order.subtotal / order.quantity
-                                    else { val p = order.totalPrice - order.shipping; if (order.quantity > 0) p / order.quantity else 0.0 }
+                                    // ✅ FIX #2: Safe price calculation with proper guards
+                                    val actualPrice = when {
+                                        order.productPrice > 0.0 -> order.productPrice
+                                        order.subtotal > 0.0 && order.quantity > 0 -> order.subtotal / order.quantity
+                                        order.quantity > 0 -> (order.totalPrice - order.shipping).coerceAtLeast(0.0) / order.quantity
+                                        else -> 0.0
+                                    }
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         Text(text = "Qty: ${order.quantity}", fontSize = 11.sp, color = TextSecondary)
-                                        Text(text = "PKR ${String.format(Locale.getDefault(), "%,.0f", actualPrice)}", fontSize = 11.sp, color = TextSecondary)
+                                        Text(
+                                            text = if (actualPrice > 0.0) 
+                                                "PKR ${String.format(Locale.getDefault(), "%,.0f", actualPrice)}"
+                                            else "Price N/A",
+                                            fontSize = 11.sp,
+                                            color = TextSecondary
+                                        )
                                     }
                                 }
                             }
@@ -381,8 +465,15 @@ fun SellerDetailRow(label: String, value: String, valueColor: Color = TextPrimar
 
 @Composable
 fun OrderTimeline(order: Order) {
-    // ✅ Build timeline dynamically based on refund status
-    val timeline = remember(order) {
+    // ✅ FIX #4: Key on specific fields that actually change, not the entire order object
+    val timeline = remember(
+        order.id,
+        order.status,
+        order.getOrderPlacedAtLong(),
+        order.getShippedAtLong(),
+        order.getDeliveredAtLong(),
+        order.getRefundStatusEnum()
+    ) {
         buildList {
             add(Triple("Order Placed", if (order.getOrderPlacedAtLong() > 0) formatDateTime(order.getOrderPlacedAtLong()) else "Pending", order.getOrderPlacedAtLong() > 0))
             add(Triple("Processing", if (order.getProcessingAtLong() > 0) formatDateTime(order.getProcessingAtLong()) else "Pending", order.getProcessingAtLong() > 0))
@@ -417,14 +508,17 @@ fun OrderTimeline(order: Order) {
                             Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = TextLight, modifier = Modifier.size(14.dp))
                         }
                     }
+                    // ✅ FIX #8: Use next item's completed state for connector color
                     if (index < timeline.size - 1) {
+                        val nextCompleted = timeline[index + 1].third
                         Box(
                             modifier = Modifier
                                 .width(2.dp)
                                 .height(24.dp)
                                 .background(
-                                    if (completed) {
-                                        if (title == "Refunded") Color(0xFF7C3AED).copy(alpha = 0.4f) else Success.copy(alpha = 0.4f)
+                                    if (completed && nextCompleted) {
+                                        if (timeline[index + 1].first == "Refunded") Color(0xFF7C3AED).copy(alpha = 0.4f)
+                                        else Success.copy(alpha = 0.4f)
                                     } else BorderColor
                                 )
                         )

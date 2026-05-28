@@ -104,37 +104,46 @@ fun CoSellerStorePaymentScreen(
                     .fillMaxWidth()
                     .background(Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight)))
             ) {
+                // ✅ Professional Store Header with Clear Store Name Display
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Store Avatar
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .background(Color.White.copy(alpha = 0.22f), CircleShape),
+                            .size(48.dp)
+                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = storeName.take(1).uppercase(),
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     }
-                    Column {
+                    
+                    // Store Name and Subtitle
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = storeName,
-                            fontSize = 15.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            lineHeight = 20.sp
                         )
                         Text(
-                            text = "Payment Dashboard",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.75f)
+                            text = "Store Payments",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.80f),
+                            lineHeight = 14.sp
                         )
                     }
                 }
@@ -358,37 +367,37 @@ private fun CoSellerDateRangeSelector(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
             text = "Time Range",
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = TextSecondary
+            color = TextPrimary,
+            letterSpacing = 0.2.sp
         )
 
-        // ✅ Professional Dropdown Menu
+        // ✅ Professional Dropdown Menu with Better Alignment and Spacing
         Box(modifier = Modifier.fillMaxWidth()) {
             Surface(
                 onClick = { isDropdownExpanded = !isDropdownExpanded },
-                shape = RoundedCornerShape(10.dp),
-                color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = BackgroundSecondary,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = selectedDateRange.displayName,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
                     )
@@ -397,28 +406,45 @@ private fun CoSellerDateRangeSelector(
                         contentDescription = "Expand",
                         tint = TextSecondary,
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(22.dp)
                             .rotate(rotation)
                     )
                 }
             }
 
-            // ✅ Dropdown Menu with Professional Styling
+            // ✅ Dropdown Menu with Professional Styling and Proper Layout
             DropdownMenu(
                 expanded = isDropdownExpanded,
                 onDismissRequest = { isDropdownExpanded = false },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .background(Color.White),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                CoSellerPaymentDateRange.entries.forEach { range ->
+                CoSellerPaymentDateRange.entries.forEachIndexed { index, range ->
+                    val isSelected = selectedDateRange == range
+                    
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                text = range.displayName,
-                                fontSize = 13.sp,
-                                fontWeight = if (selectedDateRange == range) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selectedDateRange == range) Primary else TextPrimary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = range.displayName,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) Primary else TextPrimary
+                                )
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(Primary, CircleShape)
+                                    )
+                                }
+                            }
                         },
                         onClick = {
                             onDateRangeSelected(range)
@@ -427,13 +453,22 @@ private fun CoSellerDateRangeSelector(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                if (selectedDateRange == range) 
-                                    Primary.copy(alpha = 0.08f) 
+                                if (isSelected) 
+                                    Primary.copy(alpha = 0.06f) 
                                 else 
                                     Color.White
                             ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                     )
+                    
+                    // Add divider between items except for the last one
+                    if (index < CoSellerPaymentDateRange.entries.size - 1) {
+                        HorizontalDivider(
+                            color = BorderColor.copy(alpha = 0.5f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
                 }
             }
         }
@@ -442,26 +477,25 @@ private fun CoSellerDateRangeSelector(
 
 @Composable
 private fun PaymentsSectionHeader(rangeLabel: String, paymentCount: Int) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = "Payments · $rangeLabel",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Showing $paymentCount payment${if (paymentCount == 1) "" else "s"}",
-                fontSize = 11.sp,
-                color = TextSecondary
-            )
-        }
+        Text(
+            text = "Store Payments · $rangeLabel",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            letterSpacing = 0.1.sp
+        )
+        Text(
+            text = "$paymentCount payment${if (paymentCount == 1) "" else "s"} found",
+            fontSize = 12.sp,
+            color = TextSecondary
+        )
     }
 }
 

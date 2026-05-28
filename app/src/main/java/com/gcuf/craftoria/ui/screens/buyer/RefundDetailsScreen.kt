@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +26,7 @@ import com.gcuf.craftoria.data.model.getUpdatedAtLong
 import com.gcuf.craftoria.data.model.getProcessedAtLong
 import com.gcuf.craftoria.data.model.getCompletedAtLong
 import com.gcuf.craftoria.ui.components.FilterTabRow
+import com.gcuf.craftoria.ui.components.OrderDetailsDialog
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.viewmodel.RefundViewModel
@@ -50,6 +52,15 @@ fun RefundDetailsScreen(
     val refund by viewModel.getRefundByIdFlow(refundId).collectAsState(initial = null)
     val order by viewModel.getOrderForRefund(refund?.orderId ?: "").collectAsState(initial = null)
     var selectedTab by remember { mutableStateOf(0) }
+    var showOrderDetailsDialog by remember { mutableStateOf(false) }
+    var isInitialLoad by remember { mutableStateOf(true) }
+
+    // ✅ Track initial load to prevent brief loading flash
+    LaunchedEffect(refund) {
+        if (refund != null && isInitialLoad) {
+            isInitialLoad = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -101,16 +112,17 @@ fun RefundDetailsScreen(
         },
         containerColor = BackgroundSecondary
     ) { paddingValues ->
-        if (refund == null) {
+        // ✅ Only show loading on initial load, not on subsequent updates
+        if (refund == null && isInitialLoad) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = Primary)
             }
-        } else {
+        } else if (refund != null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -127,47 +139,76 @@ fun RefundDetailsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     when (selectedTab) {
                         0 -> {
                             // Overview tab
-                            RefundStatusBanner(status = refund!!.status)
-                            InfoSection(
+                            RefundStatusCard(status = refund!!.status, refundAmount = refund!!.refundAmount)
+                            RefundInfoSection(
                                 title = "Order Information",
+                                icon = Icons.Default.Receipt,
                                 items = listOf(
-                                    "Order ID" to "#${refund!!.orderId.takeLast(8).uppercase()}",
+                                    "Order ID" to "#${refund!!.orderId.take(8).uppercase()}",
                                     "Order Date" to (order?.createdAt?.let {
                                         formatDateTime(if (it is Long) it else System.currentTimeMillis())
                                     } ?: "N/A"),
                                     "Order Amount" to "PKR ${order?.totalPrice?.toInt() ?: 0}"
                                 )
                             )
-                            InfoSection(
+                            RefundInfoSection(
                                 title = "Refund Information",
-                                items = listOf(
-                                    "Refund Amount" to "PKR ${refund!!.refundAmount.toInt()}",
-                                    "Refund Type" to refund!!.refundType,
-                                    "Reason" to refund!!.reason,
-                                    "Description" to (refund!!.reasonDetails.takeIf { it.isNotBlank() } ?: "N/A")
-                                )
+                                icon = Icons.Default.Info,
+                                items = buildList {
+                                    add("Refund Amount" to "PKR ${refund!!.refundAmount.toInt()}")
+                                    add("Refund Type" to refund!!.refundType.replaceFirstChar { it.uppercase() })
+                                    add("Reason" to refund!!.reason.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
+                                    if (refund!!.reasonDetails.isNotBlank()) {
+                                        add("Description" to refund!!.reasonDetails)
+                                    }
+                                }
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 OutlinedButton(
-                                    onClick = { onViewOrderDetails(refund!!.orderId) },
-                                    modifier = Modifier.weight(1f)
+                                    onClick = { showOrderDetailsDialog = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(50.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Primary.copy(alpha = 0.70f)),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text("View Order")
+                                    Text("View Order", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 }
                                 Button(
                                     onClick = onContactSupport,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(50.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                    contentPadding = PaddingValues(0.dp),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text("Support")
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
+                                                RoundedCornerShape(12.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "Contact Support",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -183,14 +224,22 @@ fun RefundDetailsScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
             }
         }
     }
+
+    // ── Order Details Dialog ──────────────────────────────────────────────────
+    if (showOrderDetailsDialog && order != null) {
+        OrderDetailsDialog(
+            order = order!!,
+            onDismiss = { showOrderDetailsDialog = false }
+        )
+    }
 }
 
-// ✅ NEW: Filter tabs using unified FilterTabRow component
+// ✅ Filter tabs using unified FilterTabRow component
 @Composable
 private fun RefundDetailsTabs(
     selectedTab: Int,
@@ -198,7 +247,6 @@ private fun RefundDetailsTabs(
 ) {
     val tabs = listOf("Overview", "Timeline", "Breakdown")
 
-    // White surface with 0.5.dp bottom divider — consistent with NotificationFilterTabs
     Surface(
         color = Color.White,
         shadowElevation = 0.dp,
@@ -216,14 +264,73 @@ private fun RefundDetailsTabs(
     }
 }
 
+// ── Detail Card helper — matches DetailCard / SectionCard from PaymentDetailScreen ──
+
 @Composable
-private fun RefundStatusBanner(status: String) {
+private fun DetailCard(
+    title: String,
+    icon: ImageVector,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(0.dp),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Primary.copy(alpha = 0.06f), Primary.copy(alpha = 0.02f))
+                    )
+                )
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(Primary.copy(alpha = 0.10f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+        }
+        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            content = content
+        )
+    }
+}
+
+// ── Refund Status Card — matches PaymentStatusCard centered hero layout ────────
+
+@Composable
+private fun RefundStatusCard(status: String, refundAmount: Double) {
     val statusEnum = try {
         RefundStatus.valueOf(status.uppercase())
     } catch (e: Exception) {
         RefundStatus.REQUESTED
     }
-    
+
     val display = when (statusEnum) {
         RefundStatus.REQUESTED, RefundStatus.UNDER_REVIEW -> StatusDisplay(
             Warning,
@@ -271,303 +378,288 @@ private fun RefundStatusBanner(status: String) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = display.backgroundColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = display.icon,
-                contentDescription = null,
-                tint = display.textColor,
-                modifier = Modifier.size(32.dp)
-            )
-            Text(
-                text = display.statusText,
-                color = display.textColor,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun InfoSection(
-    title: String,
-    items: List<Pair<String, String>>
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(0.dp),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(display.backgroundColor.copy(alpha = 0.10f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = display.icon,
+                    contentDescription = null,
+                    tint = display.backgroundColor,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                text = display.statusText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = display.backgroundColor
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "PKR ${String.format(java.util.Locale.US, "%.0f", refundAmount)}",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+        }
+    }
+}
 
-            items.forEach { (label, value) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = label,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = value,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
-                    )
-                }
+// ── Info Section — matches PaymentInfoSection row pattern ─────────────────────
+
+@Composable
+private fun RefundInfoSection(
+    title: String,
+    icon: ImageVector,
+    items: List<Pair<String, String>>
+) {
+    DetailCard(title = title, icon = icon) {
+        items.forEachIndexed { index, (label, value) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+                Text(
+                    text = value,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+            }
+            if (index < items.size - 1) {
+                HorizontalDivider(
+                    color = BorderColor,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
         }
     }
 }
+
+// ── Timeline — matches OrderTimelineCard dot-row pattern ──────────────────────
 
 @Composable
 private fun RefundTimeline(refund: com.gcuf.craftoria.data.model.RefundRequest) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Timeline",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+    val statusEnum = try {
+        RefundStatus.valueOf(refund.status.uppercase())
+    } catch (e: Exception) {
+        RefundStatus.REQUESTED
+    }
 
-            // Requested
-            TimelineItem(
-                icon = Icons.Default.Schedule,
-                title = "Requested",
-                timestamp = formatDateTime(refund.getRequestedAtLong()),
-                description = "By: You",
-                isCompleted = true
-            )
+    DetailCard(title = "Timeline", icon = Icons.Default.Timeline) {
+        TimelineRow(
+            title = "Requested",
+            date = formatDateTime(refund.getRequestedAtLong()),
+            subtitle = "By: You",
+            isCompleted = true
+        )
 
-            // Approval/Rejection
-            val statusEnum = try {
-                RefundStatus.valueOf(refund.status.uppercase())
-            } catch (e: Exception) {
-                RefundStatus.REQUESTED
-            }
-            
-            when (statusEnum) {
-                RefundStatus.APPROVED_BY_SELLER -> {
-                    TimelineItem(
-                        icon = Icons.Default.CheckCircle,
-                        title = "Approved by Seller",
-                        timestamp = formatDateTime(refund.getApprovedAtLong()),
-                        description = refund.approvalNotes.takeIf { it.isNotBlank() }?.let { "Note: $it" },
-                        isCompleted = true
-                    )
-                }
-                RefundStatus.APPROVED_BY_ADMIN -> {
-                    TimelineItem(
-                        icon = Icons.Default.CheckCircle,
-                        title = "Approved by Admin",
-                        timestamp = formatDateTime(refund.getApprovedAtLong()),
-                        description = refund.approvalNotes.takeIf { it.isNotBlank() }?.let { "Note: $it" },
-                        isCompleted = true
-                    )
-                }
-                RefundStatus.REJECTED_BY_SELLER, RefundStatus.REJECTED_BY_ADMIN -> {
-                    TimelineItem(
-                        icon = Icons.Default.Cancel,
-                        title = if (statusEnum == RefundStatus.REJECTED_BY_SELLER) "Rejected by Seller" else "Rejected by Admin",
-                        timestamp = formatDateTime(refund.getUpdatedAtLong()),
-                        description = null,
-                        isCompleted = true,
-                        isError = true
-                    )
-                }
-                else -> {}
-            }
-
-            // Processing
-            if (statusEnum == RefundStatus.PROCESSING || statusEnum == RefundStatus.COMPLETED) {
-                TimelineItem(
-                    icon = Icons.Default.Sync,
-                    title = "Processing Started",
-                    timestamp = formatDateTime(refund.getProcessedAtLong()),
+        when (statusEnum) {
+            RefundStatus.APPROVED_BY_SELLER -> {
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+                TimelineRow(
+                    title = "Approved by Seller",
+                    date = formatDateTime(refund.getApprovedAtLong()),
+                    subtitle = refund.approvalNotes.takeIf { it.isNotBlank() }?.let { "Note: $it" },
                     isCompleted = true
                 )
             }
-
-            // Completed
-            if (statusEnum == RefundStatus.COMPLETED) {
-                TimelineItem(
-                    icon = Icons.Default.CheckCircle,
-                    title = "Refund Completed",
-                    timestamp = formatDateTime(refund.getCompletedAtLong()),
-                    description = "Amount: PKR ${refund.refundAmount.toInt()}\nMethod: Original Payment Method",
+            RefundStatus.APPROVED_BY_ADMIN -> {
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+                TimelineRow(
+                    title = "Approved by Admin",
+                    date = formatDateTime(refund.getApprovedAtLong()),
+                    subtitle = refund.approvalNotes.takeIf { it.isNotBlank() }?.let { "Note: $it" },
                     isCompleted = true
                 )
             }
-
-            // Failed
-            if (statusEnum == RefundStatus.FAILED) {
-                TimelineItem(
-                    icon = Icons.Default.Error,
-                    title = "Refund Failed",
-                    timestamp = formatDateTime(refund.getUpdatedAtLong()),
-                    description = refund.errorMessage.takeIf { it.isNotBlank() },
+            RefundStatus.REJECTED_BY_SELLER, RefundStatus.REJECTED_BY_ADMIN -> {
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+                TimelineRow(
+                    title = if (statusEnum == RefundStatus.REJECTED_BY_SELLER) "Rejected by Seller" else "Rejected by Admin",
+                    date = formatDateTime(refund.getUpdatedAtLong()),
                     isCompleted = true,
                     isError = true
                 )
             }
+            else -> {}
+        }
+
+        if (statusEnum == RefundStatus.PROCESSING || statusEnum == RefundStatus.COMPLETED) {
+            HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+            TimelineRow(
+                title = "Processing Started",
+                date = formatDateTime(refund.getProcessedAtLong()),
+                isCompleted = true
+            )
+        }
+
+        if (statusEnum == RefundStatus.COMPLETED) {
+            HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+            TimelineRow(
+                title = "Refund Completed",
+                date = formatDateTime(refund.getCompletedAtLong()),
+                subtitle = "Amount: PKR ${refund.refundAmount.toInt()} · Original Payment Method",
+                isCompleted = true
+            )
+        }
+
+        if (statusEnum == RefundStatus.FAILED) {
+            HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+            TimelineRow(
+                title = "Refund Failed",
+                date = formatDateTime(refund.getUpdatedAtLong()),
+                subtitle = refund.errorMessage.takeIf { it.isNotBlank() },
+                isCompleted = true,
+                isError = true
+            )
         }
     }
 }
 
+// ── Timeline Row — matches TimelineRow / TimelineItemRow dot style ─────────────
+
 @Composable
-private fun TimelineItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun TimelineRow(
     title: String,
-    timestamp: String?,
-    description: String? = null,
+    date: String?,
+    subtitle: String? = null,
     isCompleted: Boolean = false,
     isError: Boolean = false
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = when {
-                isError -> Error
-                isCompleted -> Success
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(24.dp)
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(
+                    when {
+                        isError -> Error
+                        isCompleted -> Success
+                        else -> BorderColor
+                    },
+                    CircleShape
+                )
         )
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
             )
-            if (timestamp != null) {
+            if (date != null) {
                 Text(
-                    text = timestamp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
+                    text = date,
+                    fontSize = 11.sp,
+                    color = TextSecondary
                 )
             }
-            if (description != null) {
+            if (subtitle != null) {
                 Text(
-                    text = description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = TextSecondary
                 )
             }
         }
     }
 }
+
+// ── Payment Breakdown — matches PaymentItemsSection row pattern ───────────────
 
 @Composable
 private fun PaymentBreakdown(
     originalAmount: Double,
     refundAmount: Double
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    DetailCard(title = "Payment Breakdown", icon = Icons.Default.AccountBalance) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Original Payment", fontSize = 12.sp, color = TextSecondary)
+            Text(
+                text = "PKR ${originalAmount.toInt()}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+        }
+        HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Refund Amount", fontSize = 12.sp, color = TextSecondary)
+            Text(
+                text = "PKR ${refundAmount.toInt()}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+        }
+        HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Processing Fee", fontSize = 12.sp, color = TextSecondary)
+            Text(
+                text = "PKR 0",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+        }
+        HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Payment Breakdown",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                text = "Net Refund",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
             )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Original Payment",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "PKR ${originalAmount.toInt()}",
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Refund Amount",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "PKR ${refundAmount.toInt()}",
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Processing Fee",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "PKR 0",
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            HorizontalDivider()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Net Refund",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = "PKR ${refundAmount.toInt()}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Success
-                )
-            }
+            Text(
+                text = "PKR ${refundAmount.toInt()}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Success
+            )
         }
     }
 }

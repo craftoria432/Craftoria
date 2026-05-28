@@ -1,6 +1,5 @@
 package com.gcuf.craftoria.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,10 +19,6 @@ import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.model.PaymentStatus
 import com.gcuf.craftoria.ui.theme.Primary
-import com.gcuf.craftoria.ui.theme.Success
-import com.gcuf.craftoria.ui.theme.Warning
-import com.gcuf.craftoria.ui.theme.Error
-import com.gcuf.craftoria.ui.theme.Info
 
 /**
  * Unified Badge Component System
@@ -34,6 +29,13 @@ import com.gcuf.craftoria.ui.theme.Info
  * - Border Radius: 20dp (pill shape)
  * - Consistent color palette
  * - Professional sizing across all screens
+ *
+ * Changes from previous version:
+ * - Removed unused Quadruple data class
+ * - Renamed BadgeStyles composables to avoid shadowing theme color names
+ * - VerificationBadge now uses standard 11sp / 10dp-6dp spec
+ * - PaymentStatusBadge now parses the raw string into PaymentStatus enum safely,
+ *   so matching never silently breaks if enum.toString() changes
  */
 
 // ── Status Badge ──────────────────────────────────────────────────────
@@ -43,15 +45,15 @@ fun StatusBadge(
     modifier: Modifier = Modifier
 ) {
     val (backgroundColor, textColor) = when (status) {
-        OrderStatus.PENDING, OrderStatus.NEW -> 
+        OrderStatus.PENDING, OrderStatus.NEW ->
             Pair(Color(0xFFFFF3CD), Color(0xFF856404))
-        OrderStatus.PROCESSING, OrderStatus.CONFIRMED -> 
+        OrderStatus.PROCESSING, OrderStatus.CONFIRMED ->
             Pair(Color(0xFFD1ECF1), Color(0xFF0C5460))
-        OrderStatus.SHIPPED -> 
+        OrderStatus.SHIPPED ->
             Pair(Color(0xFFE2D5F3), Color(0xFF5A2D82))
-        OrderStatus.DELIVERED, OrderStatus.COMPLETED -> 
+        OrderStatus.DELIVERED, OrderStatus.COMPLETED ->
             Pair(Color(0xFFD4EDDA), Color(0xFF155724))
-        OrderStatus.CANCELLED -> 
+        OrderStatus.CANCELLED ->
             Pair(Color(0xFFF8D7DA), Color(0xFF721C24))
     }
 
@@ -84,30 +86,39 @@ fun ProductActiveBadge(isActive: Boolean, modifier: Modifier = Modifier) {
 }
 
 // ── Payment Status Badge ──────────────────────────────────────────────
+// Parses the raw string into the PaymentStatus enum first so matching is
+// never silently broken by enum.toString() changes.
 @Composable
 fun PaymentStatusBadge(
     status: String,
     modifier: Modifier = Modifier
 ) {
-    val normalized = status.lowercase()
-    val (backgroundColor, textColor, label) = when (normalized) {
-        PaymentStatus.COMPLETED.toString() ->
-            Triple(Color(0xFFD4EDDA), Color(0xFF155724), PaymentStatus.COMPLETED.getDisplayName())
-        PaymentStatus.PENDING.toString() ->
-            Triple(Color(0xFFFFF3CD), Color(0xFF856404), PaymentStatus.PENDING.getDisplayName())
-        PaymentStatus.PROCESSING.toString() ->
-            Triple(Color(0xFFD1ECF1), Color(0xFF0C5460), PaymentStatus.PROCESSING.getDisplayName())
-        PaymentStatus.FAILED.toString() ->
-            Triple(Color(0xFFF8D7DA), Color(0xFF721C24), PaymentStatus.FAILED.getDisplayName())
-        PaymentStatus.REFUND_PENDING.toString() ->
-            Triple(Color(0xFFFFF3CD), Color(0xFF856404), PaymentStatus.REFUND_PENDING.getDisplayName())
-        PaymentStatus.REFUND_PROCESSING.toString() ->
-            Triple(Color(0xFFD1ECF1), Color(0xFF0C5460), PaymentStatus.REFUND_PROCESSING.getDisplayName())
-        PaymentStatus.REFUNDED.toString() ->
-            Triple(Color(0xFFE2D5F3), Color(0xFF5A2D82), PaymentStatus.REFUNDED.getDisplayName())
-        PaymentStatus.REFUND_REJECTED.toString() ->
-            Triple(Color(0xFFE2E3E5), Color(0xFF383D41), PaymentStatus.REFUND_REJECTED.getDisplayName())
-        else -> Triple(Color(0xFFE2E3E5), Color(0xFF383D41), status.replaceFirstChar { it.uppercase() })
+    val parsed = PaymentStatus.entries.firstOrNull {
+        it.name.equals(status, ignoreCase = true)
+    }
+
+    val (backgroundColor, textColor, label) = when (parsed) {
+        PaymentStatus.COMPLETED ->
+            Triple(Color(0xFFD4EDDA), Color(0xFF155724), parsed.getDisplayName())
+        PaymentStatus.PENDING ->
+            Triple(Color(0xFFFFF3CD), Color(0xFF856404), parsed.getDisplayName())
+        PaymentStatus.PROCESSING ->
+            Triple(Color(0xFFD1ECF1), Color(0xFF0C5460), parsed.getDisplayName())
+        PaymentStatus.FAILED ->
+            Triple(Color(0xFFF8D7DA), Color(0xFF721C24), parsed.getDisplayName())
+        PaymentStatus.REFUND_PENDING ->
+            Triple(Color(0xFFFFF3CD), Color(0xFF856404), parsed.getDisplayName())
+        PaymentStatus.REFUND_PROCESSING ->
+            Triple(Color(0xFFD1ECF1), Color(0xFF0C5460), parsed.getDisplayName())
+        PaymentStatus.REFUNDED ->
+            Triple(Color(0xFFE2D5F3), Color(0xFF5A2D82), parsed.getDisplayName())
+        PaymentStatus.REFUND_REJECTED ->
+            Triple(Color(0xFFE2E3E5), Color(0xFF383D41), parsed.getDisplayName())
+        null -> Triple(
+            Color(0xFFE2E3E5),
+            Color(0xFF383D41),
+            status.replaceFirstChar { it.uppercase() }
+        )
     }
 
     Surface(
@@ -127,9 +138,6 @@ fun PaymentStatusBadge(
         )
     }
 }
-
-// Helper data class for Quadruple
-data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 // ── State Badge ───────────────────────────────────────────────────────
 @Composable
@@ -196,6 +204,7 @@ fun CountBadge(
 }
 
 // ── Verification Badge ────────────────────────────────────────────────
+// Now uses standard 11sp / 10dp-6dp spec to match all other badges.
 @Composable
 fun VerificationBadge(
     isVerified: Boolean,
@@ -210,11 +219,11 @@ fun VerificationBadge(
     ) {
         Text(
             text = "✓ Verified",
-            fontSize = 8.sp,
+            fontSize = 11.sp,
             color = Color(0xFF155724),
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-            lineHeight = 10.sp
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            lineHeight = 13.sp
         )
     }
 }
@@ -314,29 +323,30 @@ enum class BadgeState {
 }
 
 // ── Badge Preset Styles ───────────────────────────────────────────────
+// Renamed composables to avoid shadowing theme color names (Success, Warning, etc.)
 object BadgeStyles {
     @Composable
-    fun Success(label: String, modifier: Modifier = Modifier) {
+    fun SuccessBadge(label: String, modifier: Modifier = Modifier) {
         StateBadge(label, BadgeState.SUCCESS, modifier)
     }
 
     @Composable
-    fun Warning(label: String, modifier: Modifier = Modifier) {
+    fun WarningBadge(label: String, modifier: Modifier = Modifier) {
         StateBadge(label, BadgeState.WARNING, modifier)
     }
 
     @Composable
-    fun Error(label: String, modifier: Modifier = Modifier) {
+    fun ErrorBadge(label: String, modifier: Modifier = Modifier) {
         StateBadge(label, BadgeState.ERROR, modifier)
     }
 
     @Composable
-    fun Info(label: String, modifier: Modifier = Modifier) {
+    fun InfoBadge(label: String, modifier: Modifier = Modifier) {
         StateBadge(label, BadgeState.INFO, modifier)
     }
 
     @Composable
-    fun Primary(label: String, modifier: Modifier = Modifier) {
+    fun PrimaryBadge(label: String, modifier: Modifier = Modifier) {
         StateBadge(label, BadgeState.PRIMARY, modifier)
     }
 }

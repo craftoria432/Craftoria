@@ -87,12 +87,12 @@ fun EmptyStateComponent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Message - 14sp Normal, no decoration
+        // Message - 14sp Normal, professional light black color
         Text(
             text = message,
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
-            color = TextSecondary,
+            color = TextPrimary.copy(alpha = 0.70f), // Professional light black
             textAlign = TextAlign.Center,
             lineHeight = 22.sp,
             modifier = Modifier.fillMaxWidth(0.85f),
@@ -217,7 +217,7 @@ object EmptyStates {
         EmptyStateComponent(
             icon = Icons.Default.FilterList,
             title = "No ${filterName.lowercase()} payments found",
-            message = "",
+            message = "Try adjusting your filters or date range to see more payments",
             modifier = modifier
         )
     }
@@ -225,12 +225,12 @@ object EmptyStates {
     @Composable
     fun NoPaymentsYet(modifier: Modifier = Modifier, forBuyer: Boolean = true) {
         EmptyStateComponent(
-            icon = Icons.Default.Receipt,
+            icon = Icons.Default.AccountBalanceWallet,
             title = if (forBuyer) "No Payments Yet" else "No Earnings Yet",
             message = if (forBuyer) {
-                "Your purchase payment history will appear here after you place orders."
+                "Your purchase payment history will appear here after you place orders"
             } else {
-                "Your earnings from completed orders will appear here."
+                "Your earnings from completed orders will appear here"
             },
             modifier = modifier
         )
@@ -256,13 +256,43 @@ object EmptyStates {
     @Composable
     fun NoCoSellerPayments(rangeLabel: String, hasFilter: Boolean, modifier: Modifier = Modifier) {
         EmptyStateComponent(
-            icon = Icons.Default.Receipt,
+            icon = Icons.Default.AccountBalanceWallet,
             title = "No Payments Found",
             message = if (hasFilter) {
-                "No payments match this filter for $rangeLabel."
+                "No payments match this filter for $rangeLabel"
             } else {
-                "Store payments for $rangeLabel will appear here."
+                "Store payments for $rangeLabel will appear here"
             },
+            modifier = modifier
+        )
+    }
+
+    @Composable
+    fun NoSellerRefunds(filterName: String = "All", modifier: Modifier = Modifier) {
+        EmptyStateComponent(
+            icon = Icons.Default.Receipt,
+            title = "No $filterName Refunds",
+            message = "No refund requests yet",
+            modifier = modifier
+        )
+    }
+
+    @Composable
+    fun NoSellerOrders(filterName: String = "All", modifier: Modifier = Modifier) {
+        EmptyStateComponent(
+            icon = Icons.Default.ShoppingBag,
+            title = "No $filterName Orders",
+            message = "No orders to display",
+            modifier = modifier
+        )
+    }
+
+    @Composable
+    fun NoBuyerOrders(filterName: String = "All", modifier: Modifier = Modifier) {
+        EmptyStateComponent(
+            icon = Icons.Default.ShoppingCart,
+            title = "No $filterName Orders",
+            message = "You haven't placed any orders yet",
             modifier = modifier
         )
     }

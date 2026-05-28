@@ -26,7 +26,7 @@ import com.gcuf.craftoria.data.model.RefundStatus
 import com.gcuf.craftoria.data.model.getRequestedAtLong
 import com.gcuf.craftoria.data.repository.RefundRepository
 import com.gcuf.craftoria.ui.theme.*
-import com.gcuf.craftoria.ui.components.EmptyStateComponent
+import com.gcuf.craftoria.ui.components.EmptyStates
 import com.gcuf.craftoria.ui.components.FilterTabRow
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -209,13 +209,8 @@ fun SellerRefundManagementScreen(
 
                 displayedRefunds.isEmpty() -> {
                     // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
-                    val title = "No ${selectedFilter.label} Refunds"
-                    val message = "No refund requests yet"
-                    
-                    EmptyStateComponent(
-                        icon = Icons.Default.Receipt,
-                        title = title,
-                        message = message
+                    EmptyStates.NoSellerRefunds(
+                        filterName = selectedFilter.label
                     )
                 }
 

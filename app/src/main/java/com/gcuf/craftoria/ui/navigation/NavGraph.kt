@@ -102,10 +102,6 @@ sealed class Screen(val route: String) {
         fun createRoute(userId: String) = "seller_profile/$userId"
     }
 
-    object OrderDetails : Screen("order_details/{orderId}") {
-        fun createRoute(orderId: String) = "order_details/$orderId"
-    }
-
     object Cart : Screen("cart")
     object Checkout : Screen("checkout")
 
@@ -759,21 +755,10 @@ fun NavGraph(
                 },
                 onNavigateToRefundRequest = { orderId ->
                     navController.navigate(Screen.RefundRequest.createRoute(orderId))
+                },
+                onNavigateToRefundDetails = { refundId ->
+                    navController.navigate(Screen.RefundDetails.createRoute(refundId))
                 }
-            )
-        }
-
-        /* ---------------------- ORDER DETAILS ---------------------- */
-        composable(
-            route = Screen.OrderDetails.route,
-            arguments = listOf(
-                navArgument("orderId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-            OrderDetailsScreen(
-                orderId = orderId,
-                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -805,9 +790,7 @@ fun NavGraph(
                 onContactSupport = {
                     navController.navigate(Screen.HelpSupport.route)
                 },
-                onViewOrderDetails = { orderId ->
-                    navController.navigate(Screen.OrderDetails.createRoute(orderId))
-                }
+                onViewOrderDetails = { /* No longer needed - dialog opens directly */ }
             )
         }
 
@@ -1492,7 +1475,7 @@ fun NavGraph(
                         navController.navigate(Screen.ProductDetails.createRoute(productId))
                     },
                     onTrackOrder = { orderId ->
-                        navController.navigate(Screen.OrderDetails.createRoute(orderId))
+                        // Order details dialog opens directly from MyOrdersScreen
                     }
                 )
             }

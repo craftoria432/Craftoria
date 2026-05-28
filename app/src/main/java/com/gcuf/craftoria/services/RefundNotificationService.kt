@@ -33,7 +33,7 @@ class RefundNotificationService(
             // Notify seller
             val sellerNotification = Notification(
                 userId = refund.sellerId,
-                title = "💰 Refund Request Received",
+                title = "💸 Refund Request Received",
                 description = "A refund request has been submitted for order #${refund.orderId.take(8)}. Amount: $formattedAmount",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
@@ -55,7 +55,7 @@ class RefundNotificationService(
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "💰 Refund Request Submitted",
+                title = "💸 Refund Request Submitted",
                 description = "Your refund request for $formattedAmount has been submitted and is pending approval.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,

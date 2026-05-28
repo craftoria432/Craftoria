@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.outlined.Delete
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +40,7 @@ import com.gcuf.craftoria.data.model.Order
 import com.gcuf.craftoria.data.model.OrderStatus
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.model.getCreatedAtLong
+import com.gcuf.craftoria.data.model.getRefundStatusEnum
 import com.gcuf.craftoria.ui.components.FilterTabRow
 import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.ui.components.EmptyStateComponent
@@ -48,8 +50,6 @@ import com.gcuf.craftoria.utils.OrderRefundState
 import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.viewmodel.SellerOrdersState
 import com.gcuf.craftoria.viewmodel.SellerOrdersViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -100,6 +100,9 @@ fun SellerOrdersScreen(
         when (val state = uiState) {
             is SellerOrdersState.ActionSuccess -> {
                 snackbarHostState.showSnackbar(message = state.message, duration = SnackbarDuration.Short)
+                // ✅ FIX #13: Clear selection state only after success
+                selectedOrders = emptySet()
+                isSelectionMode = false
                 sellerOrdersViewModel.resetState()
             }
             is SellerOrdersState.Error -> {
@@ -229,10 +232,11 @@ fun SellerOrdersScreen(
                                     selectedOrders - order.id else selectedOrders + order.id
                             },
                             onViewDetails = {
+                                // ✅ FIX #15: Remove double navigation - only show dialog OR call onOrderClick
                                 if (!isSelectionMode) {
                                     selectedOrder = order
                                     showOrderDetails = true
-                                    onOrderClick(order)
+                                    // onOrderClick removed to prevent double navigation
                                     coroutineScope.launch {
                                         val index = orders.indexOf(order)
                                         if (index >= 0) {
@@ -288,7 +292,11 @@ fun SellerOrdersScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { sellerOrdersViewModel.deleteMultipleOrders(selectedOrders.toList(), user.id); selectedOrders = emptySet(); isSelectionMode = false; showDeleteConfirmDialog = false },
+                    onClick = { 
+                        sellerOrdersViewModel.deleteMultipleOrders(selectedOrders.toList(), user.id)
+                        // ✅ FIX #13: Don't clear state here - let ActionSuccess handler do it
+                        showDeleteConfirmDialog = false 
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Error),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.height(40.dp)
@@ -358,19 +366,26 @@ fun SellerOrderCard(
     val isHovered by interactionSource.collectIsHoveredAsState()
 
     // ✅ Track refund state for this order
+    // ✅ FIX #12: Initialize with order's refund_status to prevent flash of wrong badge
     var refundState by remember(order.id) {
-        mutableStateOf<OrderRefundState?>(null)
+        mutableStateOf<OrderRefundState?>(
+            when (order.getRefundStatusEnum()) {
+                com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED -> OrderRefundState.COMPLETED
+                else -> OrderRefundState.NONE
+            }
+        )
     }
 
-    // ✅ NEW: Eagerly load co-seller store name to eliminate loading state
     var coSellerStoreName by remember(order.coSellerStoreId) {
         mutableStateOf<String?>(null)
     }
 
+    // ✅ FIX #14: Hoist repository outside LaunchedEffect to prevent leaks
+    val storeRepository = remember { com.gcuf.craftoria.data.repository.CoSellerStoreRepository() }
+
     LaunchedEffect(order.coSellerStoreId) {
         if (order.coSellerStoreId.isNotEmpty()) {
             try {
-                val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
                 val result = storeRepository.getStoreById(order.coSellerStoreId)
                 if (result.isSuccess) {
                     coSellerStoreName = result.getOrNull()?.storeName ?: "Co-seller Store"
@@ -469,8 +484,8 @@ fun SellerOrderCard(
                 ) {
                     // ✅ When refund is completed, show ONLY the refunded badge — suppress order status badge
                     if (refundState == OrderRefundState.COMPLETED) {
-                        // ✅ FIXED: Match "Completed" badge styling exactly
-                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
+                        // ✅ FIXED: Use consistent purple color for Refunded badge
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFE2D5F3)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -479,14 +494,14 @@ fun SellerOrderCard(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
                                     contentDescription = "Refunded",
-                                    tint = Color(0xFF155724),
+                                    tint = Color(0xFF5A2D82),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Refunded",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF155724),
+                                    color = Color(0xFF5A2D82),
                                     lineHeight = 13.sp
                                 )
                             }
@@ -494,11 +509,15 @@ fun SellerOrderCard(
                         // No StatusBadge shown when refund is completed
                     } else {
                         // Show order status badge only when NOT refunded
-                        // Convert string status to OrderStatus enum
-                        val orderStatus = try {
-                            OrderStatus.valueOf(order.status.uppercase())
-                        } catch (e: Exception) {
-                            OrderStatus.PENDING // Fallback if status is not valid
+                        // ✅ FIX #1: Safe status conversion using when() instead of try/catch
+                        val orderStatus = when (order.status.uppercase()) {
+                            "PENDING"    -> OrderStatus.PENDING
+                            "PROCESSING" -> OrderStatus.PROCESSING
+                            "SHIPPED"    -> OrderStatus.SHIPPED
+                            "DELIVERED"  -> OrderStatus.DELIVERED
+                            "COMPLETED"  -> OrderStatus.COMPLETED
+                            "CANCELLED"  -> OrderStatus.CANCELLED
+                            else         -> OrderStatus.PENDING
                         }
                         OrderStatusBadge(status = orderStatus)
                     }
@@ -623,23 +642,56 @@ fun SellerOrderCard(
 
 @Composable
 fun SellerEmptyOrdersState(filterType: OrderStatus? = null) {
-    // ✅ FIXED: Show specific empty state text based on filter type
-    val (title, message) = when (filterType) {
-        OrderStatus.PENDING -> "No pending orders yet" to "New orders will appear here"
-        OrderStatus.PROCESSING -> "No processing orders yet" to "Orders being prepared will appear here"
-        OrderStatus.SHIPPED -> "No shipped orders yet" to "Shipped orders will appear here"
-        OrderStatus.DELIVERED -> "No delivered orders yet" to "Delivered orders will appear here"
-        OrderStatus.COMPLETED -> "No completed orders yet" to "Completed orders will appear here"
-        OrderStatus.CANCELLED -> "No cancelled orders yet" to "Cancelled orders will appear here"
-        null -> "No orders yet" to "Your orders will appear here"
-        else -> "No orders yet" to "Your orders will appear here"
+    // ✅ FIXED: Show specific empty state text based on filter type with professional subtext
+    val (title, message, subtext) = when (filterType) {
+        OrderStatus.PENDING -> Triple(
+            "No Pending Orders",
+            "New orders will appear here",
+            "You'll be notified when customers place orders that need your attention"
+        )
+        OrderStatus.PROCESSING -> Triple(
+            "No Processing Orders",
+            "Orders being prepared will appear here",
+            "Orders you've accepted will show up here while you prepare them"
+        )
+        OrderStatus.SHIPPED -> Triple(
+            "No Shipped Orders",
+            "Shipped orders will appear here",
+            "Track orders that are on their way to customers"
+        )
+        OrderStatus.DELIVERED -> Triple(
+            "No Delivered Orders",
+            "Delivered orders will appear here",
+            "Orders successfully delivered to customers will show up here"
+        )
+        OrderStatus.COMPLETED -> Triple(
+            "No Completed Orders",
+            "Completed orders will appear here",
+            "Your order history and completed transactions will be listed here"
+        )
+        OrderStatus.CANCELLED -> Triple(
+            "No Cancelled Orders",
+            "Cancelled orders will appear here",
+            "Orders that were cancelled will show up here for your records"
+        )
+        null -> Triple(
+            "No Orders Yet",
+            "Your orders will appear here",
+            "Start selling your products and manage incoming orders from this screen"
+        )
+        else -> Triple(
+            "No Orders Yet",
+            "Your orders will appear here",
+            "Start selling your products and manage incoming orders from this screen"
+        )
     }
     
     // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
         title = title,
-        message = message
+        message = message,
+        subtext = subtext
     )
 }
 
@@ -678,31 +730,31 @@ fun CoSellerStoreBadge(
         }
     }
 
-    // ✅ Professional badge design: Building icon instead of shopping bag
+    // ✅ FIXED: Use Icons.Default.Store to match quick access section
+    // ✅ Professional badge design with consistent styling
     Surface(
-        color = Primary.copy(alpha = 0.10f),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(0.8.dp, Primary.copy(alpha = 0.25f)),
+        color = Primary.copy(alpha = 0.08f),
+        shape = RoundedCornerShape(6.dp),
+        border = BorderStroke(0.5.dp, Primary.copy(alpha = 0.20f)),
         modifier = modifier
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
         ) {
-            // ✅ Professional icon: Using filled shopping bag in a professional way
+            // ✅ FIXED: Use Store icon to match quick access section
             Icon(
-                imageVector = Icons.Filled.ShoppingBag,
+                imageVector = Icons.Default.Store,
                 contentDescription = "Co-seller Store",
                 tint = Primary,
-                modifier = Modifier.size(11.dp)
+                modifier = Modifier.size(12.dp)
             )
-            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = displayName,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                color = Primary.copy(alpha = 0.9f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

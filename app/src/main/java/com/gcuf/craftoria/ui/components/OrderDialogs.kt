@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
-import androidx.compose.ui.text.style.TextOverflow
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -63,7 +62,6 @@ import com.gcuf.craftoria.data.model.DeliveryInfo
 import com.gcuf.craftoria.data.model.OrderTimeline
 import com.gcuf.craftoria.data.model.getCreatedAtLong
 import com.gcuf.craftoria.data.model.getRefundStatusEnum
-import com.gcuf.craftoria.ui.components.OrderStatusBadge
 import com.gcuf.craftoria.utils.formatDateTime
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.utils.CloudinaryManager
@@ -93,11 +91,11 @@ fun OrderDetailsDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
-                .wrapContentHeight(Alignment.CenterVertically),
+                .fillMaxHeight(0.85f),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxSize()) {
 
                 // ── Gradient Header (Professional Compact) ────────────────────
                 Box(
@@ -137,7 +135,7 @@ fun OrderDetailsDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 600.dp)
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -161,8 +159,8 @@ fun OrderDetailsDialog(
                             // ✅ FIX: Check refund status first
                             // If order is refunded, show "Refunded" badge instead of order status
                             if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
-                                // ✅ FIXED: Match "Completed" badge styling exactly
-                                Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
+                                // ✅ FIXED: Use consistent purple color for Refunded badge
+                                Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFE2D5F3)) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -171,14 +169,14 @@ fun OrderDetailsDialog(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Undo,
                                             contentDescription = "Refunded",
-                                            tint = Color(0xFF155724),
+                                            tint = Color(0xFF5A2D82),
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = "Refunded",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF155724),
+                                            color = Color(0xFF5A2D82),
                                             lineHeight = 13.sp
                                         )
                                     }
@@ -222,6 +220,7 @@ fun OrderDetailsDialog(
                     }
 
                     // ✅ NEW: Store Information (for co-seller orders)
+                    // Replace the store section with:
                     if (order.coSellerStoreId.isNotEmpty()) {
                         DialogSectionCard(
                             icon = Icons.Default.ShoppingBag,
@@ -234,10 +233,10 @@ fun OrderDetailsDialog(
                                 try {
                                     val storeRepository = com.gcuf.craftoria.data.repository.CoSellerStoreRepository()
                                     val result = storeRepository.getStoreById(order.coSellerStoreId)
-                                    if (result.isSuccess) {
-                                        coSellerStoreName = result.getOrNull()?.storeName ?: "Co-seller Store"
+                                    coSellerStoreName = if (result.isSuccess) {
+                                        result.getOrNull()?.storeName ?: "Co-seller Store"
                                     } else {
-                                        coSellerStoreName = "Co-seller Store"
+                                        "Co-seller Store"
                                     }
                                 } catch (e: Exception) {
                                     coSellerStoreName = "Co-seller Store"
@@ -275,7 +274,7 @@ fun OrderDetailsDialog(
                                             fontWeight = FontWeight.SemiBold,
                                             color = Primary,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                     }
                                 }
@@ -379,8 +378,8 @@ fun OrderDetailsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Print button
@@ -390,18 +389,18 @@ fun OrderDetailsDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp),
+                            .height(48.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Print,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Print",
                             fontSize = 13.sp,
@@ -417,7 +416,7 @@ fun OrderDetailsDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp),
+                            .height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
@@ -433,8 +432,8 @@ fun OrderDetailsDialog(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Download,
@@ -578,13 +577,17 @@ fun OrderTrackingDialog(
     val scrollState = rememberScrollState()
     var hoveredItemIndex by remember { mutableStateOf(-1) }
     
+    // ✅ FIX #20: Use density-aware dp value instead of hardcoded pixel offset
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val itemHeightPx = with(density) { 88.dp.roundToPx() }
+    
     // Auto-scroll to first incomplete item on dialog open
     LaunchedEffect(Unit) {
         if (order.timeline.isNotEmpty()) {
             val firstIncompleteIndex = order.timeline.indexOfFirst { !it.isCompleted }
             if (firstIncompleteIndex >= 0) {
                 kotlinx.coroutines.delay(300)
-                scrollState.animateScrollTo(firstIncompleteIndex * 120)
+                scrollState.animateScrollTo(firstIncompleteIndex * itemHeightPx)
             }
         }
     }
@@ -923,16 +926,18 @@ fun ProductListItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(text = name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 2)
+            // ✅ FIX #28: Use proper formatting instead of .toInt() which truncates decimals
             Text(
-                text = "Qty: $quantity × PKR ${price.toInt()}",
+                text = "Qty: $quantity × PKR ${String.format(Locale.getDefault(), "%,.0f", price)}",
                 fontSize = 11.sp,
                 color = TextSecondary,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
 
+        // ✅ FIX #28: Use proper formatting for total price
         Text(
-            text = "PKR ${(quantity * price).toInt()}",
+            text = "PKR ${String.format(Locale.getDefault(), "%,.0f", quantity * price)}",
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = Primary
@@ -944,16 +949,16 @@ fun ProductListItem(
 fun OrderTimelineView(timeline: List<OrderTimeline>) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         timeline.forEachIndexed { index, item ->
+            // ✅ FIX #24: Handle Int, Long, and Timestamp safely
+            val ts: Long = when (val timestamp = item.timestamp) {
+                is Long -> timestamp
+                is Int -> timestamp.toLong()
+                is com.google.firebase.Timestamp -> timestamp.toDate().time
+                else -> 0L
+            }
             TimelineItem(
                 title = item.title,
-                time = if (item.isCompleted) {
-                    val ts = when (val timestamp = item.timestamp) {
-                        is Long -> timestamp
-                        is com.google.firebase.Timestamp -> timestamp.toDate().time
-                        else -> 0L
-                    }
-                    formatDateTime(ts)
-                } else "Pending",
+                time = if (item.isCompleted) formatDateTime(ts) else "Pending",
                 isCompleted = item.isCompleted,
                 isLast = index == timeline.lastIndex
             )
@@ -968,6 +973,9 @@ fun TimelineItem(
     isCompleted: Boolean,
     isLast: Boolean
 ) {
+    // ✅ Use purple color for "Refunded" status, green for others
+    val statusColor = if (title == "Refunded") Color(0xFF5A2D82) else Success
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -981,7 +989,7 @@ fun TimelineItem(
                 modifier = Modifier
                     .size(32.dp)
                     .background(
-                        color = if (isCompleted) Success else BackgroundSecondary,
+                        color = if (isCompleted) statusColor else BackgroundSecondary,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -998,7 +1006,7 @@ fun TimelineItem(
                     modifier = Modifier
                         .width(2.dp)
                         .height(28.dp)
-                        .background(if (isCompleted) Success.copy(alpha = 0.4f) else BorderColor)
+                        .background(if (isCompleted) statusColor.copy(alpha = 0.4f) else BorderColor)
                 )
             }
         }
@@ -1135,6 +1143,20 @@ fun formatAddress(deliveryInfo: DeliveryInfo): String {
 suspend fun printInvoice(context: Context, order: Order) {
     withContext(Dispatchers.IO) {
         try {
+            // ✅ FIX #22: Handle empty items array with fallback to legacy fields
+            val itemsToPrint = if (order.items.isNotEmpty()) {
+                order.items
+            } else {
+                listOf(
+                    com.gcuf.craftoria.data.model.OrderItem(
+                        productTitle = order.productTitle,
+                        quantity = order.quantity,
+                        price = order.productPrice.takeIf { it > 0.0 } ?: order.subtotal,
+                        productImage = order.productImage
+                    )
+                )
+            }
+            
             val pdfDocument = PdfDocument()
             val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
             val page = pdfDocument.startPage(pageInfo)
@@ -1162,7 +1184,7 @@ suspend fun printInvoice(context: Context, order: Order) {
             paint.isFakeBoldText = true
             canvas.drawText("Products:", 50f, yPos, paint); yPos += 30f
             paint.isFakeBoldText = false
-            order.items.forEach { item ->
+            itemsToPrint.forEach { item ->
                 canvas.drawText(item.productTitle, 50f, yPos, paint); yPos += 20f
                 canvas.drawText("Qty: ${item.quantity} x PKR ${item.price.toInt()}", 70f, yPos, paint); yPos += 25f
             }
@@ -1221,6 +1243,20 @@ suspend fun printInvoice(context: Context, order: Order) {
 suspend fun saveInvoiceToGallery(context: Context, order: Order) {
     withContext(Dispatchers.IO) {
         try {
+            // ✅ FIX #22: Handle empty items array with fallback to legacy fields
+            val itemsToPrint = if (order.items.isNotEmpty()) {
+                order.items
+            } else {
+                listOf(
+                    com.gcuf.craftoria.data.model.OrderItem(
+                        productTitle = order.productTitle,
+                        quantity = order.quantity,
+                        price = order.productPrice.takeIf { it > 0.0 } ?: order.subtotal,
+                        productImage = order.productImage
+                    )
+                )
+            }
+            
             val width = 595; val height = 842
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -1248,7 +1284,7 @@ suspend fun saveInvoiceToGallery(context: Context, order: Order) {
             paint.isFakeBoldText = true
             canvas.drawText("Products:", 50f, yPos, paint); yPos += 30f
             paint.isFakeBoldText = false
-            order.items.forEach { item ->
+            itemsToPrint.forEach { item ->
                 canvas.drawText(item.productTitle, 50f, yPos, paint); yPos += 20f
                 canvas.drawText("Qty: ${item.quantity} x PKR ${item.price.toInt()}", 70f, yPos, paint); yPos += 25f
             }
@@ -1273,10 +1309,16 @@ suspend fun saveInvoiceToGallery(context: Context, order: Order) {
                 put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
                 put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Craftoria")
             }
-            context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.let { uri ->
-                context.contentResolver.openOutputStream(uri)?.use { stream ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            // ✅ FIX #23: Handle null URI with user feedback
+            val uri = context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            if (uri == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to create file. Check storage permissions.", Toast.LENGTH_LONG).show()
                 }
+                return@withContext
+            }
+            context.contentResolver.openOutputStream(uri)?.use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
             }
 
             withContext(Dispatchers.Main) {

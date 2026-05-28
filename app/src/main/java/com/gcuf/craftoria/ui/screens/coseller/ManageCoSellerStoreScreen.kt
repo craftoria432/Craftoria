@@ -698,7 +698,7 @@ fun MemberCard(member: StoreMember, isOwner: Boolean, canRemove: Boolean, onRemo
                         color = TextPrimary
                     )
                     if (isOwner) {
-                        Surface(shape = RoundedCornerShape(4.dp), color = Primary.copy(alpha = 0.10f)) {
+                        Surface(shape = RoundedCornerShape(17.dp), color = Primary.copy(alpha = 0.10f)) {
                             Text(text = "Owner", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Primary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
