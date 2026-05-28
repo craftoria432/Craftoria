@@ -45,7 +45,8 @@ fun SellerDirectoryScreen(
     currentUserId: String,
     onSellerSelected: (SellerDirectoryItem) -> Unit,
     onBackClick: () -> Unit,
-    onNavigateToChat: (String, String) -> Unit = { _, _ -> } // ✅ NEW: Chat navigation callback
+    onNavigateToChat: (String, String) -> Unit = { _, _ -> }, // ✅ Chat navigation callback
+    onNavigateToProductPreview: (String) -> Unit = { _ -> } // ✅ NEW: Product preview navigation
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var sellers by remember { mutableStateOf<List<SellerDirectoryItem>>(emptyList()) }
@@ -114,7 +115,10 @@ fun SellerDirectoryScreen(
             sellerId = selectedSellerForProfile!!,
             currentUserId = currentUserId,
             onBackClick = { selectedSellerForProfile = null },
-            onProductClick = {},
+            onProductClick = { productId ->
+                // ✅ NEW: Navigate to product preview in seller preview mode
+                onNavigateToProductPreview(productId)
+            },
             onChatWithSeller = { sellerId, sellerName ->
                 // ✅ FIX: Navigate to chat screen
                 selectedSellerForProfile = null

@@ -52,7 +52,8 @@ fun ManageCoSellerStoreScreen(
     onAddProductClick: () -> Unit,
     onEditProductClick: (String) -> Unit,
     onPaymentsClick: () -> Unit = {},
-    onNavigateToChat: (String, String) -> Unit = { _, _ -> }, // ✅ NEW: Chat navigation callback
+    onNavigateToChat: (String, String) -> Unit = { _, _ -> }, // ✅ Chat navigation callback
+    onNavigateToProductPreview: (String) -> Unit = { _ -> }, // ✅ NEW: Product preview navigation
     coSellerStoreViewModel: CoSellerStoreViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -224,6 +225,10 @@ fun ManageCoSellerStoreScreen(
             onNavigateToChat = { sellerId, sellerName ->
                 showSellerDirectory = false
                 onNavigateToChat(sellerId, sellerName) // ✅ Pass to parent
+            },
+            onNavigateToProductPreview = { productId ->
+                // ✅ NEW: Navigate to product preview in seller preview mode
+                onNavigateToProductPreview(productId)
             }
         )
     }

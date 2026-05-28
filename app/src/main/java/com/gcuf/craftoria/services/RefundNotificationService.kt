@@ -18,16 +18,23 @@ class RefundNotificationService(
         private const val TAG = "RefundNotificationService"
     }
 
+    // ==================== HELPER FUNCTION ====================
+    private fun formatPKR(amount: Double): String {
+        return "₨ ${String.format(java.util.Locale.US, "%,.0f", amount)}"
+    }
+
     // ==================== NOTIFY REFUND REQUESTED ====================
     suspend fun notifyRefundRequested(refund: RefundRequest): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund requested: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify seller
             val sellerNotification = Notification(
                 userId = refund.sellerId,
-                title = "Refund Request Received",
-                description = "A refund request has been submitted for order ${refund.orderId}. Amount: PKR ${refund.refundAmount}",
+                title = "💰 Refund Request Received",
+                description = "A refund request has been submitted for order #${refund.orderId.take(8)}. Amount: $formattedAmount",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -48,8 +55,8 @@ class RefundNotificationService(
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Request Submitted",
-                description = "Your refund request for PKR ${refund.refundAmount} has been submitted and is pending approval.",
+                title = "💰 Refund Request Submitted",
+                description = "Your refund request for $formattedAmount has been submitted and is pending approval.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -77,12 +84,14 @@ class RefundNotificationService(
     suspend fun notifyRefundApproved(refund: RefundRequest): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund approved: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Approved",
-                description = "Your refund of PKR ${refund.refundAmount} has been approved and is being processed.",
+                title = "✅ Refund Approved",
+                description = "Your refund of $formattedAmount has been approved and is being processed.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -101,8 +110,8 @@ class RefundNotificationService(
             // Notify seller
             val sellerNotification = Notification(
                 userId = refund.sellerId,
-                title = "Refund Approved",
-                description = "The refund request for order ${refund.orderId} (PKR ${refund.refundAmount}) has been approved.",
+                title = "✅ Refund Approved",
+                description = "The refund request for order #${refund.orderId.take(8)} ($formattedAmount) has been approved.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -130,12 +139,14 @@ class RefundNotificationService(
     suspend fun notifyRefundRejected(refund: RefundRequest, rejectionReason: String): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund rejected: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Request Rejected",
-                description = "Your refund request for PKR ${refund.refundAmount} has been rejected. Reason: $rejectionReason",
+                title = "❌ Refund Request Rejected",
+                description = "Your refund request for $formattedAmount has been rejected. Reason: $rejectionReason",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -154,7 +165,7 @@ class RefundNotificationService(
             // Notify seller
             val sellerNotification = Notification(
                 userId = refund.sellerId,
-                title = "Refund Request Rejected",
+                title = "❌ Refund Request Rejected",
                 description = "The refund request for order ${refund.orderId} has been rejected.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
@@ -183,12 +194,14 @@ class RefundNotificationService(
     suspend fun notifyRefundProcessing(refund: RefundRequest): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund processing: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Processing",
-                description = "Your refund of PKR ${refund.refundAmount} is now being processed. You'll receive it within 3-5 business days.",
+                title = "⏳ Refund Processing",
+                description = "Your refund of $formattedAmount is now being processed. You'll receive it within 3-5 business days.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -216,12 +229,14 @@ class RefundNotificationService(
     suspend fun notifyRefundCompleted(refund: RefundRequest): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund completed: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Completed",
-                description = "Your refund of PKR ${refund.refundAmount} has been successfully processed and credited to your account.",
+                title = "✅ Refund Completed",
+                description = "Your refund of $formattedAmount has been successfully processed and credited to your account.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -240,8 +255,8 @@ class RefundNotificationService(
             // Notify seller
             val sellerNotification = Notification(
                 userId = refund.sellerId,
-                title = "Refund Completed",
-                description = "The refund for order ${refund.orderId} (PKR ${refund.refundAmount}) has been completed.",
+                title = "✅ Refund Completed",
+                description = "The refund for order ${refund.orderId} ($formattedAmount) has been completed.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -269,12 +284,14 @@ class RefundNotificationService(
     suspend fun notifyRefundFailed(refund: RefundRequest, errorMessage: String): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying refund failed: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Failed - Retry Pending",
-                description = "Your refund of PKR ${refund.refundAmount} encountered an issue. We're retrying automatically. Attempt ${refund.retryCount}/3",
+                title = "⚠️ Refund Failed - Retry Pending",
+                description = "Your refund of $formattedAmount encountered an issue. We're retrying automatically. Attempt ${refund.retryCount}/3",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -302,12 +319,14 @@ class RefundNotificationService(
     suspend fun notifyAutoApprovedRefund(refund: RefundRequest): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying auto-approved refund: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             // Notify buyer
             val buyerNotification = Notification(
                 userId = refund.buyerId,
-                title = "Refund Auto-Approved",
-                description = "Your refund of PKR ${refund.refundAmount} has been automatically approved (within 24-hour grace period) and is being processed.",
+                title = "✅ Refund Auto-Approved",
+                description = "Your refund of $formattedAmount has been automatically approved (within 24-hour grace period) and is being processed.",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(
@@ -335,11 +354,13 @@ class RefundNotificationService(
     suspend fun notifyAdminPendingRefund(refund: RefundRequest, adminId: String): Result<Unit> {
         return try {
             Log.d(TAG, "📢 Notifying admin of pending refund: ${refund.id}")
+            
+            val formattedAmount = formatPKR(refund.refundAmount)
 
             val adminNotification = Notification(
                 userId = adminId,
-                title = "Pending Refund Approval",
-                description = "Refund request from ${refund.buyerName} for order ${refund.orderId}. Amount: PKR ${refund.refundAmount}. Reason: ${refund.reason}",
+                title = "📋 Pending Refund Approval",
+                description = "Refund request from ${refund.buyerName} for order ${refund.orderId}. Amount: $formattedAmount. Reason: ${refund.reason}",
                 category = NotificationCategory.REFUNDS.name,
                 actionType = NotificationActionType.VIEW_PAYMENT.name,
                 actionData = mapOf(

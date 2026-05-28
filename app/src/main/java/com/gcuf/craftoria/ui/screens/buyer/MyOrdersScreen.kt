@@ -582,7 +582,8 @@ fun OrderCard(
                     
                     if (refundStatusEnum == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
                         // Show ONLY the refunded badge when refund is completed
-                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                        // ✅ FIXED: Match "Completed" badge styling exactly
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -591,14 +592,14 @@ fun OrderCard(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
                                     contentDescription = "Refunded",
-                                    tint = Color(0xFF9C27B0),
+                                    tint = Color(0xFF155724),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Refunded",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF9C27B0),
+                                    color = Color(0xFF155724),
                                     lineHeight = 13.sp
                                 )
                             }

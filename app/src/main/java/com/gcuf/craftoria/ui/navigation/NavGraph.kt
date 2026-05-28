@@ -1169,6 +1169,10 @@ fun NavGraph(
                     onNavigateToChat = { sellerId, sellerName ->
                         // ✅ FIX: Navigate to seller-to-seller chat WITHOUT product context
                         navController.navigate("${Screen.Chat.route}/$sellerId/$sellerName")
+                    },
+                    onNavigateToProductPreview = { productId ->
+                        // ✅ NEW: Navigate to product preview in seller preview mode
+                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(productId))
                     }
                 )
             }

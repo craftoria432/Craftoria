@@ -160,23 +160,25 @@ fun OrderDetailsDialog(
                             // ✅ FIX: Check refund status first
                             // If order is refunded, show "Refunded" badge instead of order status
                             if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
-                                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                                // ✅ FIXED: Match "Completed" badge styling exactly
+                                Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.CheckCircle,
+                                            imageVector = Icons.AutoMirrored.Filled.Undo,
                                             contentDescription = "Refunded",
-                                            tint = Color(0xFF9C27B0),
+                                            tint = Color(0xFF155724),
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = "Refunded",
-                                            fontSize = 10.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF9C27B0)
+                                            color = Color(0xFF155724),
+                                            lineHeight = 13.sp
                                         )
                                     }
                                 }

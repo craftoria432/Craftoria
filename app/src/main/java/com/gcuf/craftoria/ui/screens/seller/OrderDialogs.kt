@@ -131,18 +131,31 @@ fun OrderDetailsDialog(
                             Text(text = "Status", fontSize = 12.sp, color = TextSecondary)
                             // ✅ Show refund badge if order is refunded, otherwise show order status
                             if (order.getRefundStatusEnum() == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
+                                // ✅ FIXED: Match "Completed" badge styling exactly
                                 Surface(
-                                    color = Color(0xFFE9D5FF),
-                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFD4EDDA),
+                                    shape = RoundedCornerShape(20.dp),
                                     modifier = Modifier.padding(vertical = 2.dp)
                                 ) {
-                                    Text(
-                                        text = "Refunded",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF7C3AED),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                                            contentDescription = "Refunded",
+                                            tint = Color(0xFF155724),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Refunded",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF155724),
+                                            lineHeight = 13.sp
+                                        )
+                                    }
                                 }
                             } else {
                                 OrderStatusBadge(status = orderStatus)

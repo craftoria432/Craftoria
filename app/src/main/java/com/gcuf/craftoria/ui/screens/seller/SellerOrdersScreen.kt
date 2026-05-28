@@ -210,7 +210,7 @@ fun SellerOrdersScreen(
                     }
                 }
                 orders.isEmpty() && uiState !is SellerOrdersState.Loading -> {
-                    SellerEmptyOrdersState()
+                    SellerEmptyOrdersState(filterType = currentFilter)
                 }
                 else -> {
                     LazyColumn(
@@ -469,23 +469,25 @@ fun SellerOrderCard(
                 ) {
                     // ✅ When refund is completed, show ONLY the refunded badge — suppress order status badge
                     if (refundState == OrderRefundState.COMPLETED) {
-                        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF9C27B0).copy(alpha = 0.10f)) {
+                        // ✅ FIXED: Match "Completed" badge styling exactly
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
                                     contentDescription = "Refunded",
-                                    tint = Color(0xFF9C27B0),
+                                    tint = Color(0xFF155724),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Refunded",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF9C27B0)
+                                    color = Color(0xFF155724),
+                                    lineHeight = 13.sp
                                 )
                             }
                         }
@@ -620,12 +622,24 @@ fun SellerOrderCard(
 }
 
 @Composable
-fun SellerEmptyOrdersState() {
+fun SellerEmptyOrdersState(filterType: OrderStatus? = null) {
+    // ✅ FIXED: Show specific empty state text based on filter type
+    val (title, message) = when (filterType) {
+        OrderStatus.PENDING -> "No pending orders yet" to "New orders will appear here"
+        OrderStatus.PROCESSING -> "No processing orders yet" to "Orders being prepared will appear here"
+        OrderStatus.SHIPPED -> "No shipped orders yet" to "Shipped orders will appear here"
+        OrderStatus.DELIVERED -> "No delivered orders yet" to "Delivered orders will appear here"
+        OrderStatus.COMPLETED -> "No completed orders yet" to "Completed orders will appear here"
+        OrderStatus.CANCELLED -> "No cancelled orders yet" to "Cancelled orders will appear here"
+        null -> "No orders yet" to "Your orders will appear here"
+        else -> "No orders yet" to "Your orders will appear here"
+    }
+    
     // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
-        title = "No orders yet",
-        message = ""
+        title = title,
+        message = message
     )
 }
 
