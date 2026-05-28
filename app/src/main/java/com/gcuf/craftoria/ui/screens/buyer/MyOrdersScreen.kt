@@ -77,6 +77,7 @@ fun MyOrdersScreen(
     onNavigateToProduct: (String) -> Unit,
     onNavigateToCart: () -> Unit,
     onNavigateToRefundRequest: (String) -> Unit = {},
+    onNavigateToRefundDetails: (String) -> Unit = {},
     orderViewModel: OrderViewModel = viewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -309,6 +310,10 @@ fun MyOrdersScreen(
                                 onRequestRefund = {
                                     // ✅ Navigate to refund request screen
                                     onNavigateToRefundRequest(order.id)
+                                },
+                                onViewRefundDetails = { refundId ->
+                                    // ✅ Navigate to refund details screen with the refund ID
+                                    onNavigateToRefundDetails(refundId)
                                 }
                             )
                         }
@@ -462,7 +467,8 @@ fun OrderCard(
     onTrackOrder: () -> Unit,
     onCancelOrder: () -> Unit,
     onReorder: () -> Unit,
-    onRequestRefund: () -> Unit = {}
+    onRequestRefund: () -> Unit = {},
+    onViewRefundDetails: (String) -> Unit = {}
 ) {
     val status = order.getStatusEnum()
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -473,16 +479,23 @@ fun OrderCard(
     var refundState by remember(order.id) {
         mutableStateOf<OrderRefundState?>(null)
     }
+    
+    // ✅ Track the refund ID for navigation
+    var currentRefundId by remember(order.id) {
+        mutableStateOf<String?>(null)
+    }
 
     DisposableEffect(order.id, currentUserId) {
         if (currentUserId.isEmpty()) {
             refundState = OrderRefundState.NONE
+            currentRefundId = null
             return@DisposableEffect onDispose { }
         }
 
         val orderStatus = order.getStatusEnum()
         if (orderStatus !in listOf(OrderStatus.DELIVERED, OrderStatus.COMPLETED)) {
             refundState = OrderRefundState.NONE
+            currentRefundId = null
             return@DisposableEffect onDispose { }
         }
 
@@ -498,24 +511,31 @@ fun OrderCard(
             if (error != null) {
                 android.util.Log.e("OrderCard", "Error listening to refunds", error)
                 refundState = OrderRefundState.NONE
+                currentRefundId = null
                 return@addSnapshotListener
             }
 
             try {
-                refundState = if (snapshot == null || snapshot.documents.isEmpty()) {
-                    OrderRefundState.NONE
+                if (snapshot == null || snapshot.documents.isEmpty()) {
+                    refundState = OrderRefundState.NONE
+                    currentRefundId = null
                 } else {
                     // ✅ FIX: Pick the document with the best terminal state, not just the latest timestamp.
                     // When multiple refund docs exist (e.g. a completed refund + a later-rejected resubmission),
                     // maxByOrNull { timestamp } picks the wrong one. Instead, rank by status priority.
                     val best = snapshot.documents.maxByOrNull { com.gcuf.craftoria.utils.docPriority(it) }
-                    if (best == null) OrderRefundState.NONE else {
-                        com.gcuf.craftoria.utils.docToRefundState(best)
+                    if (best == null) {
+                        refundState = OrderRefundState.NONE
+                        currentRefundId = null
+                    } else {
+                        refundState = com.gcuf.craftoria.utils.docToRefundState(best)
+                        currentRefundId = best.id // ✅ Store the refund ID
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("OrderCard", "Error processing refund snapshot", e)
                 refundState = OrderRefundState.NONE
+                currentRefundId = null
             }
         }
 
@@ -582,8 +602,8 @@ fun OrderCard(
                     
                     if (refundStatusEnum == com.gcuf.craftoria.data.model.OrderRefundStatus.COMPLETED) {
                         // Show ONLY the refunded badge when refund is completed
-                        // ✅ FIXED: Match "Completed" badge styling exactly
-                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFD4EDDA)) {
+                        // ✅ FIXED: Use consistent purple color for Refunded badge
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFE2D5F3)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -592,14 +612,14 @@ fun OrderCard(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
                                     contentDescription = "Refunded",
-                                    tint = Color(0xFF155724),
+                                    tint = Color(0xFF5A2D82),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Refunded",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF155724),
+                                    color = Color(0xFF5A2D82),
                                     lineHeight = 13.sp
                                 )
                             }
@@ -739,11 +759,13 @@ fun OrderCard(
                 order = order,
                 isHighlighted = isHighlighted,
                 refundState = refundState,
+                currentRefundId = currentRefundId,
                 onViewDetails = onViewDetails,
                 onTrackOrder = onTrackOrder,
                 onCancelOrder = onCancelOrder,
                 onReorder = onReorder,
-                onRequestRefund = onRequestRefund
+                onRequestRefund = onRequestRefund,
+                onViewRefundDetails = onViewRefundDetails
             )
         }
     }
@@ -756,11 +778,13 @@ fun OrderActionButtons(
     order: Order,
     isHighlighted: Boolean = false,
     refundState: OrderRefundState?,
+    currentRefundId: String?,
     onViewDetails: () -> Unit,
     onTrackOrder: () -> Unit,
     onCancelOrder: () -> Unit,
     onReorder: () -> Unit,
-    onRequestRefund: () -> Unit = {}
+    onRequestRefund: () -> Unit = {},
+    onViewRefundDetails: (String) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -830,8 +854,11 @@ fun OrderActionButtons(
                     OrderRefundState.REQUESTED -> {
                         // ✅ Orange "Refund Pending" — no spinner, stable layout
                         OutlinedButton(
-                            onClick = {},
-                            enabled = false,
+                            onClick = { 
+                                currentRefundId?.let { refundId ->
+                                    onViewRefundDetails(refundId)
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(38.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Warning),
                             border = androidx.compose.foundation.BorderStroke(0.5.dp, Warning),
@@ -846,8 +873,11 @@ fun OrderActionButtons(
                         // ✅ FIX: was showing "Refund" + spinning indicator (truncated).
                         // Now shows full "Refund Approved" with CheckCircle icon in blue.
                         OutlinedButton(
-                            onClick = {},
-                            enabled = false,
+                            onClick = { 
+                                currentRefundId?.let { refundId ->
+                                    onViewRefundDetails(refundId)
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(38.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2196F3)),
                             border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2196F3)),
@@ -862,8 +892,11 @@ fun OrderActionButtons(
                         // Blue "Refund Processing" — small spinner is fine here since
                         // PROCESSING is a real backend state not a loading placeholder
                         OutlinedButton(
-                            onClick = {},
-                            enabled = false,
+                            onClick = { 
+                                currentRefundId?.let { refundId ->
+                                    onViewRefundDetails(refundId)
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(38.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2196F3)),
                             border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF2196F3)),
@@ -876,8 +909,11 @@ fun OrderActionButtons(
                     }
                     OrderRefundState.COMPLETED -> {
                         OutlinedButton(
-                            onClick = {},
-                            enabled = false,
+                            onClick = { 
+                                currentRefundId?.let { refundId ->
+                                    onViewRefundDetails(refundId)
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(38.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Success),
                             border = androidx.compose.foundation.BorderStroke(0.5.dp, Success),
@@ -917,8 +953,11 @@ fun OrderActionButtons(
                     }
                     OrderRefundState.FAILED -> {
                         OutlinedButton(
-                            onClick = {},
-                            enabled = false,
+                            onClick = { 
+                                currentRefundId?.let { refundId ->
+                                    onViewRefundDetails(refundId)
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(38.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Error),
                             border = androidx.compose.foundation.BorderStroke(0.5.dp, Error.copy(alpha = 0.60f)),
@@ -1042,12 +1081,24 @@ fun TrackOrderButton(
 fun EmptyOrdersState(filterType: OrderStatus?, onBrowseProducts: () -> Unit) {
     // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
     val title = if (filterType == null) "No Orders Yet" else "No ${filterType.getDisplayName()} Orders"
-    val message = if (filterType == null) "Start shopping to see your orders here" else ""
+    val message = if (filterType == null) {
+        "Start shopping to see your orders here"
+    } else {
+        "No orders match this filter"
+    }
+    
+    // ✅ Professional subtext like Amazon, Flipkart, etc.
+    val subtext = if (filterType == null) {
+        "Explore our collection of handcrafted items and place your first order"
+    } else {
+        "Try adjusting your filters or check back later for updates"
+    }
 
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
         title = title,
         message = message,
+        subtext = subtext,
         actionButton = if (filterType == null) {
             {
                 CraftoriaButton(
