@@ -690,8 +690,7 @@ fun SellerEmptyOrdersState(filterType: OrderStatus? = null) {
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
         title = title,
-        message = message,
-        subtext = subtext
+        message = message
     )
 }
 

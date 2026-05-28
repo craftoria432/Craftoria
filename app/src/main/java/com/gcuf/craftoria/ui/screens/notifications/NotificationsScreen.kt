@@ -1031,8 +1031,7 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
 
 @Composable
 fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationCategory.ALL) {
-    // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
-    val (title, message, subtext) = if (currentFilter != NotificationCategory.ALL) {
+    val (title, message) = if (currentFilter != NotificationCategory.ALL) {
         val filterName = when (currentFilter) {
             NotificationCategory.UNREAD -> "unread"
             NotificationCategory.ORDERS -> "order"
@@ -1045,24 +1044,21 @@ fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationC
             NotificationCategory.REPORT -> "report"
             else -> "notification"
         }
-        Triple(
+        Pair(
             "No $filterName notifications yet",
-            "Try adjusting your filters to see more notifications",
-            "We'll notify you about important updates, messages, and activities"
+            "Try adjusting your filters to see more notifications"
         )
     } else {
-        Triple(
+        Pair(
             "No notifications yet",
-            "You're all caught up!",
-            "We'll notify you about order updates, messages, payments, and important announcements"
+            "You're all caught up!"
         )
     }
     
     EmptyStateComponent(
         icon = Icons.Default.Notifications,
         title = title,
-        message = message,
-        subtext = subtext
+        message = message
     )
 }
 

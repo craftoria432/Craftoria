@@ -1086,19 +1086,11 @@ fun EmptyOrdersState(filterType: OrderStatus?, onBrowseProducts: () -> Unit) {
     } else {
         "No orders match this filter"
     }
-    
-    // ✅ Professional subtext like Amazon, Flipkart, etc.
-    val subtext = if (filterType == null) {
-        "Explore our collection of handcrafted items and place your first order"
-    } else {
-        "Try adjusting your filters or check back later for updates"
-    }
 
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
         title = title,
         message = message,
-        subtext = subtext,
         actionButton = if (filterType == null) {
             {
                 CraftoriaButton(
