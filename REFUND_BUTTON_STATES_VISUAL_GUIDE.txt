@@ -1,0 +1,252 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  MY ORDERS REFUND BUTTON STATES - VISUAL GUIDE               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          REFUND LIFECYCLE FLOW                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+ORDER DELIVERED
+      │
+      ├─→ Within 30 days?
+      │   ├─→ YES → STATE 1: [ Request Refund ]  [ Reorder ]
+      │   │                    ↑ Orange button, clickable
+      │   │
+      │   └─→ NO  → STATE 8: [ View Details ]  [ Reorder ]
+      │                       ↑ Refund window expired
+      │
+      ├─→ Refund Submitted
+      │   └─→ STATE 2: [ ⏳ Refund Pending ]  [ Reorder ]
+      │                 ↑ Orange badge, non-clickable
+      │
+      ├─→ Seller/Admin Approves
+      │   └─→ STATE 3: [ 🔄 Refund Processing ]  [ Reorder ]
+      │                 ↑ Blue badge with spinner
+      │                 │
+      │                 └─→ STATE 4: [ ✓ Refund Done ]  [ Reorder ]
+      │                               ↑ Green badge, success!
+      │
+      └─→ Seller/Admin Rejects
+          │
+          ├─→ First Rejection (rejection_count = 1)
+          │   └─→ STATE 5: [ 🔄 Resubmit Refund ]  [ Reorder ]
+          │                 ↑ Orange button, clickable (1 more chance)
+          │                 │
+          │                 ├─→ Buyer Resubmits
+          │                 │   └─→ Back to STATE 2 (Pending)
+          │                 │
+          │                 └─→ Buyer Doesn't Resubmit
+          │                     └─→ Stays at STATE 5
+          │
+          └─→ Second Rejection (rejection_count = 2, final_decision = true)
+              └─→ STATE 6: [ 🚫 Refund Denied ]  [ Reorder ]
+                            ↑ Gray badge, non-clickable (FINAL)
+                            ↑ NO MORE ATTEMPTS ALLOWED
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        BUTTON STATES VISUAL REFERENCE                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 1: ELIGIBLE FOR REFUND (Within 30 Days)                            ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │  Request Refund     │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Orange (#FF6B35)       ↑ Primary gradient                           ║
+║   ↑ Clickable              ↑ Clickable                                  ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 2: REFUND REQUESTED (Pending Review)                               ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ ⏳ Refund Pending   │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Orange (#FF9800)       ↑ Primary gradient                           ║
+║   ↑ Non-clickable badge    ↑ Clickable                                  ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 3: REFUND APPROVED (Processing)                                    ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ 🔄 Refund Processing│  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Blue (#2196F3)         ↑ Primary gradient                           ║
+║   ↑ Non-clickable badge    ↑ Clickable                                  ║
+║   ↑ Shows spinner                                                        ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 4: REFUND COMPLETED (Success)                                      ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ ✓ Refund Done       │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Green (Success)        ↑ Primary gradient                           ║
+║   ↑ Non-clickable badge    ↑ Clickable                                  ║
+║   ↑ Shows checkmark                                                      ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 5: FIRST REJECTION (Can Resubmit)                                  ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ 🔄 Resubmit Refund  │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Orange/Warning         ↑ Primary gradient                           ║
+║   ↑ Clickable button       ↑ Clickable                                  ║
+║   ↑ Opens refund screen    ↑ Adds to cart                               ║
+║   ↑ ONE MORE CHANCE!                                                     ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 6: FINAL DECISION (Rejected Twice) ← YOUR QUESTION                 ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ 🚫 Refund Denied    │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Gray (#757575)         ↑ Primary gradient                           ║
+║   ↑ Non-clickable badge    ↑ Clickable                                  ║
+║   ↑ Disabled (enabled=false)                                             ║
+║   ↑ NO MORE ATTEMPTS                                                     ║
+║                                                                           ║
+║  KEY FEATURES:                                                           ║
+║  • Block icon (🚫) - clear visual indicator                             ║
+║  • Gray color - professional, not harsh                                  ║
+║  • Non-interactive - cannot be tapped                                    ║
+║  • Reorder still works - buyer can purchase again                        ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 7: REFUND FAILED (Processing Error)                                ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │ ❌ Refund Failed    │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Red (Error)            ↑ Primary gradient                           ║
+║   ↑ Non-clickable badge    ↑ Clickable                                  ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STATE 8: REFUND WINDOW EXPIRED (After 30 Days)                           ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║  ┌─────────────────────┐  ┌─────────────────────┐                       ║
+║  │   View Details      │  │     Reorder         │                       ║
+║  └─────────────────────┘  └─────────────────────┘                       ║
+║   ↑ Gray (TextSecondary)   ↑ Primary gradient                           ║
+║   ↑ Clickable              ↑ Clickable                                  ║
+║   ↑ Standard view details                                                ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         COLOR REFERENCE GUIDE                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STATE 1 (Request Refund):     Orange    #FF6B35  ← Action needed
+STATE 2 (Pending):            Orange    #FF9800  ← Waiting
+STATE 3 (Processing):         Blue      #2196F3  ← In progress
+STATE 4 (Completed):          Green     Success  ← Done!
+STATE 5 (Resubmit):           Orange    Warning  ← Try again
+STATE 6 (Denied - FINAL):     Gray      #757575  ← No more attempts
+STATE 7 (Failed):             Red       Error    ← Error
+STATE 8 (Expired):            Gray      TextSec  ← Too late
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                      REJECTION FLOW DETAILED                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+ATTEMPT 1:
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Buyer submits refund request                                            │
+│ ↓                                                                        │
+│ Seller/Admin reviews                                                    │
+│ ↓                                                                        │
+│ REJECTED (rejection_count = 1, can_resubmit = true)                    │
+│ ↓                                                                        │
+│ My Orders shows: [ 🔄 Resubmit Refund ]  [ Reorder ]                   │
+│                   ↑ Clickable - buyer can try again                     │
+└─────────────────────────────────────────────────────────────────────────┘
+
+ATTEMPT 2:
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Buyer taps "Resubmit Refund"                                            │
+│ ↓                                                                        │
+│ Opens refund request screen with improved reason                        │
+│ ↓                                                                        │
+│ Submits resubmission                                                    │
+│ ↓                                                                        │
+│ Seller/Admin reviews again                                              │
+│ ↓                                                                        │
+│ REJECTED AGAIN (rejection_count = 2, final_decision = true)            │
+│ ↓                                                                        │
+│ My Orders shows: [ 🚫 Refund Denied ]  [ Reorder ]                     │
+│                   ↑ Non-clickable - NO MORE ATTEMPTS                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+ATTEMPT 3 (BLOCKED):
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Buyer tries to tap "Refund Denied" badge                                │
+│ ↓                                                                        │
+│ ❌ Nothing happens (badge is disabled)                                  │
+│                                                                          │
+│ Buyer tries to navigate to refund request screen                        │
+│ ↓                                                                        │
+│ ❌ Error message shown:                                                 │
+│    "Refund request denied (FINAL DECISION)                              │
+│     Your refund request has been rejected twice.                        │
+│     No further refund requests can be submitted for this order."        │
+│                                                                          │
+│ Form is NOT shown - only error message and back button                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         PROFESSIONAL APPROACH                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Maximum 2 attempts per order (initial + 1 resubmission)
+✅ Clear visual feedback at each stage
+✅ Professional, non-threatening design
+✅ Buyer always knows their status
+✅ Reorder option always available
+✅ No infinite request loops
+✅ Fair to both buyer and seller
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              QUICK SUMMARY                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+QUESTION: "After 2 rejections, what button shows on the order card?"
+
+ANSWER:   [ 🚫 Refund Denied ]  [ Reorder ]
+           ↑ Gray, non-clickable badge
+
+WHY:      • Clear communication (buyer knows it's final)
+          • Professional design (not harsh)
+          • Non-interactive (obvious it's a status, not action)
+          • Consistent with other badges
+          • Reorder still available
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Implementation Date: May 10, 2026
+Status: ✅ COMPLETE
+File: MyOrdersScreen.kt
+New State: FINAL_DECISION enum value

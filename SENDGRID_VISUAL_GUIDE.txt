@@ -1,0 +1,218 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    SENDGRID INTEGRATION - VISUAL GUIDE                         ║
+║                         Email Sending Flow & Setup                             ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ EMAIL SENDING FLOW ──────────────────────────────────────────────────────────┐
+│                                                                                │
+│  CRAFTORIA APP                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ User places order                                                    │    │
+│  │ • Fills delivery info                                               │    │
+│  │ • Clicks "Place Order"                                              │    │
+│  └────────────────────────┬─────────────────────────────────────────────┘    │
+│                           │                                                   │
+│                           ▼                                                   │
+│  FIREBASE                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ Order saved to Firestore                                             │    │
+│  │ • Order ID: #ABC12345                                               │    │
+│  │ • Buyer email: user@gmail.com                                        │    │
+│  │ • Order details: products, total, address                            │    │
+│  └────────────────────────┬─────────────────────────────────────────────┘    │
+│                           │                                                   │
+│                           ▼                                                   │
+│  CLOUD FUNCTION                                                                │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ sendOrderConfirmationEmail triggered                                 │    │
+│  │ • Gets buyer email from user document                                │    │
+│  │ • Works for: email/password AND Google OAuth                         │    │
+│  └────────────────────────┬─────────────────────────────────────────────┘    │
+│                           │                                                   │
+│                           ▼                                                   │
+│  EMAIL GENERATION                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ Generate professional HTML email                                     │    │
+│  │ ┌────────────────────────────────────────────────────────────────┐  │    │
+│  │ │ Order Confirmation                                             │  │    │
+│  │ │ ─────────────────────────────────────────────────────────────  │  │    │
+│  │ │ Order ID: #ABC12345                                            │  │    │
+│  │ │ Date: March 16, 2026                                           │  │    │
+│  │ │                                                                │  │    │
+│  │ │ Items:                                                         │  │    │
+│  │ │ • Handmade Ceramic Vase × 2 = PKR 4,000                       │  │    │
+│  │ │ • Wooden Jewelry Box × 1 = PKR 2,500                          │  │    │
+│  │ │                                                                │  │    │
+│  │ │ Subtotal: PKR 6,500                                            │  │    │
+│  │ │ Shipping: PKR 500                                              │  │    │
+│  │ │ Total: PKR 7,000                                               │  │    │
+│  │ │                                                                │  │    │
+│  │ │ Delivery Address:                                              │  │    │
+│  │ │ John Doe, 123 Main St, Karachi, 75500                          │  │    │
+│  │ │                                                                │  │    │
+│  │ │ [Track Your Order]                                             │  │    │
+│  │ └────────────────────────────────────────────────────────────────┘  │    │
+│  └────────────────────────┬─────────────────────────────────────────────┘    │
+│                           │                                                   │
+│                           ▼                                                   │
+│  SENDGRID                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ Send email via SendGrid API                                          │    │
+│  │ • From: noreply@craftoria.app                                        │    │
+│  │ • To: user@gmail.com                                                 │    │
+│  │ • Subject: Order Confirmation - #ABC12345                            │    │
+│  │ • Body: Professional HTML email                                      │    │
+│  └────────────────────────┬─────────────────────────────────────────────┘    │
+│                           │                                                   │
+│                           ▼                                                   │
+│  GMAIL                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ ✅ Email arrives in buyer's inbox                                   │    │
+│  │ • Subject: Order Confirmation - #ABC12345                            │    │
+│  │ • From: noreply@craftoria.app                                        │    │
+│  │ • Professional formatting                                            │    │
+│  │ • All order details visible                                          │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SETUP FLOW ──────────────────────────────────────────────────────────────────┐
+│                                                                                │
+│  STEP 1: CREATE SENDGRID ACCOUNT (2 min)                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ 1. Go to sendgrid.com                                                │    │
+│  │ 2. Click "Sign Up"                                                   │    │
+│  │ 3. Complete registration                                             │    │
+│  │ 4. Verify email                                                      │    │
+│  │ 5. Log in                                                            │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  STEP 2: GET API KEY (1 min)                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ 1. Settings → API Keys                                               │    │
+│  │ 2. Create API Key                                                    │    │
+│  │ 3. Copy: SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                    │    │
+│  │ 4. Save it somewhere safe                                            │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  STEP 3: VERIFY SENDER EMAIL (1 min)                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ 1. Settings → Sender Authentication                                  │    │
+│  │ 2. Verify a Single Sender                                            │    │
+│  │ 3. Email: noreply@craftoria.app                                      │    │
+│  │ 4. Click verification link in email                                  │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  STEP 4: SET FIREBASE CONFIG (1 min)                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ $ firebase functions:config:set sendgrid.key="YOUR_API_KEY"          │    │
+│  │                                                                      │    │
+│  │ Verify:                                                              │    │
+│  │ $ firebase functions:config:get                                      │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  STEP 5: DEPLOY (1 min)                                                       │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ $ firebase deploy --only functions                                   │    │
+│  │                                                                      │    │
+│  │ Wait for deployment to complete...                                   │    │
+│  │ ✅ Done!                                                             │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  STEP 6: TEST (Optional)                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ 1. Place an order in your app                                        │    │
+│  │ 2. Check email inbox                                                 │    │
+│  │ 3. Should receive order confirmation                                 │    │
+│  │ 4. Check Cloud logs: firebase functions:log                          │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ AUTHENTICATION SUPPORT ──────────────────────────────────────────────────────┐
+│                                                                                │
+│  EMAIL/PASSWORD USERS                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ User signs up with email/password                                    │    │
+│  │ ↓                                                                    │    │
+│  │ Email stored in user document                                        │    │
+│  │ ↓                                                                    │    │
+│  │ ✅ Email retrieved and used for order confirmation                  │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  GOOGLE OAUTH USERS                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ User signs in with Google                                            │    │
+│  │ ↓                                                                    │    │
+│  │ Firebase auto-populates email from Google profile                    │    │
+│  │ ↓                                                                    │    │
+│  │ ✅ Email retrieved and used for order confirmation                  │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  BOTH METHODS WORK! ✅                                                        │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ MONITORING ──────────────────────────────────────────────────────────────────┐
+│                                                                                │
+│  SENDGRID DASHBOARD                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ Mail Activity → See all sent emails                                  │    │
+│  │ Activity Feed → See delivery status                                  │    │
+│  │ Suppressions → See bounces/complaints                                │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  FIREBASE LOGS                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ $ firebase functions:log                                             │    │
+│  │                                                                      │    │
+│  │ Look for:                                                            │    │
+│  │ ✅ Email sent successfully to [email]                               │    │
+│  │ ⚠️ SendGrid error: [error message]                                  │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  ADMIN ACTIVITIES                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ Firestore → admin_activities collection                              │    │
+│  │ Filter: action = "ORDER_CONFIRMATION_EMAIL_SENT"                     │    │
+│  │                                                                      │    │
+│  │ Shows:                                                               │    │
+│  │ • buyer_id                                                           │    │
+│  │ • buyer_email                                                        │    │
+│  │ • order_total                                                        │    │
+│  │ • timestamp                                                          │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ COST BREAKDOWN ──────────────────────────────────────────────────────────────┐
+│                                                                                │
+│  FREE TIER                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ • 100 emails/day                                                     │    │
+│  │ • Perfect for testing                                                │    │
+│  │ • Cost: $0                                                           │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  ESSENTIALS PLAN                                                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ • 100-10k emails/month                                               │    │
+│  │ • Good for small business                                            │    │
+│  │ • Cost: $10/month                                                    │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  PRO PLAN                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │ • 10k-100k emails/month                                              │    │
+│  │ • Good for growing business                                          │    │
+│  │ • Cost: $80/month                                                    │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                                │
+│  START WITH FREE, UPGRADE AS NEEDED ✅                                        │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+STATUS: ✅ READY FOR SETUP
+
+Time to Deploy: ~5 minutes
+Time to First Email: ~10 minutes after deployment

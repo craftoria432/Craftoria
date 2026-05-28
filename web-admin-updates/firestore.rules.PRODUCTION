@@ -1,0 +1,262 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin (safe check)
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is seller (safe check)
+    function isSeller() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
+    }
+    
+    // Helper function to check if user is buyer (safe check)
+    function isBuyer() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'buyer';
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USERS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /users/{userId} {
+      // Admins can read/write all users
+      allow read, write: if isAdmin();
+      
+      // Users can read their own data
+      allow read: if isOwner(userId);
+      
+      // Users can update their own profile (except role)
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      
+      // Allow user creation during signup
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRODUCTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /products/{productId} {
+      // Anyone can read products
+      allow read: if true;
+      
+      // Admins can do anything
+      allow write: if isAdmin();
+      
+      // Sellers can create/update/delete their own products
+      allow create: if isSeller();
+      allow update, delete: if isSeller() && isOwner(resource.data.seller_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ORDERS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /orders/{orderId} {
+      // Admins can read/write all orders
+      allow read, write: if isAdmin();
+      
+      // Buyers can read their own orders
+      allow read: if isAuthenticated() && isOwner(resource.data.buyer_id);
+      
+      // Sellers can read orders for their products
+      allow read: if isAuthenticated() && resource.data.seller_id == request.auth.uid;
+      
+      // Buyers can create orders
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.buyer_id;
+      
+      // Sellers can update order status
+      allow update: if isSeller() && 
+        resource.data.seller_id == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'timeline', 'tracking_id', 'courier_name', 'courier_contact', 'estimated_delivery']);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CART COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /cart/{cartId} {
+      // Users can only access their own cart
+      allow read, write: if isAuthenticated() && isOwner(resource.data.user_id);
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WISHLIST COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /wishlist/{wishlistId} {
+      // Users can only access their own wishlist
+      allow read, write: if isAuthenticated() && isOwner(resource.data.user_id);
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHATS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /chats/{chatId} {
+      // Admins can read all chats
+      allow read: if isAdmin();
+      
+      // Participants can read their own chats
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == resource.data.buyer_id || 
+         request.auth.uid == resource.data.seller_id);
+      
+      // Participants can create/update chats
+      allow create: if isAuthenticated() && 
+        (request.auth.uid == request.resource.data.buyer_id || 
+         request.auth.uid == request.resource.data.seller_id);
+      
+      allow update: if isAuthenticated() && 
+        (request.auth.uid == resource.data.buyer_id || 
+         request.auth.uid == resource.data.seller_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /notifications/{notificationId} {
+      // Admins can read/write all notifications
+      allow read, write: if isAdmin();
+      
+      // Users can read their own notifications
+      allow read: if isAuthenticated() && isOwner(resource.data.user_id);
+      
+      // Users can update their own notifications (mark as read)
+      allow update: if isAuthenticated() && 
+        isOwner(resource.data.user_id) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REPORTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /reports/{reportId} {
+      // Admins can read/write all reports
+      allow read, write: if isAdmin();
+      
+      // Users can create reports
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.reporter_id;
+      
+      // Users can read their own reports
+      allow read: if isAuthenticated() && isOwner(resource.data.reporter_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CO-SELLER STORES COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /co_seller_stores/{storeId} {
+      // Anyone can read stores
+      allow read: if true;
+      
+      // Admins can do anything
+      allow write: if isAdmin();
+      
+      // Sellers can create stores
+      allow create: if isSeller() && request.auth.uid == request.resource.data.owner_id;
+      
+      // Store owners can update/delete their stores
+      allow update, delete: if isSeller() && isOwner(resource.data.owner_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LEARNING RESOURCES COLLECTION - ✅ FIXED FOR MOBILE APP
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /learning_categories/{categoryId} {
+      // Admins can read/write all learning resources
+      allow read, write: if isAdmin();
+      
+      // ✅ ANY authenticated user can read learning resources
+      // This allows sellers and buyers to view tutorials in mobile app
+      allow read: if isAuthenticated();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BOOKMARKED TUTORIALS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /bookmarked_tutorials/{bookmarkId} {
+      // Users can read their own bookmarks
+      allow read: if isAuthenticated() && isOwner(resource.data.user_id);
+      
+      // Users can create their own bookmarks
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.user_id;
+      
+      // Users can delete their own bookmarks
+      allow delete: if isAuthenticated() && isOwner(resource.data.user_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NEGOTIATIONS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /negotiations/{negotiationId} {
+      // Admins can read all negotiations
+      allow read: if isAdmin();
+      
+      // Buyers can read their own negotiations
+      allow read: if isAuthenticated() && isOwner(resource.data.buyer_id);
+      
+      // Sellers can read negotiations for their products
+      allow read: if isAuthenticated() && resource.data.seller_id == request.auth.uid;
+      
+      // Buyers can create negotiations
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.buyer_id;
+      
+      // Sellers can update negotiation status
+      allow update: if isSeller() && 
+        resource.data.seller_id == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'seller_response', 'counter_offer']);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REVIEWS COLLECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Admins can do anything
+      allow write: if isAdmin();
+      
+      // Buyers can create reviews for products they purchased
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.buyer_id;
+      
+      // Users can update/delete their own reviews
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.buyer_id);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ANALYTICS COLLECTION (Admin only)
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /analytics/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SYSTEM SETTINGS (Admin only)
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /settings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

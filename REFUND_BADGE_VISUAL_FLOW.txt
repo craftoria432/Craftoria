@@ -1,0 +1,290 @@
+═══════════════════════════════════════════════════════════════════════════════
+  REFUND BADGE STATUS SYSTEM - VISUAL FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+BUYER PAYMENT HISTORY SCREEN
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Order #ABC123 | Seller Name (Realtime Updated)        [COMPLETED] ✅      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ 2 items(s)                                     PKR 5,000 | Feb 20, 2025     │
+│                                                                              │
+│ Payment: Cash on Delivery                                                   │
+│                                                                              │
+│ [Request Refund Button Available]                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+SCENARIO 1: BUYER SUBMITS REFUND REQUEST
+════════════════════════════════════════════════════════════════════════════════
+
+BEFORE: Completed (Green)
+┌────────────────────────────────────────────────────────────────┐
+│ Status: COMPLETED                                              │
+│ Color: 🟢 Green                                               │
+└────────────────────────────────────────────────────────────────┘
+
+BUYER CLICKS "REQUEST REFUND" → Submits reason & amount
+                              ↓
+            RefundRepository.createRefundRequest()
+                              ↓
+           updatePaymentRefundStatus(REFUND_PENDING)
+                              ↓
+     Firestore "seller_payments" document updated
+
+AFTER: Refund Pending (Orange) ⏱️
+┌────────────────────────────────────────────────────────────────┐
+│ Order #ABC123 | Seller Name                [REFUND PENDING] ⏱️ │
+├────────────────────────────────────────────────────────────────┤
+│ 2 items(s)                           PKR 5,000 | Feb 20, 2025  │
+│ Status: REFUND PENDING                                         │
+│ Color: 🟠 Orange                                              │
+│                                                                │
+│ ⏱️ Refund Pending: PKR 5,000                                   │
+│ (Awaiting seller approval)                                     │
+└────────────────────────────────────────────────────────────────┘
+
+
+SCENARIO 2: SELLER APPROVES REFUND
+════════════════════════════════════════════════════════════════════════════════
+
+SELLER SEES IN REFUND MANAGEMENT SCREEN:
+┌──────────────────────────────────────────────────────┐
+│ Pending Refund                                       │
+│ ─────────────────────────────────────────────────    │
+│ Order: #ABC123                                       │
+│ Amount: PKR 5,000                                    │
+│ Reason: Defective Product                            │
+│ Status: REQUESTED                                    │
+│                                                      │
+│ [✅ APPROVE] [❌ REJECT] [VIEW DETAILS]             │
+└──────────────────────────────────────────────────────┘
+
+SELLER CLICKS "APPROVE"
+                              ↓
+        RefundRepository.approveRefund()
+                              ↓
+         (Auto-completes for buyer-initiated)
+                              ↓
+         RefundRepository.completeRefund()
+                              ↓
+        updatePaymentRefundStatus(REFUNDED)
+                              ↓
+     Firestore "seller_payments" document updated
+
+BUYER'S PAYMENT HISTORY INSTANTLY UPDATES:
+┌────────────────────────────────────────────────────────────────┐
+│ Order #ABC123 | Seller Name                  [REFUNDED] ✅     │
+├────────────────────────────────────────────────────────────────┤
+│ 2 items(s)                           PKR 5,000 | Feb 20, 2025  │
+│ Status: REFUNDED                                               │
+│ Color: 🟣 Purple                                              │
+│                                                                │
+│ ↩️  Refunded: PKR 5,000                                        │
+│ (Refund completed - money returned to your account)            │
+└────────────────────────────────────────────────────────────────┘
+
+
+SCENARIO 3: SELLER REJECTS REFUND
+════════════════════════════════════════════════════════════════════════════════
+
+SELLER CLICKS "REJECT" (enters reason)
+                              ↓
+        RefundRepository.rejectRefund()
+                              ↓
+       updatePaymentRefundStatus(REFUND_REJECTED)
+                              ↓
+     Firestore "seller_payments" document updated
+
+BUYER'S PAYMENT HISTORY INSTANTLY UPDATES:
+┌────────────────────────────────────────────────────────────────┐
+│ Order #ABC123 | Seller Name                [REFUND REJECTED] ❌│
+├────────────────────────────────────────────────────────────────┤
+│ 2 items(s)                           PKR 5,000 | Feb 20, 2025  │
+│ Status: REFUND REJECTED                                        │
+│ Color: 🔘 Gray                                                │
+│                                                                │
+│ ❌ Refund Rejected                                             │
+│ (Your refund request was not approved)                         │
+└────────────────────────────────────────────────────────────────┘
+
+
+REAL-TIME UPDATE MECHANISM
+════════════════════════════════════════════════════════════════════════════════
+
+Mobile App (Buyer)              Firestore DB                Web Dashboard (Seller)
+─────────────────              ────────────                 ──────────────────────
+
+Payment History                 seller_payments
+  Open screen            ──→      Collection
+  |                               (status = "completed")
+  | Real-time             
+  | listener          
+  | attached          
+  |
+  └─→ Listening...
+
+
+SELLER UPDATES REFUND STATUS ON WEB DASHBOARD
+                                    ↓
+                          Firestore document updated
+                          (status = "refund_pending")
+                                    ↓
+        BuyerPaymentViewModel listener fires
+        .addSnapshotListener() detects change
+                                    ↓
+        fetchAndPublish(buyerId) called
+        Fetch latest payments from Firestore
+                                    ↓
+        publishPayments(payments) updates UI
+                                    ↓
+        Compose re-renders badge with new status
+                                    ↓
+    BUYER SEES INSTANT UPDATE
+    Badge: "Completed" → "Refund Pending"
+    No manual refresh needed! ✅
+
+
+FILTER TABS - STATUS FILTERING
+════════════════════════════════════════════════════════════════════════════════
+
+[All] [Completed] [Pending] [Refund Pending] [Refund Processing] [Refunded] [Refund Rejected]
+
+Filter Results:
+├─ All (5 payments)
+├─ Completed (2 payments)
+├─ Pending (1 payment)
+├─ Refund Pending (1 payment) ← Buyer can see pending requests
+├─ Refund Processing (0 payments)
+├─ Refunded (1 payment) ← Buyer can see successful refunds
+└─ Refund Rejected (0 payments)
+
+
+PAYMENT CARD COMPONENTS
+════════════════════════════════════════════════════════════════════════════════
+
+┌─ HEADER ──────────────────────────────────────────────────────┐
+│                                                                 │
+│  Order #ABC123         Seller Name         [BADGE STATUS HERE]│
+│  (RealtimeNameDisplay)                     [Completed]         │
+│                                            [Refund Pending]    │
+├─ DIVIDER ────────────────────────────────────────────────────┤
+│                                                                 │
+│  🛒 2 item(s)              PKR 5,000      Feb 20, 2025        │
+│                                                                 │
+│  CONDITIONAL REFUND INFO (displays based on status):          │
+│  ├─ Status = REFUND_PENDING                                  │
+│  │   ⏱️ Refund Pending: PKR 5,000                             │
+│  │                                                             │
+│  ├─ Status = REFUND_PROCESSING                               │
+│  │   🔄 Refund Processing: PKR 5,000                         │
+│  │                                                             │
+│  ├─ Status = REFUNDED                                        │
+│  │   ↩️  Refunded: PKR 5,000                                  │
+│  │                                                             │
+│  └─ Status = REFUND_REJECTED                                 │
+│      ❌ Refund Rejected                                       │
+│                                                                 │
+│  💳 Payment: Cash on Delivery                                │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+
+
+BADGE COLOR & ICON REFERENCE
+════════════════════════════════════════════════════════════════════════════════
+
+Status                 Color    Icon   Background   Border   Label
+──────────────────────────────────────────────────────────────────────────────
+Completed              Green    ✅     #E8F5E9      Green    "Completed"
+Pending                Orange   ⏳     #FFF3E0      Orange   "Pending"
+Processing             Blue     🔄     #E3F2FD      Blue     "Processing"
+Failed                 Red      ✗      #FFEBEE      Red      "Failed"
+Refund Pending         Orange   ⏱️     #FFF3E0      Orange   "Refund Pending"
+Refund Processing      Blue     🔄     #E3F2FD      Blue     "Refund Processing"
+Refunded               Purple   ↩️     #F3E5F5      Purple   "Refunded"
+Refund Rejected        Gray     ❌     #EEEEEE      Gray     "Refund Rejected"
+
+
+KEY PROPERTIES
+════════════════════════════════════════════════════════════════════════════════
+
+When payment status changes, these fields update:
+
+┌─────────────────────────────────────────────────────────────┐
+│ Field           | When Updated        | Possible Values     │
+├─────────────────────────────────────────────────────────────┤
+│ status          | On refund action    | "refund_pending"    │
+│                 |                     | "refund_processing" │
+│                 |                     | "refunded"          │
+│                 |                     | "refund_rejected"   │
+├─────────────────────────────────────────────────────────────┤
+│ refund_amount   | On approval         | > 0 (PKR value)     │
+├─────────────────────────────────────────────────────────────┤
+│ refund_reason   | On submission       | Buyer's reason text │
+├─────────────────────────────────────────────────────────────┤
+│ refund_date     | On completion       | Timestamp (epoch ms)│
+├─────────────────────────────────────────────────────────────┤
+│ updated_at      | On any change       | Current timestamp   │
+└─────────────────────────────────────────────────────────────┘
+
+
+IMPORTANT: NO MANUAL REFRESH NEEDED! ✅
+════════════════════════════════════════════════════════════════════════════════
+
+The BuyerPaymentViewModel attaches Firestore listeners that:
+
+1. Monitor "seller_payments" collection for changes
+2. Automatically fetch fresh data when changes detected
+3. Update UI in real-time via Compose
+4. Support both cache-first (instant on revisit) and fresh (cold start)
+
+Buyer doesn't need to:
+❌ Manually refresh the screen
+❌ Navigate away and come back
+❌ Wait for polls
+❌ See loading spinners on updates
+
+Everything happens automatically! ✅
+
+
+STATS CALCULATION
+════════════════════════════════════════════════════════════════════════════════
+
+Total Spent = Sum of (Completed + Pending + Processing payments)
+            ✅ EXCLUDES refunded payments (buyer got money back)
+            ✅ EXCLUDES rejected refunds (already paid)
+
+Example:
+├─ Completed:   PKR 10,000 ✓ (counts)
+├─ Pending:     PKR 5,000  ✓ (counts)
+├─ Processing:  PKR 3,000  ✓ (counts)
+├─ Refunded:    PKR 2,000  ✗ (EXCLUDED - money returned)
+├─ Failed:      PKR 1,000  ✗ (EXCLUDED - payment failed)
+└─ Total Spent: PKR 18,000
+
+
+FILTERING WORKFLOW
+════════════════════════════════════════════════════════════════════════════════
+
+1. User opens Payment History
+   ↓
+2. All payments shown with their current badges
+   ├─ Completed (green badge)
+   ├─ Refund Pending (orange badge)
+   ├─ Refunded (purple badge)
+   └─ etc.
+   ↓
+3. User clicks filter tab (e.g., "Refund Pending")
+   ↓
+4. List filters to show ONLY payments with status = "refund_pending"
+   ↓
+5. All other statuses hidden until filter cleared
+   ↓
+6. Real-time listener still active - list updates if any payment status changes
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PRODUCTION READY ✅ - NO FURTHER CHANGES NEEDED
+═══════════════════════════════════════════════════════════════════════════════

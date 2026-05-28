@@ -1,0 +1,310 @@
+================================================================================
+                    NOTIFICATION SYSTEM - VISUAL GUIDE
+================================================================================
+
+NOTIFICATION SCREEN LAYOUT
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ← Notifications                                    🗑️  ✓ Mark All Read     │
+│   5 unread                                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [All] Orders Messages Promotions System                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ 🛍️  Order Delivered                                          ● (unread) │
+│ │     Your order #KNIW1mTK from Zara Ali has been delivered           │
+│ │                                                                      │
+│ │     🏪 Zara Ali · 👥 2 Members                                      │
+│ │     2 minutes ago                                                   │
+│ │                                                                      │
+│ │                    [Track Order]                                    │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ 🛍️  Order Shipped                                          ● (unread) │
+│ │     Your order #KNIW1mTK from Zara Ali has been shipped via TCS.   │
+│ │     Tracking: 0123456789                                            │
+│ │                                                                      │
+│ │     🏪 Zara Ali · 👥 2 Members                                      │
+│ │     3 minutes ago                                                   │
+│ │                                                                      │
+│ │                    [Track Order]                                    │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ 🛍️  Order Processing                                       ● (unread) │
+│ │     Your order #KNIW1mTK from Zara Ali is now being processed      │
+│ │                                                                      │
+│ │     🏪 Zara Ali · 👥 2 Members                                      │
+│ │     4 minutes ago                                                   │
+│ │                                                                      │
+│ │                    [Track Order]                                    │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ ✅ Offer Accepted!                                         ● (unread) │
+│ │    Your offer of PKR 850 for Handmade WallArt has been accepted    │
+│ │                                                                      │
+│ │    4 minutes ago                                                    │
+│ │                                                                      │
+│ │                    [View Product]                                   │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+NOTIFICATION CATEGORIES & FILTERING
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FILTER TABS                                                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  [All]  [Orders]  [Messages]  [Promotions]  [System]                       │
+│   ↓                                                                          │
+│   Shows all notifications                                                   │
+│                                                                              │
+│  [All]  [Orders]  [Messages]  [Promotions]  [System]                       │
+│          ↓                                                                   │
+│          Shows only order-related notifications:                            │
+│          • Order Delivered                                                  │
+│          • Order Shipped                                                    │
+│          • Order Processing                                                 │
+│          • Order Cancelled                                                  │
+│          • Cancellation Request (for sellers)                               │
+│                                                                              │
+│  [All]  [Orders]  [Messages]  [Promotions]  [System]                       │
+│                    ↓                                                         │
+│                    Shows only message notifications:                        │
+│                    • New messages from sellers/buyers                       │
+│                    • Message replies                                        │
+│                    • Chat notifications                                     │
+│                                                                              │
+│  [All]  [Orders]  [Messages]  [Promotions]  [System]                       │
+│                                 ↓                                            │
+│                                 Shows only promotional content:              │
+│                                 • Promotional offers                        │
+│                                 • Discount alerts                           │
+│                                 • Wishlist back in stock                    │
+│                                 • Price drop alerts                         │
+│                                                                              │
+│  [All]  [Orders]  [Messages]  [Promotions]  [System]                       │
+│                                              ↓                              │
+│                                              Shows system notifications:    │
+│                                              • Co-seller invitations        │
+│                                              • Invitation accepted          │
+│                                              • Product approval/rejection   │
+│                                              • Seller verification status   │
+│                                              • Admin messages               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+REAL-TIME UPDATE FLOW
+================================================================================
+
+SCENARIO 1: Seller Changes Name
+─────────────────────────────────
+
+  Notification Created:
+  ┌─────────────────────────────────┐
+  │ 🏪 Zara Ahmed · 👥 2 Members   │
+  └─────────────────────────────────┘
+           ↓
+  Seller Updates Profile:
+  ┌─────────────────────────────────┐
+  │ Name: Zara Ahmed → Zara Ali     │
+  │ [Save]                          │
+  └─────────────────────────────────┘
+           ↓
+  Firestore Updated:
+  ┌─────────────────────────────────┐
+  │ users/{sellerId}                │
+  │ {                               │
+  │   "name": "Zara Ali"            │
+  │ }                               │
+  └─────────────────────────────────┘
+           ↓
+  Real-time Listener Fires:
+  ┌─────────────────────────────────┐
+  │ Listener detects change         │
+  │ Fetches new name: "Zara Ali"    │
+  │ Updates UI state                │
+  └─────────────────────────────────┘
+           ↓
+  Notification Updates (NO REFRESH NEEDED):
+  ┌─────────────────────────────────┐
+  │ 🏪 Zara Ali · 👥 2 Members     │
+  └─────────────────────────────────┘
+
+
+SCENARIO 2: New Member Joins Store
+──────────────────────────────────
+
+  Notification Created:
+  ┌─────────────────────────────────┐
+  │ 🏪 Zara Ali · 👥 1 Members     │
+  └─────────────────────────────────┘
+           ↓
+  New Member Joins:
+  ┌─────────────────────────────────┐
+  │ Store: Zara Ali                 │
+  │ Members: [user1, user2]         │
+  │ [Join Store]                    │
+  └─────────────────────────────────┘
+           ↓
+  Firestore Updated:
+  ┌─────────────────────────────────┐
+  │ co_seller_stores/{storeId}      │
+  │ {                               │
+  │   "member_ids": [user1, user2]  │
+  │   "member_count": 2             │
+  │ }                               │
+  └─────────────────────────────────┘
+           ↓
+  Real-time Listener Fires:
+  ┌─────────────────────────────────┐
+  │ Listener detects change         │
+  │ Fetches new count: 2            │
+  │ Updates UI state                │
+  └─────────────────────────────────┘
+           ↓
+  Notification Updates (NO REFRESH NEEDED):
+  ┌─────────────────────────────────┐
+  │ 🏪 Zara Ali · 👥 2 Members     │
+  └─────────────────────────────────┘
+
+
+NOTIFICATION CARD COMPONENTS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                          ●   │
+│  [Icon]  Title                                                    [Delete]  │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│          Description text that can span multiple lines and provides        │
+│          context about what happened                                       │
+│                                                                             │
+│          🏪 Store Name · 👥 X Members                                      │
+│          2 minutes ago                                                     │
+│                                                                             │
+│          ┌─────────────────────────────────────────────────────────────┐   │
+│          │              [Action Button]                               │   │
+│          └─────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Legend:
+  ● = Unread indicator (pink dot)
+  [Icon] = Category icon (color-coded)
+  [Delete] = Delete button (only visible when read)
+  [Action Button] = Context-specific action
+
+
+CATEGORY ICONS & COLORS
+================================================================================
+
+┌──────────────────┬──────────────┬──────────────┬──────────────┐
+│ Category         │ Icon         │ Color        │ Background   │
+├──────────────────┼──────────────┼──────────────┼──────────────┤
+│ Orders           │ 🛍️  Bag      │ Pink         │ #FFF5F8      │
+│ Messages         │ 💬 Message   │ Blue         │ #E3F2FD      │
+│ Promotions       │ 📢 Campaign  │ Orange       │ #FFF9C4      │
+│ System           │ ✅ Check     │ Green        │ #E8F5E8      │
+│ Payments         │ 💳 Bag       │ Green        │ #E8F5E9      │
+│ Store Rating     │ 🏪 Store     │ Pink         │ #FFF5F8      │
+│ Refunds          │ 💰 Bag       │ Green        │ #E8F5E9      │
+│ Report           │ 🚩 Flag      │ Red          │ #FFF5F8      │
+│ Admin Message    │ ⚙️  Admin    │ Red          │ #FFEBEE      │
+└──────────────────┴──────────────┴──────────────┴──────────────┘
+
+
+NOTIFICATION ACTIONS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ACTION TYPE              │ BUTTON STYLE        │ NAVIGATION                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ TRACK_ORDER              │ Gradient Primary    │ Order tracking screen      │
+│ VIEW_ORDER               │ Gradient Primary    │ Order details screen       │
+│ ACCEPT_INVITATION        │ Accept + Decline    │ Store join flow            │
+│ DECLINE_INVITATION       │ (part of above)     │ Delete notification        │
+│ VIEW_STORE               │ Gradient Primary    │ Store public view          │
+│ REPLY_MESSAGE            │ Gradient Primary    │ Chat screen                │
+│ VIEW_PRODUCT             │ Gradient Primary    │ Product details            │
+│ RATE_ORDER               │ Gradient Primary    │ Rating dialog              │
+│ VIEW_PROMOTIONS          │ Gradient Primary    │ Promotions screen          │
+│ VIEW_REPORT              │ Gradient Primary    │ Report details             │
+│ VIEW_PROFILE             │ Gradient Primary    │ Profile screen             │
+│ VIEW_PAYMENT             │ Gradient Primary    │ Payment history            │
+│ VIEW_RATING              │ Gradient Primary    │ Store rating screen        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+REAL-TIME LISTENER LIFECYCLE
+================================================================================
+
+Notification Card Created
+         ↓
+    DisposableEffect Triggered
+         ↓
+    Set up Listeners:
+    ├─ users/{storeId} listener
+    └─ co_seller_stores/{storeId} listener
+         ↓
+    Listeners Active (watching for changes)
+         ↓
+    Data Changes in Firestore
+         ↓
+    Listeners Fire
+         ↓
+    UI State Updated
+         ↓
+    Recompose (UI updates)
+         ↓
+    Notification Card Disposed
+         ↓
+    onDispose Block Executed
+         ↓
+    Listeners Removed
+         ↓
+    No More Updates
+
+
+TROUBLESHOOTING FLOWCHART
+================================================================================
+
+Store Name Not Updating?
+├─ Is storeId set in notification? → NO → Add storeId
+├─ Is seller name updated in users/{sellerId}? → NO → Update profile
+├─ Are Firestore rules allowing reads? → NO → Update rules
+└─ Check logs for listener errors → YES → Debug error
+
+Member Count Showing 0?
+├─ Is storeId set in notification? → NO → Add storeId
+├─ Does co_seller_stores/{storeId} exist? → NO → Create store
+├─ Does it have member_ids or member_count? → NO → Add members
+├─ Are Firestore rules allowing reads? → NO → Update rules
+└─ Check logs for listener errors → YES → Debug error
+
+Notifications Not Filtering?
+├─ Is category field set correctly? → NO → Use uppercase
+├─ Do you have notifications in that category? → NO → Create some
+├─ Is filter tab being clicked? → NO → Click tab
+├─ Is ViewModel calling filterNotifications()? → NO → Check code
+└─ Check logs for filtering errors → YES → Debug error
+
+
+KEY TAKEAWAYS
+================================================================================
+
+✅ Store names update in REAL-TIME when seller changes profile
+✅ Member counts update in REAL-TIME when members join/leave
+✅ No page refresh needed - updates happen automatically
+✅ Notifications are properly categorized and filtered
+✅ Real-time listeners are properly cleaned up
+✅ Fallback to stored values if listeners fail
+✅ Retroactive updates ensure consistency
+
+================================================================================

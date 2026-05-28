@@ -1,0 +1,271 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                  TEXT FIELDS & SELECTION COMPONENTS                           ║
+║                      STANDARDIZATION VISUAL GUIDE                             ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════════
+UNIFIED STANDARDS
+═══════════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ COMPONENT SPECIFICATIONS                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Height:           48.dp (minimum)                                         │
+│  Border Radius:    10.dp                                                   │
+│  Padding:          12.dp (internal)                                        │
+│  Border (unselected): 0.5.dp BorderColor                                   │
+│  Border (selected):   1.5.dp Primary                                       │
+│  Font Size:        14.sp                                                   │
+│  Font Weight:      Medium (unselected) / SemiBold (selected)               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════
+COMPONENT HIERARCHY
+═══════════════════════════════════════════════════════════════════════════════════
+
+CraftoriaTextField (Reference)
+├─ Height: 48.dp ✓
+├─ Border Radius: 10.dp ✓
+├─ Padding: 12.dp ✓
+└─ Status: Reference Implementation
+
+SelectionButton (New Unified Component)
+├─ Height: 48.dp ✓
+├─ Border Radius: 10.dp ✓
+├─ Padding: 12.dp ✓
+├─ Variants:
+│  ├─ SelectionButton (Full Featured)
+│  ├─ SelectionButtonWithIcon (Payment Methods)
+│  └─ SelectionButtonCompact (Refund Reasons)
+└─ Status: Standardized
+
+═══════════════════════════════════════════════════════════════════════════════════
+SCREENS UPDATED
+═══════════════════════════════════════════════════════════════════════════════════
+
+BUYER SCREENS
+─────────────────────────────────────────────────────────────────────────────
+
+CheckoutScreen
+├─ Component: Payment Method Selection
+├─ Type: SelectionButtonWithIcon
+├─ Height: 48.dp ✓ (was variable)
+├─ Border Radius: 10.dp ✓
+├─ Status: ✅ UPDATED
+└─ Example:
+   ┌──────────────────────────────────────┐
+   │ ◯ 💳 Debit/Credit Card    [Selected] │
+   └──────────────────────────────────────┘
+   ┌──────────────────────────────────────┐
+   │ ◯ 🏦 Easypaisa                       │
+   └──────────────────────────────────────┘
+
+BuyerRefundRequestScreen
+├─ Component: Refund Reason Selection
+├─ Type: SelectionButtonCompact
+├─ Height: 48.dp ✓ (was 44.dp)
+├─ Border Radius: 10.dp ✓ (was 8.dp)
+├─ Status: ✅ UPDATED
+└─ Example:
+   ┌──────────────────────────────────────┐
+   │ ◯ Defective Product                  │
+   └──────────────────────────────────────┘
+   ┌──────────────────────────────────────┐
+   │ ◯ Wrong Item                         │
+   └──────────────────────────────────────┘
+
+MyOrdersScreen
+├─ Component: Preview Composable
+├─ Pattern: @Preview with CraftoriaTheme
+├─ Status: ✅ ADDED
+└─ Follows: LoginScreen Pattern
+
+PaymentHistoryScreen
+├─ Status: ✅ Already Standardized
+└─ Uses: Standard components
+
+SELLER SCREENS
+─────────────────────────────────────────────────────────────────────────────
+
+SellerRefundDetailScreen
+├─ Component: Action Buttons
+├─ Approve Button: 48.dp ✓ (was 52.dp)
+├─ Reject Button: 48.dp ✓ (was 52.dp)
+├─ Contact Buyer: 48.dp ✓ (was no height)
+├─ Error Button: 48.dp ✓ (was 46.dp)
+├─ Border Radius: 10-14.dp ✓
+├─ Status: ✅ UPDATED
+└─ Example:
+   ┌──────────────────────────────────────┐
+   │ ✓ Approve Refund                     │
+   └──────────────────────────────────────┘
+   ┌──────────────────────────────────────┐
+   │ ✗ Reject Refund                      │
+   └──────────────────────────────────────┘
+
+SellerRefundManagementScreen
+├─ Component: Filter Tabs
+├─ Type: FilterTabRow (Standardized)
+├─ Status: ✅ Already Standardized
+└─ Height: 36.dp (compact)
+
+═══════════════════════════════════════════════════════════════════════════════════
+VISUAL STATES
+═══════════════════════════════════════════════════════════════════════════════════
+
+UNSELECTED STATE
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ ◯ Option Text                                                        │   │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│ Background: White                                                           │
+│ Border: 0.5.dp BorderColor                                                 │
+│ Text Color: TextPrimary                                                    │
+│ Font Weight: Medium                                                         │
+│ Badge: Hidden                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+SELECTED STATE
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ┌──────────────────────────────────────────────────────────────────────┐   │
+│ │ ◉ Option Text                                    [Selected]          │   │
+│ └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│ Background: Color(0xFFFFF5F8) (light pink)                                 │
+│ Border: 1.5.dp Primary                                                     │
+│ Text Color: Primary                                                        │
+│ Font Weight: SemiBold                                                      │
+│ Badge: "Selected" label with Primary background                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════
+COMPONENT COMPARISON
+═══════════════════════════════════════════════════════════════════════════════════
+
+BEFORE STANDARDIZATION
+─────────────────────────────────────────────────────────────────────────────
+
+CheckoutScreen Payment Selection
+├─ Height: Variable (no min constraint)
+├─ Border Radius: 10.dp
+├─ Padding: 12.dp
+└─ Status: Inconsistent
+
+BuyerRefundRequestScreen Refund Reason
+├─ Height: 44.dp ❌ (inconsistent)
+├─ Border Radius: 8.dp ❌ (inconsistent)
+├─ Padding: 12.dp
+└─ Status: Inconsistent
+
+SellerRefundDetailScreen Buttons
+├─ Approve: 52.dp ❌ (inconsistent)
+├─ Reject: 52.dp ❌ (inconsistent)
+├─ Contact: No height ❌ (inconsistent)
+├─ Error: 46.dp ❌ (inconsistent)
+└─ Status: Highly Inconsistent
+
+AFTER STANDARDIZATION
+─────────────────────────────────────────────────────────────────────────────
+
+CheckoutScreen Payment Selection
+├─ Height: 48.dp ✓
+├─ Border Radius: 10.dp ✓
+├─ Padding: 12.dp ✓
+└─ Status: Standardized
+
+BuyerRefundRequestScreen Refund Reason
+├─ Height: 48.dp ✓
+├─ Border Radius: 10.dp ✓
+├─ Padding: 12.dp ✓
+└─ Status: Standardized
+
+SellerRefundDetailScreen Buttons
+├─ Approve: 48.dp ✓
+├─ Reject: 48.dp ✓
+├─ Contact: 48.dp ✓
+├─ Error: 48.dp ✓
+└─ Status: Standardized
+
+═══════════════════════════════════════════════════════════════════════════════════
+PROFESSIONAL E-COMMERCE STANDARDS
+═══════════════════════════════════════════════════════════════════════════════════
+
+✓ CONSISTENCY
+  ├─ All selection components: 48.dp height
+  ├─ All selection components: 10.dp border radius
+  ├─ All selection components: 12.dp padding
+  └─ All selection components: Professional styling
+
+✓ PROFESSIONAL ALIGNMENT
+  ├─ Vertical alignment: CenterVertically
+  ├─ Horizontal arrangement: spacedBy(12.dp)
+  ├─ Icon sizing: 20.dp
+  └─ Text sizing: 14.sp
+
+✓ VISUAL HIERARCHY
+  ├─ Selected state: Primary color with 1.5.dp border
+  ├─ Unselected state: BorderColor with 0.5.dp border
+  ├─ Selected badge: "Selected" label
+  └─ Consistent Material Design 3 patterns
+
+✓ ACCESSIBILITY
+  ├─ RadioButton for selection indication
+  ├─ Clear visual feedback
+  ├─ Sufficient touch target size (48.dp)
+  └─ Proper color contrast
+
+═══════════════════════════════════════════════════════════════════════════════════
+FILES MODIFIED
+═══════════════════════════════════════════════════════════════════════════════════
+
+NEW FILES
+├─ SelectionButton.kt ✓ (Unified component)
+└─ Status: Created
+
+MODIFIED FILES
+├─ FilterTabComponent.kt ✓ (Height: 40dp → 36dp)
+├─ MyOrdersScreen.kt ✓ (Preview added)
+├─ CheckoutScreen.kt ✓ (Payment selection standardized)
+├─ BuyerRefundRequestScreen.kt ✓ (Refund reason standardized)
+└─ SellerRefundDetailScreen.kt ✓ (Buttons standardized)
+
+DOCUMENTATION FILES
+├─ TEXT_FIELDS_SELECTION_STANDARDIZATION_COMPLETE.md ✓
+├─ SELECTION_BUTTON_QUICK_REFERENCE.md ✓
+├─ CONTEXT_TRANSFER_SESSION_COMPLETE.md ✓
+└─ STANDARDIZATION_VISUAL_REFERENCE.txt ✓ (This file)
+
+═══════════════════════════════════════════════════════════════════════════════════
+COMPILATION STATUS
+═══════════════════════════════════════════════════════════════════════════════════
+
+✅ SelectionButton.kt: No diagnostics found
+✅ CheckoutScreen.kt: No diagnostics found
+✅ BuyerRefundRequestScreen.kt: No diagnostics found
+✅ SellerRefundDetailScreen.kt: No diagnostics found
+✅ FilterTabComponent.kt: No diagnostics found
+✅ MyOrdersScreen.kt: No diagnostics found
+
+═══════════════════════════════════════════════════════════════════════════════════
+SUMMARY
+═══════════════════════════════════════════════════════════════════════════════════
+
+✅ TASK 1: Filter Tab Height Reduced
+   └─ 40.dp → 36.dp (more compact)
+
+✅ TASK 2: MyOrdersScreen Preview Added
+   └─ Follows LoginScreen pattern
+
+✅ TASK 3: Components Standardized
+   ├─ Created SelectionButton component
+   ├─ Updated 4 screens
+   ├─ All components: 48.dp height
+   ├─ All components: 10.dp border radius
+   └─ Professional e-commerce standards achieved
+
+═══════════════════════════════════════════════════════════════════════════════════
+STATUS: ✅ ALL TASKS COMPLETE - READY FOR PRODUCTION
+═══════════════════════════════════════════════════════════════════════════════════

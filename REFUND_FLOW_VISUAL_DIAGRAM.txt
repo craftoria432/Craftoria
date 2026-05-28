@@ -1,0 +1,510 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    CRAFTORIA REFUND SYSTEM - COMPLETE FLOW                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          ISSUE & SOLUTION SUMMARY                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+❌ PROBLEM:
+   Buyer (rejected seller) → Cannot see payment history
+                          → Cannot submit refund request
+                          → Error: "Unauthorized: Not involved in this order"
+
+✅ SOLUTION:
+   Fixed PaymentRepository.getOrderPayments() authorization logic
+   Updated Firestore security rules to allow buyer access
+   Added refund collection rules
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         REFUND FLOW DIAGRAM (DETAILED)                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: BUYER INITIATES REFUND
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────┐
+    │   BUYER     │
+    │  (Mobile)   │
+    └──────┬──────┘
+           │
+           │ 1. Navigate to completed order
+           │ 2. Click "Request Refund"
+           │ 3. Select reason (Product Defective, Wrong Product, etc.)
+           │ 4. Add details (optional)
+           │ 5. Submit request
+           │
+           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  BuyerRefundRequestScreen.kt                             │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Validates order eligibility (delivered, <30 days)     │
+    │  • Fetches payment records via PaymentRepository         │
+    │  • Creates refund via RefundProcessor                    │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  PaymentRepository.getOrderPayments()                    │
+    │  ─────────────────────────────────────────────────────   │
+    │  ✅ FIX: Now checks BOTH buyer and seller authorization  │
+    │                                                           │
+    │  val isUserSeller = payments.any {                       │
+    │      it.sellerId == requestingUserId                     │
+    │  }                                                        │
+    │                                                           │
+    │  val isUserBuyer = payments.any {                        │
+    │      it.buyerId == requestingUserId                      │
+    │  }                                                        │
+    │                                                           │
+    │  // Also check order document                            │
+    │  if (!isUserSeller && !isUserBuyer) {                    │
+    │      val orderDoc = db.collection("orders")              │
+    │          .document(orderId).get().await()                │
+    │      isUserBuyer = orderDoc.getString("buyer_id")        │
+    │          == requestingUserId                             │
+    │  }                                                        │
+    │                                                           │
+    │  if (!isUserSeller && !isUserBuyer) {                    │
+    │      return Result.failure(UnauthorizedException)        │
+    │  }                                                        │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  RefundProcessor.initiateRefund()                        │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Creates refund document in Firestore                  │
+    │  • Status: REQUESTED                                     │
+    │  • Adds audit trail entry                                │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  Firestore: refunds/{refundId}                           │
+    │  ─────────────────────────────────────────────────────   │
+    │  {                                                        │
+    │    id: "ref_123...",                                     │
+    │    order_id: "ord_456...",                               │
+    │    payment_id: "pay_789...",                             │
+    │    buyer_id: "buyer_abc",                                │
+    │    buyer_name: "John Doe",                               │
+    │    seller_id: "seller_xyz",                              │
+    │    seller_name: "Jane's Store",                          │
+    │    refund_amount: 1500.0,                                │
+    │    reason: "PRODUCT_DEFECTIVE",                          │
+    │    status: "REQUESTED",                                  │
+    │    requested_at: 1234567890,                             │
+    │    audit_trail: [...]                                    │
+    │  }                                                        │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+
+
+STEP 2: NOTIFICATIONS SENT
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  RefundNotificationService                               │
+    │  ─────────────────────────────────────────────────────   │
+    │  • notifyRefundRequested()                               │
+    │  • notifyAdminPendingRefund()                            │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ├─────────────────┬─────────────────┐
+                           │                 │                 │
+                           ▼                 ▼                 ▼
+                    ┌──────────┐     ┌──────────┐     ┌──────────┐
+                    │  SELLER  │     │  ADMIN   │     │  BUYER   │
+                    │ (Mobile) │     │  (Web)   │     │ (Mobile) │
+                    └────┬─────┘     └────┬─────┘     └────┬─────┘
+                         │                │                │
+                         │                │                │
+    ┌────────────────────┴────────────────┴────────────────┴────────────────┐
+    │                      NOTIFICATION DETAILS                             │
+    │  ─────────────────────────────────────────────────────────────────   │
+    │                                                                        │
+    │  SELLER:                                                               │
+    │  Title: "Refund Request Received"                                     │
+    │  Body: "John Doe has requested a refund of PKR 1,500                  │
+    │         for order #ord_456"                                           │
+    │  Action: VIEW_PAYMENT                                                 │
+    │                                                                        │
+    │  ADMIN:                                                                │
+    │  Title: "Pending Refund Approval"                                     │
+    │  Body: "Refund request from John Doe for PKR 1,500                    │
+    │         requires approval. Reason: Product Defective"                 │
+    │  Action: VIEW_PAYMENT                                                 │
+    │                                                                        │
+    │  BUYER:                                                                │
+    │  Title: "Refund Request Submitted"                                    │
+    │  Body: "Your refund request for PKR 1,500 has been submitted.         │
+    │         We'll review it shortly."                                     │
+    │  Action: VIEW_PAYMENT                                                 │
+    └────────────────────────────────────────────────────────────────────────┘
+
+
+STEP 3: ADMIN REVIEWS & APPROVES
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────┐
+    │   ADMIN     │
+    │ (Web Dashboard)
+    └──────┬──────┘
+           │
+           │ 1. Login to web dashboard
+           │ 2. Navigate to Order Oversight → Refunds tab
+           │ 3. See pending refund in table
+           │ 4. Click "Approve" button
+           │ 5. Add approval notes (optional)
+           │ 6. Confirm approval
+           │
+           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  OrderOversight.jsx → handleApproveRefund()              │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Calls approveRefund() from refundService.js           │
+    │  • Passes admin ID, name, and notes                      │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  refundService.js → approveRefund()                      │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Updates refund status to "APPROVED"                   │
+    │  • Adds approval timestamp                               │
+    │  • Adds audit trail entry                                │
+    │  • Triggers notifications                                │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  Firestore: refunds/{refundId}                           │
+    │  ─────────────────────────────────────────────────────   │
+    │  {                                                        │
+    │    ...                                                    │
+    │    status: "APPROVED",                                   │
+    │    approved_by: "admin_123",                             │
+    │    approver_name: "Admin User",                          │
+    │    approved_at: 1234567900,                              │
+    │    approval_notes: "Valid refund request",               │
+    │    audit_trail: [                                        │
+    │      { action: "requested", ... },                       │
+    │      { action: "approved", ... }                         │
+    │    ]                                                      │
+    │  }                                                        │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  RefundNotificationService                               │
+    │  ─────────────────────────────────────────────────────   │
+    │  • notifyRefundApproved()                                │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ├─────────────────┬─────────────────┐
+                           │                 │                 │
+                           ▼                 ▼                 ▼
+                    ┌──────────┐     ┌──────────┐     ┌──────────┐
+                    │  BUYER   │     │  SELLER  │     │  ADMIN   │
+                    │ (Mobile) │     │ (Mobile) │     │  (Web)   │
+                    └────┬─────┘     └────┬─────┘     └────┬─────┘
+                         │                │                │
+    ┌────────────────────┴────────────────┴────────────────┴────────────────┐
+    │                      APPROVAL NOTIFICATIONS                           │
+    │  ─────────────────────────────────────────────────────────────────   │
+    │                                                                        │
+    │  BUYER:                                                                │
+    │  Title: "Refund Approved"                                             │
+    │  Body: "Your refund of PKR 1,500 has been approved.                   │
+    │         Processing will begin shortly."                               │
+    │                                                                        │
+    │  SELLER:                                                               │
+    │  Title: "Refund Approved"                                             │
+    │  Body: "Refund of PKR 1,500 for John Doe has been                     │
+    │         approved by admin."                                           │
+    └────────────────────────────────────────────────────────────────────────┘
+
+
+STEP 4: SYSTEM PROCESSES REFUND
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  RefundProcessor.processRefund()                         │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Updates status to "PROCESSING"                        │
+    │  • Calls payment gateway API                             │
+    │  • Handles retry logic (up to 3 attempts)                │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  Payment Gateway (Stripe/PayPal/etc.)                    │
+    │  ─────────────────────────────────────────────────────   │
+    │  • Processes refund to buyer's original payment method   │
+    │  • Returns gateway refund ID                             │
+    │  • Estimated time: 3-5 business days                     │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  Firestore: refunds/{refundId}                           │
+    │  ─────────────────────────────────────────────────────   │
+    │  {                                                        │
+    │    ...                                                    │
+    │    status: "COMPLETED",                                  │
+    │    gateway_refund_id: "ref_gw_xyz",                      │
+    │    completed_at: 1234568000,                             │
+    │    audit_trail: [                                        │
+    │      { action: "requested", ... },                       │
+    │      { action: "approved", ... },                        │
+    │      { action: "processing", ... },                      │
+    │      { action: "completed", ... }                        │
+    │    ]                                                      │
+    │  }                                                        │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │  RefundNotificationService                               │
+    │  ─────────────────────────────────────────────────────   │
+    │  • notifyRefundCompleted()                               │
+    └──────────────────────┬───────────────────────────────────┘
+                           │
+                           ├─────────────────┬─────────────────┐
+                           │                 │                 │
+                           ▼                 ▼                 ▼
+                    ┌──────────┐     ┌──────────┐     ┌──────────┐
+                    │  BUYER   │     │  SELLER  │     │  ADMIN   │
+                    │ (Mobile) │     │ (Mobile) │     │  (Web)   │
+                    └────┬─────┘     └────┬─────┘     └────┬─────┘
+                         │                │                │
+    ┌────────────────────┴────────────────┴────────────────┴────────────────┐
+    │                    COMPLETION NOTIFICATIONS                           │
+    │  ─────────────────────────────────────────────────────────────────   │
+    │                                                                        │
+    │  BUYER:                                                                │
+    │  Title: "Refund Completed"                                            │
+    │  Body: "Your refund of PKR 1,500 has been successfully                │
+    │         credited to your account."                                    │
+    │                                                                        │
+    │  SELLER:                                                               │
+    │  Title: "Refund Completed"                                            │
+    │  Body: "Refund of PKR 1,500 for John Doe has been completed."         │
+    └────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         REFUND STATUS FLOW CHART                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    REQUESTED ──────────────────────────────────────────────┐
+        │                                                    │
+        │ Admin Reviews                                      │
+        │                                                    │
+        ▼                                                    │
+    ┌─────────┐                                             │
+    │ APPROVE │                                             │
+    │    OR   │                                             │
+    │ REJECT? │                                             │
+    └────┬────┘                                             │
+         │                                                   │
+    ┌────┴────┐                                             │
+    │         │                                             │
+    ▼         ▼                                             ▼
+APPROVED   REJECTED ◄──────────────────────────────────── END
+    │
+    │ System Processes
+    │
+    ▼
+PROCESSING
+    │
+    │ Payment Gateway
+    │
+    ├──────┬──────┐
+    │      │      │
+    ▼      ▼      ▼
+SUCCESS RETRY FAIL
+    │      │      │
+    │      │      ▼
+    │      │   FAILED ──► Retry (up to 3 times)
+    │      │      │
+    │      └──────┘
+    │
+    ▼
+COMPLETED ◄──────────────────────────────────────────────── END
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    AUTHORIZATION FLOW (FIXED)                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BEFORE FIX (❌ BROKEN):
+═══════════════════════════════════════════════════════════════════════════════
+
+    Buyer requests payment records
+           │
+           ▼
+    PaymentRepository.getOrderPayments()
+           │
+           ▼
+    Check: Is user a seller?
+           │
+           ├─── YES ──► ✅ Return payments
+           │
+           └─── NO ───► ❌ Return "Unauthorized" error
+                        (Even if user is the buyer!)
+
+
+AFTER FIX (✅ WORKING):
+═══════════════════════════════════════════════════════════════════════════════
+
+    Buyer requests payment records
+           │
+           ▼
+    PaymentRepository.getOrderPayments()
+           │
+           ▼
+    Check: Is user a seller?
+           │
+           ├─── YES ──► ✅ Return payments
+           │
+           └─── NO ───► Check: Is user the buyer?
+                              │
+                              ├─── YES (in payments) ──► ✅ Return payments
+                              │
+                              └─── NO ───► Check: Is user buyer in order doc?
+                                                 │
+                                                 ├─── YES ──► ✅ Return payments
+                                                 │
+                                                 └─── NO ───► ❌ Return "Unauthorized"
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    FIRESTORE SECURITY RULES (UPDATED)                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+SELLER PAYMENTS:
+═══════════════════════════════════════════════════════════════════════════════
+
+    match /seller_payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.seller_id ||
+        request.auth.uid == resource.data.buyer_id ||      ← NEW: Buyer access
+        request.auth.uid in resource.data.involved_seller_ids ||
+        isAdmin()
+      );
+      allow write: if false; // Only Cloud Functions
+    }
+
+
+REFUNDS:
+═══════════════════════════════════════════════════════════════════════════════
+
+    match /refunds/{refundId} {
+      // Read: Buyer, Seller, or Admin
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.buyer_id ||
+        request.auth.uid == resource.data.seller_id ||
+        isAdmin()
+      );
+      
+      // Create: Buyer or Seller
+      allow create: if isAuthenticated() && (
+        request.auth.uid == request.resource.data.buyer_id ||
+        request.auth.uid == request.resource.data.seller_id
+      );
+      
+      // Update: Admin only
+      allow update: if isAdmin();
+      
+      // Delete: No one
+      allow delete: if false;
+    }
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         MULTI-SELLER ORDER REFUND                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+SCENARIO: Buyer orders products from 2 sellers
+═══════════════════════════════════════════════════════════════════════════════
+
+    Order #ord_123
+    ├── Product A (Seller 1) - PKR 800
+    └── Product B (Seller 2) - PKR 700
+    Total: PKR 1,500
+
+    Payment Split:
+    ├── Payment #pay_456 (Seller 1) - PKR 800
+    └── Payment #pay_789 (Seller 2) - PKR 700
+
+
+REFUND FLOW:
+═══════════════════════════════════════════════════════════════════════════════
+
+    Buyer requests refund for entire order
+           │
+           ▼
+    System creates 2 separate refunds:
+    ├── Refund #ref_111 (Payment #pay_456) - PKR 800
+    └── Refund #ref_222 (Payment #pay_789) - PKR 700
+           │
+           ▼
+    Notifications sent:
+    ├── Seller 1 notified about Refund #ref_111
+    ├── Seller 2 notified about Refund #ref_222
+    └── Admin notified about both refunds
+           │
+           ▼
+    Admin approves both refunds
+           │
+           ▼
+    System processes both refunds
+    ├── Refund #ref_111 → Buyer receives PKR 800
+    └── Refund #ref_222 → Buyer receives PKR 700
+           │
+           ▼
+    Total refunded: PKR 1,500
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              KEY TAKEAWAYS                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ FIXED ISSUES:
+   • Buyer authorization in PaymentRepository
+   • Firestore security rules for buyer access
+   • Refund collection rules added
+
+✅ REFUND ROUTING:
+   • Refunds go to BOTH seller AND admin
+   • Seller: Receives notification (transparency)
+   • Admin: Has approval authority (control)
+   • System: Auto-processes after approval (automation)
+
+✅ MULTI-ROLE USERS:
+   • Users with both buyer and seller roles work correctly
+   • Authorization checks both roles
+   • No "Unauthorized" errors for legitimate access
+
+✅ AUDIT TRAIL:
+   • Every action logged with timestamp
+   • Actor name and ID recorded
+   • Complete history maintained
+
+✅ NOTIFICATIONS:
+   • All parties notified at each step
+   • Clear, actionable messages
+   • Deep links to relevant screens
+
+✅ RETRY LOGIC:
+   • Failed refunds retry automatically
+   • Up to 3 attempts
+   • Exponential backoff
+   • Users notified of retry status
+
+═══════════════════════════════════════════════════════════════════════════════
+                              END OF DIAGRAM
+═══════════════════════════════════════════════════════════════════════════════

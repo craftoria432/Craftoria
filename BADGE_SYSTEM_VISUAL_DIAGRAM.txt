@@ -1,0 +1,256 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    BADGE SYSTEM - COMPLETE IMPLEMENTATION                     ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ BUYER SIDE - BADGE LOCATIONS                                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+HOME SCREEN
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  🧵 Craftoria    🔍 Search    🔔(3)  💬(2)  🛒(5)                           │
+│                                ↑      ↑      ↑                              │
+│                         Notifications Messages Cart                         │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Featured Products                                                   │   │
+│  │ [Product 1] [Product 2] [Product 3]                               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Bottom Navigation                                                   │   │
+│  │ 🏠 Home  📦 Orders(2)  ❤️ Wishlist(3)  👤 Profile                 │   │
+│  │          ↑              ↑                                           │   │
+│  │    Pending Orders  Wishlist Count                                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+CART SCREEN
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  ← Cart    🛒(5)                                                            │
+│            ↑                                                                │
+│       Cart Count                                                            │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Cart Items                                                          │   │
+│  │ [Item 1] [Item 2] [Item 3] [Item 4] [Item 5]                      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ SELLER SIDE - BADGE LOCATIONS                                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+SELLER DASHBOARD
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  Seller Dashboard    💬(1)  🔔(2)                                           │
+│                      ↑      ↑                                               │
+│                  Messages Notifications                                     │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Quick Access                                                        │   │
+│  │                                                                     │   │
+│  │  ┌──────────────────┐  ┌──────────────────┐                       │   │
+│  │  │ 📦 Manage        │  │ 💰 Price Offers  │                       │   │
+│  │  │ Products         │  │ (3)              │                       │   │
+│  │  │ (2) ✅ NEW       │  │                  │                       │   │
+│  │  └──────────────────┘  └──────────────────┘                       │   │
+│  │                                                                     │   │
+│  │  ┌──────────────────┐  ┌──────────────────┐                       │   │
+│  │  │ 🏪 Co-Seller     │  │ 📚 Learning      │                       │   │
+│  │  │ Stores           │  │ Resources        │                       │   │
+│  │  │ (1) ✅ NEW       │  │                  │                       │   │
+│  │  └──────────────────┘  └──────────────────┘                       │   │
+│  │                                                                     │   │
+│  │  ┌──────────────────┐  ┌──────────────────┐                       │   │
+│  │  │ 💳 Payments      │  │                  │                       │   │
+│  │  │ (5) ✅ NEW       │  │                  │                       │   │
+│  │  └──────────────────┘  └──────────────────┘                       │   │
+│  │                                                                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Sales Overview                                                      │   │
+│  │ Active Orders: 5 (2 pending, 3 processing)                         │   │
+│  │ Total Products: 12 (↑ 2 added this week)                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Bottom Navigation                                                   │   │
+│  │ 🏠 Dashboard  ➕ Add New  📦 Orders(3)  👤 Profile(2)              │   │
+│  │                           ↑              ↑                          │   │
+│  │                      New Orders   Pending Negotiations              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ BADGE COUNT SOURCES & REAL-TIME UPDATES                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+BUYER BADGES
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│ Cart Badge                                                                  │
+│ ├─ Source: cartViewModel.cartCount                                         │
+│ ├─ Updates: Real-time when items added/removed                            │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Wishlist Badge                                                              │
+│ ├─ Source: wishlistViewModel.wishlistCount                                 │
+│ ├─ Updates: Real-time when items added/removed                            │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Messages Badge                                                              │
+│ ├─ Source: unreadMessageViewModel.unreadCount                              │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Notifications Badge                                                         │
+│ ├─ Source: notificationViewModel.unreadCount                               │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Pending Orders Badge                                                        │
+│ ├─ Source: orders.count { status in [pending, processing, shipped] }      │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+SELLER BADGES
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│ New Orders Badge                                                            │
+│ ├─ Source: orders.count { status in [new, pending] && !isViewed }         │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Pending Negotiations Badge                                                  │
+│ ├─ Source: negotiations.count { status == "PENDING" }                      │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Pending Approvals Badge ✅ NEW                                              │
+│ ├─ Source: products.count { approvalStatus == "pending" }                  │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Pending Invitations Badge ✅ NEW                                            │
+│ ├─ Source: invitations.count { status == "PENDING" }                       │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Pending Payouts Badge ✅ NEW                                                │
+│ ├─ Source: payments.count { status == "processing" }                       │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Messages Badge                                                              │
+│ ├─ Source: unreadMessageViewModel.unreadCount                              │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+│ Notifications Badge                                                         │
+│ ├─ Source: notificationViewModel.unreadCount                               │
+│ ├─ Updates: Real-time Firestore listener                                  │
+│ └─ Display: Show when count > 0, "9+" for count > 9                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ BADGE STYLING STANDARDS                                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+COLOR SCHEME
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│ Error/Red (0xFFE53935)                                                      │
+│ ├─ Unread messages                                                          │
+│ ├─ New orders                                                               │
+│ ├─ Pending approvals                                                        │
+│ ├─ Pending invitations                                                      │
+│ └─ Pending payouts                                                          │
+│                                                                              │
+│ Primary/Blue (0xFF6200EE)                                                   │
+│ └─ Pending negotiations                                                     │
+│                                                                              │
+│ Success/Green (0xFF4CAF50)                                                  │
+│ └─ Completed/approved items                                                │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+SIZE & POSITION
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│ Font Size: 10.sp                                                            │
+│ Font Weight: Bold                                                           │
+│ Badge Height: 20.dp (auto-sized)                                           │
+│ Badge Width: 20.dp (auto-sized)                                            │
+│ Position: Top-right of icon                                                │
+│ Offset: (-4.dp, -4.dp)                                                     │
+│                                                                              │
+│ Example:                                                                    │
+│   🛒(5)  ← Badge positioned top-right                                      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+FORMAT STANDARDS
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│ Display Format:                                                             │
+│ ├─ Count 1-9: Show number (e.g., "5")                                      │
+│ ├─ Count 10+: Show "9+"                                                    │
+│ └─ Count 0: Hide badge                                                     │
+│                                                                              │
+│ Visibility:                                                                 │
+│ ├─ Show when count > 0                                                     │
+│ └─ Hide when count = 0                                                     │
+│                                                                              │
+│ Animation:                                                                  │
+│ ├─ Fade in when count changes from 0 to > 0                               │
+│ ├─ Fade out when count changes from > 0 to 0                              │
+│ └─ No bounce or scale animations                                           │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ IMPLEMENTATION STATUS                                                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+BUYER SIDE
+✅ Home Screen - Cart Badge
+✅ Home Screen - Notifications Badge
+✅ Home Screen - Messages Badge
+✅ Home Screen - Bottom Navigation Orders Badge
+✅ Home Screen - Bottom Navigation Wishlist Badge
+✅ Cart Screen - Cart Badge
+Status: 100% COMPLETE
+
+SELLER SIDE
+✅ Seller Dashboard - Messages Badge
+✅ Seller Dashboard - Notifications Badge
+✅ Seller Dashboard - Manage Products Badge (Pending Approvals) ✅ NEW
+✅ Seller Dashboard - Price Offers Badge (Pending Negotiations)
+✅ Seller Dashboard - Co-Seller Stores Badge (Pending Invitations) ✅ NEW
+✅ Seller Dashboard - Payments Badge (Pending Payouts) ✅ NEW
+✅ Seller Bottom Navigation - Orders Badge
+✅ Seller Bottom Navigation - Profile Badge
+Status: 100% COMPLETE
+
+OVERALL STATUS: ✅ PRODUCTION READY
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    BADGE SYSTEM - FULLY IMPLEMENTED ✅                        ║
+║                         PRODUCTION READY - DEPLOY NOW                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝

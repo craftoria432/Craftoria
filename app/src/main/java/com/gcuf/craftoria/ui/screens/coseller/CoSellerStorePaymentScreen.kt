@@ -424,7 +424,15 @@ private fun CoSellerDateRangeSelector(
                             onDateRangeSelected(range)
                             isDropdownExpanded = false
                         },
-                        modifier = Modifier.fillMaxWidth(),  // remove containerColor entirely
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (selectedDateRange == range) 
+                                    Primary.copy(alpha = 0.08f) 
+                                else 
+                                    Color.White
+                            ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                     )
                 }
             }

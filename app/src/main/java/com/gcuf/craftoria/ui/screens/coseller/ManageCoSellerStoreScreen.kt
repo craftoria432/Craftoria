@@ -377,10 +377,10 @@ fun ManageCoSellerStoreScreen(
 
 @Composable
 fun StoreBanner(store: CoSellerStore) {
-    Box(modifier = Modifier.fillMaxWidth().height(110.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(140.dp)) {
         if (store.storeBanner.isNotEmpty()) {
             AsyncImage(
-                model = CloudinaryManager.getOptimizedUrl(store.storeBanner, 600, 80),
+                model = CloudinaryManager.getOptimizedUrl(store.storeBanner, 600, 110),
                 contentDescription = "Store Banner",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -736,11 +736,11 @@ fun InvitationCard(invitation: StoreInvitation) {
                 modifier = Modifier.weight(1f)
             )
 
-            // ✅ Unified badge styling — consistent with Cart screen
+            // ✅ Unified badge styling — exactly matching My Orders screen
             val (bgColor, textColor) = when (invitation.status) {
-                InvitationStatus.PENDING  -> Color(0xFFFFF3CD) to Color(0xFF856404)
-                InvitationStatus.ACCEPTED -> Color(0xFFD4EDDA) to Color(0xFF155724)
-                InvitationStatus.DECLINED -> Color(0xFFF8D7DA) to Color(0xFF721C24)
+                InvitationStatus.PENDING  -> Color(0xFFFFF3CD) to Color(0xFF856404)  // Warning yellow
+                InvitationStatus.ACCEPTED -> Color(0xFFD4EDDA) to Color(0xFF155724)  // Success green
+                InvitationStatus.DECLINED -> Color(0xFFF8D7DA) to Color(0xFF721C24)  // Error red
             }
             Surface(shape = RoundedCornerShape(20.dp), color = bgColor) {
                 Text(
@@ -748,7 +748,10 @@ fun InvitationCard(invitation: StoreInvitation) {
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = textColor,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 13.sp
                 )
             }
         }

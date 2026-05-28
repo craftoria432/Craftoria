@@ -1,0 +1,269 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                     PAYMENT SYSTEM ARCHITECTURE DIAGRAM                       ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            PAYMENT CREATION FLOW                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ BUYER PLACES ORDER (Multi-Seller)                                  │
+    │ ├─ Product A from Seller 1 (PKR 2500)                              │
+    │ ├─ Product B from Seller 2 (PKR 3000)                              │
+    │ └─ Total: PKR 5500                                                 │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ CheckoutViewModel.placeOrder()                                      │
+    │ └─ Calls OrderRepository.createOrder(order)                         │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ OrderRepository.createOrder()                                       │
+    │ ├─ Creates order document                                           │
+    │ ├─ Calls PaymentRepository.processOrderPayments(order)              │
+    │ └─ Returns order ID                                                 │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ PaymentRepository.processOrderPayments()                            │
+    │ ├─ Groups items by seller                                           │
+    │ ├─ For each seller:                                                 │
+    │ │  ├─ Create SellerPayment record                                   │
+    │ │  ├─ Set status = "pending"                                        │
+    │ │  ├─ Link to seller_id, buyer_id, order_id                         │
+    │ │  └─ Save to seller_payments collection                            │
+    │ └─ Send notifications to sellers                                    │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ FIRESTORE: seller_payments collection                               │
+    │ ├─ Payment 1:                                                       │
+    │ │  ├─ seller_id: seller_1                                           │
+    │ │  ├─ amount: 2500                                                  │
+    │ │  ├─ status: pending                                               │
+    │ │  └─ order_id: order_123                                           │
+    │ │                                                                   │
+    │ └─ Payment 2:                                                       │
+    │    ├─ seller_id: seller_2                                           │
+    │    ├─ amount: 3000                                                  │
+    │    ├─ status: pending                                               │
+    │    └─ order_id: order_123                                           │
+    └─────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         PAYMENT STATUS UPDATE FLOW                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ SELLER MARKS ORDER AS DELIVERED                                    │
+    │ └─ SellerOrdersScreen → Update Order Status                         │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ OrderRepository.updateOrderStatus()                                 │
+    │ ├─ Update order.status = "delivered"                                │
+    │ ├─ Get all payments for this order                                  │
+    │ ├─ For each payment:                                                │
+    │ │  ├─ Update status = "completed"                                   │
+    │ │  ├─ Set payment_date = now()                                      │
+    │ │  └─ Send notification to seller                                   │
+    │ └─ Return success                                                   │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ FIRESTORE: seller_payments collection (UPDATED)                     │
+    │ ├─ Payment 1:                                                       │
+    │ │  ├─ status: completed ✓                                           │
+    │ │  └─ payment_date: 1710604800000                                   │
+    │ │                                                                   │
+    │ └─ Payment 2:                                                       │
+    │    ├─ status: completed ✓                                           │
+    │    └─ payment_date: 1710604800000                                   │
+    └─────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        EARNINGS CALCULATION FLOW                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ SELLER VIEWS DASHBOARD                                              │
+    │ └─ SellerDashboardScreen.loadDashboardData()                        │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ DashboardViewModel.loadDashboardStats()                             │
+    │ └─ Calls DashboardRepository.getDashboardStats(sellerId)            │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ DashboardRepository.getDashboardStats()                             │
+    │ ├─ Query seller_payments where:                                     │
+    │ │  ├─ seller_id == sellerId                                         │
+    │ │  └─ status == "completed"                                         │
+    │ ├─ Filter for completed payments only                               │
+    │ ├─ Sum amounts: 2500 + 3000 = 5500                                  │
+    │ ├─ Calculate this month's earnings                                  │
+    │ └─ Return DashboardStats                                            │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ SELLER DASHBOARD DISPLAYS                                           │
+    │ ├─ Total Earnings: PKR 5500 ✓                                       │
+    │ ├─ This Month: PKR 5500                                             │
+    │ ├─ Active Orders: 0                                                 │
+    │ └─ Quick Access → Payments & Earnings                               │
+    └─────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         PAYMENT HISTORY DISPLAY FLOW                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    SELLER PAYMENT HISTORY                  BUYER PAYMENT HISTORY
+    ├─ Profile → Seller Dashboard           ├─ Profile → Payment History
+    ├─ → Payments & Earnings                 └─ Shows all payments made
+    │
+    ├─ SellerPaymentsScreen                  BuyerPaymentHistoryScreen
+    │  ├─ Load payments for seller_id        ├─ Load payments for buyer_id
+    │  ├─ Show all payments                  ├─ Show all payments
+    │  ├─ Statistics:                        ├─ Statistics:
+    │  │  ├─ Total Earnings                  │  ├─ Total Spent
+    │  │  ├─ Completed Amount                │  ├─ Completed Amount
+    │  │  ├─ Pending Amount                  │  ├─ Pending Amount
+    │  │  ├─ Total Payments                  │  ├─ Total Payments
+    │  │  └─ Completed Payments              │  ├─ Total Sellers
+    │  └─ Filter by status                   │  └─ Total Orders
+    │                                        └─ Filter by status
+    │
+    └─ Data Source:                          └─ Data Source:
+       seller_payments                          seller_payments
+       (seller_id == current_seller)            (buyer_id == current_buyer)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                      CO-SELLER PAYMENT SPLIT DISPLAY                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ ORDER DETAILS SCREEN                                                │
+    │ └─ View Co-Seller Payment Split                                     │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ CoSellerPaymentSplitScreen                                          │
+    │ ├─ Query seller_payments where order_id == order_id                 │
+    │ ├─ Display:                                                         │
+    │ │  ├─ Total Order Amount: PKR 5500                                  │
+    │ │  ├─ Platform Fee (5%): PKR 275                                    │
+    │ │  ├─ Total Payout: PKR 5225                                        │
+    │ │  │                                                                │
+    │ │  ├─ Seller 1 Breakdown:                                           │
+    │ │  │  ├─ Product A: PKR 2500                                        │
+    │ │  │  ├─ Qty: 1                                                     │
+    │ │  │  └─ Status: Completed ✓                                        │
+    │ │  │                                                                │
+    │ │  └─ Seller 2 Breakdown:                                           │
+    │ │     ├─ Product B: PKR 3000                                        │
+    │ │     ├─ Qty: 1                                                     │
+    │ │     └─ Status: Completed ✓                                        │
+    │ │                                                                   │
+    │ └─ Data Source: seller_payments (order_id == order_id)              │
+    └─────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          REPOSITORY ARCHITECTURE                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    PaymentRepository
+    ├─ processOrderPayments(order)
+    │  └─ Creates SellerPayment for each seller
+    │
+    ├─ getSellerPayments(sellerId)
+    │  └─ Fetches all payments for seller
+    │
+    ├─ getBuyerPayments(buyerId)
+    │  └─ Fetches all payments for buyer
+    │
+    ├─ getOrderPayments(orderId)
+    │  └─ Fetches all payments for order
+    │
+    ├─ updatePaymentStatus(paymentId, status)
+    │  └─ Updates payment status
+    │
+    ├─ getSellerPaymentStats(sellerId)
+    │  └─ Calculates seller statistics
+    │
+    └─ getBuyerPaymentStats(buyerId)
+       └─ Calculates buyer statistics
+
+    DashboardRepository (UPDATED)
+    ├─ getDashboardStats(sellerId)
+    │  ├─ Query seller_payments (completed only)
+    │  ├─ Calculate total earnings
+    │  ├─ Calculate this month's earnings
+    │  └─ Return DashboardStats
+    │
+    └─ getRecentActivities(sellerId)
+       └─ Fetches recent activities
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           VIEWMODEL ARCHITECTURE                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    SellerPaymentViewModel
+    ├─ paymentState: StateFlow<PaymentUiState>
+    ├─ statsState: StateFlow<PaymentStatsUiState>
+    ├─ loadSellerPayments(sellerId)
+    ├─ loadPaymentStats(sellerId)
+    └─ Filter operations
+
+    BuyerPaymentViewModel (NEW)
+    ├─ paymentState: StateFlow<BuyerPaymentUiState>
+    ├─ statsState: StateFlow<BuyerPaymentStatsUiState>
+    ├─ loadBuyerPayments(buyerId)
+    ├─ loadPaymentStats(buyerId)
+    └─ Filter operations
+
+    DashboardViewModel
+    ├─ dashboardStats: StateFlow<DashboardStats>
+    ├─ loadDashboardData(sellerId)
+    └─ Refresh operations
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              UI SCREEN FLOW                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    Profile Screen
+    ├─ Buyer Role:
+    │  ├─ My Orders
+    │  ├─ Payment History (NEW) ← Click here
+    │  ├─ My Chats
+    │  └─ ...
+    │
+    └─ Seller Role:
+       ├─ Seller Dashboard
+       │  ├─ Total Earnings (from completed payments)
+       │  ├─ Quick Access → Payments & Earnings ← Click here
+       │  └─ ...
+       │
+       └─ Seller Payment History
+          ├─ All Payments
+          ├─ Statistics
+          └─ Filter by Status
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                         PRODUCTION READY ✓                                    ║
+║                                                                                ║
+║  ✅ Payment Creation        ✅ Status Updates       ✅ Earnings Calculation    ║
+║  ✅ Seller Dashboard        ✅ Seller History      ✅ Buyer History           ║
+║  ✅ Co-Seller Split         ✅ Statistics          ✅ Error Handling          ║
+║  ✅ Professional UI         ✅ Performance         ✅ Documentation           ║
+╚════════════════════════════════════════════════════════════════════════════════╝

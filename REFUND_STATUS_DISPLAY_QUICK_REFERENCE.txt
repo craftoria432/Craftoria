@@ -1,0 +1,165 @@
+═══════════════════════════════════════════════════════════════════════════════
+              REFUND STATUS DISPLAY - QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+SCENARIO: Order Completed → Refund Approved
+
+═══════════════════════════════════════════════════════════════════════════════
+1. BUYER'S MY ORDERS SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+
+Order Card:
+┌─────────────────────────────────────────────────────────┐
+│ Order #ABC123                                           │
+│ Status: COMPLETED ✓                                     │
+│ Badge: "Refunded" (GREEN)                               │
+│                                                         │
+│ Buttons: "Track Order" | "Reorder" | "Refund Done"      │
+│ Refund: 500 PKR | May 13, 2026                          │
+└─────────────────────────────────────────────────────────┘
+
+Tab Location: COMPLETED tab (NOT hidden, NOT cancelled)
+Visibility: ✅ VISIBLE
+Status: ✅ COMPLETED (not cancelled)
+Badge: ✅ "Refunded" (green)
+Refund Info: ✅ Amount + Date visible
+
+═══════════════════════════════════════════════════════════════════════════════
+2. SELLER'S ORDERS SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+
+Order Card:
+┌─────────────────────────────────────────────────────────┐
+│ Order #ABC123                                           │
+│ Status: COMPLETED ✓                                     │
+│ Badge: "Refunded" (GREEN)                               │
+│                                                         │
+│ Buttons: "View Details" | "View Refund" | "Contact"     │
+│ Refund: 500 PKR | May 13, 2026                          │
+└─────────────────────────────────────────────────────────┘
+
+Tab Location: COMPLETED tab (NOT hidden, NOT cancelled)
+Visibility: ✅ VISIBLE
+Status: ✅ COMPLETED (not cancelled)
+Badge: ✅ "Refunded" (green)
+Refund Info: ✅ Amount + Date visible
+"View Refund" Button: ✅ AVAILABLE
+
+═══════════════════════════════════════════════════════════════════════════════
+3. BUYER'S PAYMENT HISTORY SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+
+Payment Entry:
+┌─────────────────────────────────────────────────────────┐
+│ Payment #PAY123                                         │
+│ Status: REFUNDED ✓ (GREEN)                              │
+│                                                         │
+│ Seller: Store Name                                      │
+│ Original: 500 PKR | Refund: 500 PKR ✓                   │
+│ Refund Date: May 13, 2026 ✓                             │
+│ Reason: [Buyer's reason]                                │
+└─────────────────────────────────────────────────────────┘
+
+Tab Location: "Refunded" tab (or "Completed" if no separate tab)
+Visibility: ✅ VISIBLE
+Status: ✅ REFUNDED (final state)
+Refund Amount: ✅ 500 PKR (visible)
+Refund Date: ✅ May 13, 2026 (visible)
+Refund Reason: ✅ VISIBLE
+
+═══════════════════════════════════════════════════════════════════════════════
+4. SELLER'S PAYMENT DETAILS SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+
+Payment Entry:
+┌─────────────────────────────────────────────────────────┐
+│ Payment #PAY123                                         │
+│ Status: REFUNDED ✓ (GREEN)                              │
+│                                                         │
+│ Buyer: John Doe                                         │
+│ Original: 500 PKR | Refund: 500 PKR ✓                   │
+│ Refund Date: May 13, 2026 ✓                             │
+│ Seller Earnings: Adjusted for refund                    │
+└─────────────────────────────────────────────────────────┘
+
+Tab Location: "Refunded" tab (or "Completed" if no separate tab)
+Visibility: ✅ VISIBLE
+Status: ✅ REFUNDED (final state)
+Refund Amount: ✅ 500 PKR (visible)
+Refund Date: ✅ May 13, 2026 (visible)
+Earnings: ✅ Adjusted for refund deduction
+
+═══════════════════════════════════════════════════════════════════════════════
+5. CO-SELLER PAYMENT DETAILS SCREEN
+═══════════════════════════════════════════════════════════════════════════════
+
+Payment Entry (if co-seller involved):
+┌─────────────────────────────────────────────────────────┐
+│ Payment #PAY123 (Co-Seller Split)                       │
+│ Status: REFUNDED ✓ (GREEN)                              │
+│                                                         │
+│ Store: Co-Seller Store Name                             │
+│ Original: 250 PKR (50%) | Refund: 250 PKR ✓ (50%)       │
+│ Refund Date: May 13, 2026 ✓                             │
+│ Co-Seller Earnings: Adjusted for refund                 │
+└─────────────────────────────────────────────────────────┘
+
+Tab Location: "Refunded" tab (or "Completed" if no separate tab)
+Visibility: ✅ VISIBLE
+Status: ✅ REFUNDED (final state)
+Refund Amount: ✅ 250 PKR (50% split, visible)
+Refund Date: ✅ May 13, 2026 (visible)
+Earnings: ✅ Adjusted for refund split deduction
+
+═══════════════════════════════════════════════════════════════════════════════
+SUMMARY TABLE
+═══════════════════════════════════════════════════════════════════════════════
+
+Screen                          Order Status    Badge           Payment Status
+─────────────────────────────────────────────────────────────────────────────
+Buyer My Orders                 COMPLETED       "Refunded"      N/A
+Seller Orders                   COMPLETED       "Refunded"      N/A
+Buyer Payment History           N/A             N/A             REFUNDED
+Seller Payment Details          N/A             N/A             REFUNDED
+Co-Seller Payment Details       N/A             N/A             REFUNDED
+
+═══════════════════════════════════════════════════════════════════════════════
+KEY POINTS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Order Status: COMPLETED (NOT cancelled)
+✅ Order Visibility: Stays in "Completed" tab
+✅ Order Badge: "Refunded" (green color)
+✅ Payment Status: REFUNDED (final state)
+✅ Refund Amount: Visible on all screens
+✅ Refund Date: Visible on all screens
+✅ Refund Reason: Visible on all screens
+✅ Seller Earnings: Adjusted for refund
+✅ Co-Seller Earnings: Adjusted for refund split
+✅ Real-Time Sync: All screens update together
+
+═══════════════════════════════════════════════════════════════════════════════
+WHAT NOT TO DO
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ DO NOT change order status to CANCELLED
+❌ DO NOT hide order from "Completed" tab
+❌ DO NOT show order in "Cancelled" tab
+❌ DO NOT hide refund information
+❌ DO NOT show "Refund Processing" as final state
+❌ DO NOT show 0 refund amount
+❌ DO NOT show empty refund date
+❌ DO NOT forget to update seller earnings
+❌ DO NOT forget to update co-seller earnings
+
+═══════════════════════════════════════════════════════════════════════════════
+IMPLEMENTATION STATUS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Order preservation: IMPLEMENTED
+✅ Real-time updates: IMPLEMENTED
+✅ Refund state priority: IMPLEMENTED
+✅ Auto-completion: IMPLEMENTED
+✅ Status display: READY FOR IMPLEMENTATION
+
+═══════════════════════════════════════════════════════════════════════════════

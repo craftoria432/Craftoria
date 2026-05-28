@@ -1,0 +1,330 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                   REFUND PROCESSING SYSTEM - VISUAL GUIDE                      ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. REFUND INITIATION FLOW                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Buyer/Seller                                                               │
+│       │                                                                      │
+│       ├─→ Select Order                                                      │
+│       │                                                                      │
+│       ├─→ Choose Refund Type                                                │
+│       │   ├─ FULL (entire order)                                            │
+│       │   ├─ PARTIAL (specific items)                                       │
+│       │   └─ RETURN (after return)                                          │
+│       │                                                                      │
+│       ├─→ Select Reason                                                     │
+│       │   ├─ DEFECTIVE_PRODUCT                                              │
+│       │   ├─ WRONG_ITEM                                                     │
+│       │   ├─ NOT_AS_DESCRIBED                                               │
+│       │   ├─ DAMAGED_IN_TRANSIT                                             │
+│       │   └─ ... (11 more reasons)                                          │
+│       │                                                                      │
+│       ├─→ Enter Details                                                     │
+│       │   ├─ Reason details                                                 │
+│       │   ├─ Refund amount                                                  │
+│       │   └─ Supporting info                                                │
+│       │                                                                      │
+│       └─→ Submit Refund Request                                             │
+│           │                                                                  │
+│           ├─→ RefundViewModel.initiateRefund()                              │
+│           │   │                                                              │
+│           │   ├─→ RefundProcessor.initiateRefund()                          │
+│           │   │   │                                                          │
+│           │   │   ├─ Validate refund amount                                 │
+│           │   │   ├─ Create RefundRequest                                   │
+│           │   │   ├─ Check auto-approval (24hr grace)                       │
+│           │   │   └─ Add audit entry                                        │
+│           │   │                                                              │
+│           │   └─→ RefundRepository.createRefundRequest()                    │
+│           │       │                                                          │
+│           │       ├─ Save to Firestore                                      │
+│           │       └─ Add audit trail                                        │
+│           │                                                                  │
+│           └─→ Status: REQUESTED ✓                                           │
+│               (Auto-approved if eligible)                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. REFUND STATUS FLOW                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│                          ┌──────────────┐                                   │
+│                          │  REQUESTED   │ ← Buyer/Seller initiates          │
+│                          └──────┬───────┘                                   │
+│                                 │                                            │
+│                    ┌────────────┼────────────┐                              │
+│                    │            │            │                              │
+│                    ▼            ▼            ▼                              │
+│            ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
+│            │  APPROVED    │ │  REJECTED    │ │  CANCELLED   │              │
+│            │ (by admin)   │ │ (by admin)   │ │ (by buyer)   │              │
+│            └──────┬───────┘ └──────────────┘ └──────────────┘              │
+│                   │                                                          │
+│                   ▼                                                          │
+│            ┌──────────────┐                                                 │
+│            │ PROCESSING   │ ← Payment gateway processing                    │
+│            └──────┬───────┘                                                 │
+│                   │                                                          │
+│        ┌──────────┼──────────┐                                              │
+│        │          │          │                                              │
+│        ▼          ▼          ▼                                              │
+│   ┌─────────┐ ┌────────┐ ┌────────┐                                        │
+│   │COMPLETED│ │ FAILED │ │CANCELLED                                        │
+│   │   ✓     │ │(retry) │ │        │                                        │
+│   └─────────┘ └────┬───┘ └────────┘                                        │
+│                    │                                                         │
+│                    └─→ Retry (max 3x)                                       │
+│                        └─→ PROCESSING → COMPLETED or FAILED                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. PAYMENT GATEWAY INTEGRATION                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  RefundProcessor.processApprovedRefund()                                    │
+│       │                                                                      │
+│       ├─→ processWithPaymentGateway()                                       │
+│       │   │                                                                  │
+│       │   ├─→ STRIPE                                                        │
+│       │   │   ├─ Call Stripe API                                            │
+│       │   │   ├─ Create refund                                              │
+│       │   │   └─ Get refund ID                                              │
+│       │   │                                                                  │
+│       │   ├─→ PAYPAL                                                        │
+│       │   │   ├─ Call PayPal API                                            │
+│       │   │   ├─ Process refund                                             │
+│       │   │   └─ Get refund ID                                              │
+│       │   │                                                                  │
+│       │   └─→ COD (Cash on Delivery)                                        │
+│       │       ├─ Manual processing                                          │
+│       │       ├─ Log refund                                                 │
+│       │       └─ Generate refund ID                                         │
+│       │                                                                      │
+│       ├─→ If Success                                                        │
+│       │   ├─ completeRefund()                                               │
+│       │   ├─ updatePaymentRefundInfo()                                      │
+│       │   └─ updateOrderStatus()                                            │
+│       │                                                                      │
+│       └─→ If Failure                                                        │
+│           ├─ markRefundFailed()                                             │
+│           ├─ Increment retry count                                          │
+│           └─ Schedule retry                                                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. CO-SELLER REFUND SPLITS                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Order Total: ₹5000                                                         │
+│  ├─ Seller A: ₹3000 (60%)                                                   │
+│  └─ Seller B: ₹2000 (40%)                                                   │
+│                                                                              │
+│  Refund Amount: ₹5000 (FULL)                                                │
+│  │                                                                           │
+│  ├─→ calculateRefundSplits()                                                │
+│  │   │                                                                       │
+│  │   ├─ Seller A: ₹3000 × (5000/5000) = ₹3000                              │
+│  │   └─ Seller B: ₹2000 × (5000/5000) = ₹2000                              │
+│  │                                                                           │
+│  └─→ processRefundSplits()                                                  │
+│      ├─ Process Seller A refund                                             │
+│      └─ Process Seller B refund                                             │
+│                                                                              │
+│  Partial Refund Example: ₹2500 (50%)                                        │
+│  │                                                                           │
+│  ├─→ calculateRefundSplits()                                                │
+│  │   │                                                                       │
+│  │   ├─ Seller A: ₹3000 × (2500/5000) = ₹1500                              │
+│  │   └─ Seller B: ₹2000 × (2500/5000) = ₹1000                              │
+│  │                                                                           │
+│  └─→ processRefundSplits()                                                  │
+│      ├─ Process Seller A refund (₹1500)                                     │
+│      └─ Process Seller B refund (₹1000)                                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. RETRY LOGIC                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Refund Processing Failed                                                   │
+│       │                                                                      │
+│       ├─→ markRefundFailed()                                                │
+│       │   ├─ Status: FAILED                                                 │
+│       │   ├─ Retry count: 1                                                 │
+│       │   └─ Error message logged                                           │
+│       │                                                                      │
+│       ├─→ Wait 5 seconds                                                    │
+│       │                                                                      │
+│       ├─→ retryFailedRefunds()                                              │
+│       │   │                                                                  │
+│       │   ├─ Get failed refunds (retry_count < 3)                           │
+│       │   │                                                                  │
+│       │   └─ For each failed refund:                                        │
+│       │       ├─ retryRefund()                                              │
+│       │       ├─ Status: PROCESSING                                         │
+│       │       ├─ processApprovedRefund()                                    │
+│       │       │                                                              │
+│       │       ├─ If Success                                                 │
+│       │       │   └─ Status: COMPLETED ✓                                    │
+│       │       │                                                              │
+│       │       └─ If Failure                                                 │
+│       │           ├─ Retry count: 2                                         │
+│       │           └─ Schedule next retry                                    │
+│       │                                                                      │
+│       └─→ Max 3 retry attempts                                              │
+│           └─ After 3 failures: Manual review required                       │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. AUDIT TRAIL EXAMPLE                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Refund ID: refund_123                                                      │
+│  │                                                                           │
+│  ├─ [2024-01-15 10:30:00] REQUESTED                                         │
+│  │  Actor: buyer_789 (John Doe)                                             │
+│  │  Notes: Refund request initiated                                         │
+│  │                                                                           │
+│  ├─ [2024-01-15 10:35:00] APPROVED                                          │
+│  │  Actor: system (Auto-approval)                                           │
+│  │  Notes: Auto-approved (within 24-hour grace period)                      │
+│  │                                                                           │
+│  ├─ [2024-01-15 10:36:00] PROCESSING                                        │
+│  │  Actor: system                                                           │
+│  │  Notes: Refund processing initiated with gateway ID: re_1234567890       │
+│  │                                                                           │
+│  ├─ [2024-01-15 10:37:00] COMPLETED                                         │
+│  │  Actor: system                                                           │
+│  │  Notes: Refund completed successfully                                    │
+│  │                                                                           │
+│  └─ [2024-01-15 10:37:30] NOTIFICATION SENT                                 │
+│     Actor: system                                                           │
+│     Notes: Refund completion notification sent to buyer                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. FIRESTORE DATA STRUCTURE                                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  refunds/                                                                   │
+│  └── refund_123/                                                            │
+│      ├── id: "refund_123"                                                   │
+│      ├── order_id: "order_123"                                              │
+│      ├── payment_id: "payment_456"                                          │
+│      ├── buyer_id: "buyer_789"                                              │
+│      ├── buyer_name: "John Doe"                                             │
+│      ├── seller_id: "seller_101"                                            │
+│      ├── seller_name: "Store ABC"                                           │
+│      ├── refund_type: "full"                                                │
+│      ├── original_amount: 5000.0                                            │
+│      ├── refund_amount: 5000.0                                              │
+│      ├── reason: "defective_product"                                        │
+│      ├── reason_details: "Product arrived damaged"                          │
+│      ├── status: "completed"                                                │
+│      ├── initiated_by: "buyer"                                              │
+│      ├── approved_by: "system"                                              │
+│      ├── approval_notes: "Auto-approved"                                    │
+│      ├── payment_method: "stripe"                                           │
+│      ├── transaction_id: "ch_1234567890"                                    │
+│      ├── gateway_refund_id: "re_1234567890"                                 │
+│      ├── refund_splits: [                                                   │
+│      │   {                                                                   │
+│      │     seller_id: "seller_101",                                         │
+│      │     seller_name: "Store ABC",                                        │
+│      │     original_split_amount: 5000.0,                                   │
+│      │     refund_split_amount: 5000.0,                                     │
+│      │     status: "completed",                                             │
+│      │     gateway_refund_id: "re_1234567890"                               │
+│      │   }                                                                   │
+│      │ ]                                                                     │
+│      ├── retry_count: 0                                                     │
+│      ├── error_message: ""                                                  │
+│      ├── requested_at: 1705318200000                                        │
+│      ├── approved_at: 1705318500000                                         │
+│      ├── processed_at: 1705318560000                                        │
+│      ├── completed_at: 1705318620000                                        │
+│      ├── created_at: 1705318200000                                          │
+│      ├── updated_at: 1705318620000                                          │
+│      ├── idempotency_key: "uuid-1234-5678"                                  │
+│      └── audit_trail: [                                                     │
+│          {                                                                   │
+│            action: "requested",                                             │
+│            actor: "buyer_789",                                              │
+│            actor_name: "John Doe",                                          │
+│            notes: "Refund request initiated",                               │
+│            timestamp: 1705318200000                                         │
+│          },                                                                  │
+│          { ... more entries ... }                                           │
+│        ]                                                                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 8. REFUND REASONS REFERENCE                                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  BUYER_REQUEST          → Buyer initiated refund                            │
+│  SELLER_APPROVAL        → Seller approved refund                            │
+│  DEFECTIVE_PRODUCT      → Product is defective                              │
+│  WRONG_ITEM             → Wrong item was sent                               │
+│  NOT_AS_DESCRIBED       → Item doesn't match description                    │
+│  DAMAGED_IN_TRANSIT     → Damaged during shipping                           │
+│  LOST_IN_TRANSIT        → Lost during shipping                              │
+│  BUYER_CHANGED_MIND     → Buyer changed mind                                │
+│  DUPLICATE_ORDER        → Duplicate order                                   │
+│  PAYMENT_ERROR          → Payment processing error                          │
+│  CHARGEBACK             → Chargeback initiated                              │
+│  OTHER                  → Other reason                                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 9. QUICK OPERATION REFERENCE                                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  INITIATE REFUND                                                            │
+│  └─ viewModel.initiateRefund(...)                                           │
+│     └─ Status: REQUESTED (or APPROVED if auto-eligible)                     │
+│                                                                              │
+│  APPROVE REFUND                                                             │
+│  └─ viewModel.approveRefund(...)                                            │
+│     └─ Status: APPROVED                                                     │
+│                                                                              │
+│  REJECT REFUND                                                              │
+│  └─ viewModel.rejectRefund(...)                                             │
+│     └─ Status: REJECTED                                                     │
+│                                                                              │
+│  PROCESS REFUND                                                             │
+│  └─ viewModel.processRefund(...)                                            │
+│     └─ Status: PROCESSING → COMPLETED or FAILED                             │
+│                                                                              │
+│  GET REFUND STATUS                                                          │
+│  └─ viewModel.getRefund(refundId)                                           │
+│     └─ Returns: RefundRequest with all details                              │
+│                                                                              │
+│  GET BUYER REFUNDS                                                          │
+│  └─ viewModel.getRefundsByBuyer(buyerId)                                    │
+│     └─ Returns: List<RefundRequest>                                         │
+│                                                                              │
+│  GET SELLER REFUNDS                                                         │
+│  └─ viewModel.getRefundsBySeller(sellerId)                                  │
+│     └─ Returns: List<RefundRequest>                                         │
+│                                                                              │
+│  GET PENDING REFUNDS (Admin)                                                │
+│  └─ viewModel.getPendingRefunds()                                           │
+│     └─ Returns: List<RefundRequest> (REQUESTED or APPROVED)                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                              END OF VISUAL GUIDE                               ║
+╚════════════════════════════════════════════════════════════════════════════════╝

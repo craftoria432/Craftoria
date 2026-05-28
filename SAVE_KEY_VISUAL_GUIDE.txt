@@ -1,0 +1,153 @@
+═══════════════════════════════════════════════════════════════════════════
+  HOW TO SAVE serviceAccountKey.json IN PROJECT ROOT - VISUAL GUIDE
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: DOWNLOAD FROM FIREBASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Browser (Firebase Console)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Firebase Console > Project Settings > Service Accounts     │
+  │                                                               │
+  │  [Generate New Private Key]  ← Click this button            │
+  │                                                               │
+  │  ⬇️ Downloads: craftoria-xxxxx-firebase-adminsdk.json       │
+  └─────────────────────────────────────────────────────────────┘
+                            ⬇️
+  Downloads Folder
+  ┌─────────────────────────────────────────────────────────────┐
+  │  C:\Users\mehar\Downloads\                                   │
+  │                                                               │
+  │  📄 craftoria-xxxxx-firebase-adminsdk-xxxxx.json            │
+  └─────────────────────────────────────────────────────────────┘
+
+
+STEP 2: RENAME THE FILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Right-click file → Rename
+  
+  BEFORE:  craftoria-xxxxx-firebase-adminsdk-xxxxx.json
+           ⬇️ ⬇️ ⬇️
+  AFTER:   serviceAccountKey.json  ✅
+
+
+STEP 3: MOVE TO PROJECT ROOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  FROM: C:\Users\mehar\Downloads\
+  ┌─────────────────────────────────────────────────────────────┐
+  │  📄 serviceAccountKey.json                                   │
+  └─────────────────────────────────────────────────────────────┘
+                            ⬇️ Cut (Ctrl+X) and Paste (Ctrl+V)
+                            
+  TO: C:\Users\mehar\AndroidStudioProjects\Craftoria\
+  ┌─────────────────────────────────────────────────────────────┐
+  │  📁 app/                                                     │
+  │  📁 functions/                                               │
+  │  📁 src/                                                     │
+  │  📄 .gitignore                                               │
+  │  📄 package.json                                             │
+  │  📄 check-payments.mjs                                       │
+  │  📄 migrate-buyer-ids.mjs                                    │
+  │  📄 serviceAccountKey.json  ← PUT IT HERE! ✅               │
+  │  📄 firestore.rules                                          │
+  │  ... other files                                             │
+  └─────────────────────────────────────────────────────────────┘
+
+
+STEP 4: VERIFY IT'S IN THE RIGHT PLACE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PowerShell Command:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PS C:\Users\mehar\AndroidStudioProjects\Craftoria>         │
+  │  Test-Path ".\serviceAccountKey.json"                       │
+  │                                                               │
+  │  True  ✅  (File found!)                                     │
+  └─────────────────────────────────────────────────────────────┘
+
+
+QUICK POWERSHELL COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Check where you are
+  pwd
+  
+  # Should show: C:\Users\mehar\AndroidStudioProjects\Craftoria
+  
+  # Move file from Downloads to current folder
+  Move-Item "$env:USERPROFILE\Downloads\serviceAccountKey.json" .
+  
+  # Verify file exists
+  Test-Path ".\serviceAccountKey.json"
+  
+  # List the file
+  ls serviceAccountKey.json
+
+
+VISUAL: CORRECT FILE LOCATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ CORRECT (Same level as package.json):
+  
+  Craftoria/
+  ├── serviceAccountKey.json  ← HERE!
+  ├── package.json
+  ├── check-payments.mjs
+  └── migrate-buyer-ids.mjs
+
+
+  ❌ WRONG (Inside a subfolder):
+  
+  Craftoria/
+  ├── functions/
+  │   └── serviceAccountKey.json  ← NOT HERE!
+  ├── package.json
+  └── check-payments.mjs
+
+
+  ❌ WRONG (Still in Downloads):
+  
+  Downloads/
+  └── serviceAccountKey.json  ← NOT HERE!
+  
+  Craftoria/
+  ├── package.json
+  └── check-payments.mjs
+
+
+AFTER SAVING - RUN THE SCRIPTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PS C:\Users\mehar\AndroidStudioProjects\Craftoria>         │
+  │                                                               │
+  │  node check-payments.mjs                                     │
+  │                                                               │
+  │  🔍 Checking payment records...                              │
+  │  📊 Checking first 10 payments:                              │
+  │  ...                                                          │
+  └─────────────────────────────────────────────────────────────┘
+
+
+SECURITY NOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🔒 serviceAccountKey.json contains sensitive credentials!
+  
+  ✅ Safe:
+     - Keep in project root (local only)
+     - Already in .gitignore
+     - Won't be committed to Git
+  
+  ❌ Never:
+     - Share with anyone
+     - Upload to GitHub
+     - Post online
+     - Email it
+
+
+═══════════════════════════════════════════════════════════════════════════
+  Need help? See HOW_TO_SAVE_SERVICE_ACCOUNT_KEY.md for detailed steps
+═══════════════════════════════════════════════════════════════════════════

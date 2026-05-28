@@ -1,0 +1,214 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    EMPTY STATES STANDARDIZATION GUIDE                         ║
+║                         Professional Design Standards                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ VISUAL LAYOUT ──────────────────────────────────────────────────────────────┐
+│                                                                               │
+│                              [40dp padding]                                  │
+│                                                                               │
+│                                    ┌─────────────┐                           │
+│                                    │   88dp      │                           │
+│                                    │  Circle     │                           │
+│                                    │  Primary    │                           │
+│                                    │  alpha=0.10 │                           │
+│                                    │             │                           │
+│                                    │   ┌─────┐   │                           │
+│                                    │   │ 44dp│   │                           │
+│                                    │   │Icon │   │                           │
+│                                    │   │Prim │   │                           │
+│                                    │   │0.70 │   │                           │
+│                                    │   └─────┘   │                           │
+│                                    └─────────────┘                           │
+│                                                                               │
+│                              [24dp vertical gap]                             │
+│                                                                               │
+│                          Title Text (20sp Bold)                              │
+│                          TextPrimary, No Underline                           │
+│                                                                               │
+│                              [12dp vertical gap]                             │
+│                                                                               │
+│                    Message Text (14sp Normal)                                │
+│                    TextSecondary, No Underline                               │
+│                    Can span multiple lines                                   │
+│                                                                               │
+│                              [24dp vertical gap]                             │
+│                                                                               │
+│                          [Optional Action Button]                            │
+│                                                                               │
+│                              [40dp padding]                                  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ICON SPECIFICATIONS ────────────────────────────────────────────────────────┐
+│                                                                               │
+│  Icon Circle:                                                                │
+│  • Size: 88dp × 88dp                                                         │
+│  • Background: Primary.copy(alpha = 0.10f)                                   │
+│  • Shape: CircleShape                                                        │
+│                                                                               │
+│  Icon:                                                                       │
+│  • Size: 44dp × 44dp                                                         │
+│  • Color: Primary.copy(alpha = 0.70f)                                        │
+│  • Type: Material Design Icons (NO EMOJI)                                    │
+│  • Centered in circle                                                        │
+│                                                                               │
+│  Icon Examples:                                                              │
+│  • Notifications: Icons.Default.Notifications                                │
+│  • Orders: Icons.Default.ShoppingBag                                         │
+│  • Payments: Icons.Default.AttachMoney                                       │
+│  • Refunds: Icons.Default.Receipt                                            │
+│  • Products: Icons.Default.Inventory2                                        │
+│  • Messages: Icons.Default.Mail                                              │
+│  • Wishlist: Icons.Default.FavoriteBorder                                    │
+│  • Cart: Icons.Outlined.ShoppingCart                                         │
+│  • Search: Icons.Default.Search                                              │
+│  • Filter: Icons.Default.FilterList                                          │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TYPOGRAPHY SPECIFICATIONS ──────────────────────────────────────────────────┐
+│                                                                               │
+│  Title:                                                                      │
+│  • Font Size: 20sp                                                           │
+│  • Font Weight: Bold                                                         │
+│  • Color: TextPrimary                                                        │
+│  • Text Align: Center                                                        │
+│  • Line Height: 28sp                                                         │
+│  • Text Decoration: NONE (no underline)                                      │
+│  • Example: "No Orders Yet"                                                  │
+│                                                                               │
+│  Message:                                                                    │
+│  • Font Size: 14sp                                                           │
+│  • Font Weight: Normal                                                       │
+│  • Color: TextSecondary                                                      │
+│  • Text Align: Center                                                        │
+│  • Line Height: 22sp                                                         │
+│  • Text Decoration: NONE (no underline)                                      │
+│  • Max Width: 85% of screen                                                  │
+│  • Example: "Start shopping to see your orders here"                         │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SPACING SPECIFICATIONS ─────────────────────────────────────────────────────┐
+│                                                                               │
+│  Container Padding:        40dp (all sides)                                  │
+│  Icon to Title Gap:        24dp (vertical)                                   │
+│  Title to Message Gap:     12dp (vertical)                                   │
+│  Message to Button Gap:    24dp (vertical)                                   │
+│  Horizontal Padding:       40dp (left & right)                               │
+│  Vertical Arrangement:     Center                                            │
+│  Horizontal Alignment:     Center                                            │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ COLOR SPECIFICATIONS ───────────────────────────────────────────────────────┐
+│                                                                               │
+│  Background:               BackgroundSecondary                               │
+│  Icon Circle Background:   Primary.copy(alpha = 0.10f)                       │
+│  Icon Color:               Primary.copy(alpha = 0.70f)                       │
+│  Title Color:              TextPrimary                                       │
+│  Message Color:            TextSecondary                                     │
+│                                                                               │
+│  Error States (if applicable):                                               │
+│  • Icon Circle: Error.copy(alpha = 0.08f)                                    │
+│  • Icon Color: Error.copy(alpha = 0.70f)                                     │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ IMPLEMENTATION EXAMPLE ─────────────────────────────────────────────────────┐
+│                                                                               │
+│  @Composable                                                                 │
+│  fun MyEmptyState() {                                                        │
+│      EmptyStateComponent(                                                    │
+│          icon = Icons.Default.ShoppingBag,                                   │
+│          title = "No Orders Yet",                                            │
+│          message = "Start shopping to see your orders here",                 │
+│          actionButton = {                                                    │
+│              CraftoriaButton(                                                │
+│                  text = "Browse Products",                                   │
+│                  onClick = { /* action */ }                                  │
+│              )                                                               │
+│          }                                                                   │
+│      )                                                                       │
+│  }                                                                           │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SCREENS USING STANDARDIZED EMPTY STATES ────────────────────────────────────┐
+│                                                                               │
+│  ✅ NotificationsScreen                                                      │
+│     • Icon: Notifications                                                    │
+│     • Title: "No Notifications Yet" or filter-specific                       │
+│     • Message: "When you get notifications, they'll show up here"            │
+│                                                                               │
+│  ✅ MyOrdersScreen (Buyer)                                                   │
+│     • Icon: ShoppingBag                                                      │
+│     • Title: "No Orders Yet" or filter-specific                              │
+│     • Message: "Start shopping to see your orders here"                      │
+│     • Action: "Browse Products" button                                       │
+│                                                                               │
+│  ✅ SellerOrdersScreen                                                       │
+│     • Icon: ShoppingBag                                                      │
+│     • Title: "No Orders Yet"                                                 │
+│     • Message: "Orders from buyers will appear here"                         │
+│                                                                               │
+│  ✅ PaymentHistoryScreen (Buyer)                                             │
+│     • Icon: AttachMoney                                                      │
+│     • Title: "No Payments Yet" or filter-specific                            │
+│     • Message: "Your purchase payment history will appear here..."           │
+│                                                                               │
+│  ✅ SellerPaymentsScreen                                                     │
+│     • Icon: AttachMoney                                                      │
+│     • Title: "No Earnings Yet" or filter-specific                            │
+│     • Message: "Your earnings from completed orders will appear here"        │
+│                                                                               │
+│  ✅ SellerRefundManagementScreen                                             │
+│     • Icon: Receipt                                                          │
+│     • Title: "No [Filter] Refunds"                                           │
+│     • Message: "Switch to 'All' to see all refunds" or default               │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PROFESSIONAL DESIGN PRINCIPLES ─────────────────────────────────────────────┐
+│                                                                               │
+│  ✓ Consistency: All empty states follow the same pattern                     │
+│  ✓ Professional: Material Design icons, no emoji                             │
+│  ✓ Readable: Proper text sizing and spacing                                  │
+│  ✓ Accessible: Clear hierarchy with title and message                        │
+│  ✓ Minimal: No extra text or decorations                                     │
+│  ✓ Responsive: Proper padding and alignment                                  │
+│  ✓ Branded: Uses app's color scheme and typography                           │
+│  ✓ Clean: No underlines or extra formatting                                  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DO's AND DON'Ts ────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  DO:                                                                         │
+│  ✓ Use EmptyStateComponent for all empty states                              │
+│  ✓ Use Material Design icons                                                 │
+│  ✓ Use 88dp circles with 44dp icons                                          │
+│  ✓ Use 20sp Bold titles and 14sp Normal messages                             │
+│  ✓ Center align all content                                                  │
+│  ✓ Use consistent spacing (40dp padding, 24dp gaps)                          │
+│  ✓ Use TextDecoration.None on all text                                       │
+│  ✓ Maintain filter-aware messaging where applicable                          │
+│                                                                               │
+│  DON'T:                                                                      │
+│  ✗ Use emoji in empty states                                                 │
+│  ✗ Use custom icon sizing (must be 88dp circles, 44dp icons)                 │
+│  ✗ Use different text sizes (must be 20sp/14sp)                              │
+│  ✗ Add underlines to text                                                    │
+│  ✗ Add extra decorations or formatting                                       │
+│  ✗ Use custom padding (must be 40dp)                                         │
+│  ✗ Create custom empty state implementations                                 │
+│  ✗ Mix different icon styles (all Material Design)                           │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                         STANDARDIZATION COMPLETE                              ║
+║                    All screens now use professional styling                    ║
+║                    with consistent icons, sizing, and text                     ║
+╚════════════════════════════════════════════════════════════════════════════════╝

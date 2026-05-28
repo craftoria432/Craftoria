@@ -1,0 +1,205 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                 FILTER TABS & BADGES VISUAL GUIDE                             ║
+║                    Pill-Shaped Design Implementation                           ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════════
+FILTER TABS (PILL-SHAPED)
+═══════════════════════════════════════════════════════════════════════════════════
+
+ACTIVE STATE:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ╭──────────╮  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │   All    │  │ Pending  │  │Processing│  │ Shipped  │  │Delivered │    │
+│  ╰──────────╯  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
+│  ▲ SELECTED    ▲ UNSELECTED                                               │
+│  Pink bg       White bg                                                    │
+│  White text    Gray text                                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+SPECIFICATIONS:
+  Height:           40dp
+  Padding:          12dp horizontal, 8dp vertical
+  Font:             12sp Medium
+  Border Radius:    20dp (PILL SHAPE) ✅
+  Gap:              8dp
+  
+  Active:
+    Background:     #E91E63 (Primary Pink)
+    Text:           White
+    Border:         #E91E63
+    
+  Inactive:
+    Background:     White
+    Text:           #757575 (TextSecondary)
+    Border:         #E0E0E0 (BorderColor)
+
+═══════════════════════════════════════════════════════════════════════════════════
+STATUS BADGES (PILL-SHAPED)
+═══════════════════════════════════════════════════════════════════════════════════
+
+ORDER STATUS BADGES:
+
+  ╭──────────╮  ╭──────────╮  ╭──────────╮  ╭──────────╮  ╭──────────╮
+  │ Pending  │  │Processing│  │ Shipped  │  │Delivered │  │Cancelled │
+  ╰──────────╯  ╰──────────╯  ╰──────────╯  ╰──────────╯  ╰──────────╯
+   Yellow bg     Light blue    Purple bg     Green bg      Red bg
+   Dark text     Dark text     Dark text     Dark text     Dark text
+
+PAYMENT STATUS BADGES:
+
+  ╭──────────╮  ╭──────────╮  ╭──────────╮  ╭──────────╮  ╭──────────╮
+  │Completed │  │ Pending  │  │Processing│  │  Failed  │  │ Refunded │
+  ╰──────────╯  ╰──────────╯  ╰──────────╯  ╰──────────╯  ╰──────────╯
+   Green bg     Yellow bg     Light blue    Red bg        Purple bg
+   Dark text    Dark text     Dark text     Dark text     Dark text
+
+REFUND STATUS BADGES:
+
+  ╭──────────╮  ╭──────────╮  ╭──────────╮  ╭──────────╮
+  │ Pending  │  │ Approved │  │ Rejected │  │Completed │
+  ╰──────────╯  ╰──────────╯  ╰──────────╯  ╰──────────╯
+   Yellow bg    Green bg      Red bg        Green bg
+   Dark text    Dark text     Dark text     Dark text
+
+SPECIFICATIONS:
+  Height:           24dp (auto from padding)
+  Padding:          8dp horizontal, 5dp vertical
+  Font:             10sp SemiBold
+  Border Radius:    20dp (PILL SHAPE) ✅
+  Max Lines:        1 with ellipsis
+
+═══════════════════════════════════════════════════════════════════════════════════
+COLOR PALETTE
+═══════════════════════════════════════════════════════════════════════════════════
+
+ORDER STATUS:
+  ┌─────────────────┬──────────┬──────────┐
+  │ Status          │ BG Color │ Text     │
+  ├─────────────────┼──────────┼──────────┤
+  │ PENDING/NEW     │ #FFF3CD  │ #856404  │
+  │ PROCESSING      │ #D1ECF1  │ #0C5460  │
+  │ SHIPPED         │ #E2D5F3  │ #5A2D82  │
+  │ DELIVERED       │ #D4EDDA  │ #155724  │
+  │ CANCELLED       │ #F8D7DA  │ #721C24  │
+  └─────────────────┴──────────┴──────────┘
+
+PAYMENT STATUS:
+  ┌─────────────────┬──────────┬──────────┐
+  │ Status          │ BG Color │ Text     │
+  ├─────────────────┼──────────┼──────────┤
+  │ COMPLETED       │ #D4EDDA  │ #155724  │
+  │ PENDING         │ #FFF3CD  │ #856404  │
+  │ PROCESSING      │ #D1ECF1  │ #0C5460  │
+  │ FAILED          │ #F8D7DA  │ #721C24  │
+  │ REFUND_PENDING  │ #FFF3CD  │ #856404  │
+  │ REFUND_PROCESS  │ #D1ECF1  │ #0C5460  │
+  │ REFUNDED        │ #E2D5F3  │ #5A2D82  │
+  │ REFUND_REJECTED │ #E2E3E5  │ #383D41  │
+  └─────────────────┴──────────┴──────────┘
+
+REFUND STATUS:
+  ┌─────────────────┬──────────┬──────────┐
+  │ Status          │ BG Color │ Text     │
+  ├─────────────────┼──────────┼──────────┤
+  │ PENDING         │ #FFF3CD  │ #856404  │
+  │ APPROVED        │ #D4EDDA  │ #155724  │
+  │ REJECTED        │ #F8D7DA  │ #721C24  │
+  │ COMPLETED       │ #D4EDDA  │ #155724  │
+  └─────────────────┴──────────┴──────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════
+SCREENS WITH PILL-SHAPED FILTER TABS
+═══════════════════════════════════════════════════════════════════════════════════
+
+BUYER SCREENS:
+  ✅ My Orders Screen
+  ✅ Payment History Screen
+  ✅ Refund Details Screen
+  ✅ Notifications Screen
+
+SELLER SCREENS:
+  ✅ Seller Orders Screen
+  ✅ Seller Payments Screen
+  ✅ Seller Refund Management Screen
+  ✅ Manage Products Screen
+
+CO-SELLER SCREENS:
+  ✅ Co-Seller Store Payment Screen
+
+═══════════════════════════════════════════════════════════════════════════════════
+SCREENS WITH PILL-SHAPED STATUS BADGES
+═══════════════════════════════════════════════════════════════════════════════════
+
+BUYER SCREENS:
+  ✅ My Orders Screen (Order Status Badges)
+  ✅ Payment History Screen (Payment Status Badges)
+  ✅ Refund Details Screen (Refund Status Badges)
+
+SELLER SCREENS:
+  ✅ Seller Orders Screen (Order Status Badges)
+  ✅ Seller Payments Screen (Payment Status Badges)
+  ✅ Seller Refund Management Screen (Refund Status Badges)
+  ✅ Manage Products Screen (Product Active/Inactive Badges)
+
+CO-SELLER SCREENS:
+  ✅ Co-Seller Order Detail Screen (Split Status Badges)
+  ✅ Co-Seller Store Payment Screen (Payment Status Badges)
+
+═══════════════════════════════════════════════════════════════════════════════════
+IMPLEMENTATION DETAILS
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILTER TAB COMPONENT:
+  File:             FilterTabComponent.kt
+  Function:         FilterTab()
+  Border Radius:    RoundedCornerShape(20.dp) ✅
+  Height:           40.dp
+  Padding:          12.dp horizontal, 8.dp vertical
+  Font:             12.sp Medium
+  Animation:        Smooth color transition
+
+STATUS BADGE COMPONENTS:
+  File:             UnifiedBadgeComponent.kt
+  Functions:        StatusBadge(), PaymentStatusBadge(), RefundStatusBadge()
+  Border Radius:    RoundedCornerShape(20.dp) ✅
+  Height:           24.dp (auto from padding)
+  Padding:          8.dp horizontal, 5.dp vertical
+  Font:             10.sp SemiBold
+  Max Lines:        1 with ellipsis
+
+═══════════════════════════════════════════════════════════════════════════════════
+VERIFICATION CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILTER TABS:
+  [✅] All tabs use 20dp border radius (pill shape)
+  [✅] All tabs use 40dp height
+  [✅] All tabs use 12dp horizontal, 8dp vertical padding
+  [✅] All tabs use 12sp Medium font
+  [✅] All tabs have 8dp gap between them
+  [✅] Active state: Primary background, white text
+  [✅] Inactive state: White background, TextSecondary text
+  [✅] Smooth color animations on selection
+  [✅] White container background with 0.5dp bottom divider
+
+STATUS BADGES:
+  [✅] All badges use 20dp border radius (pill shape)
+  [✅] All badges use 24dp height (auto from padding)
+  [✅] All badges use 8dp horizontal, 5dp vertical padding
+  [✅] All badges use 10sp SemiBold font
+  [✅] All badges use correct color palette
+  [✅] All badges have max 1 line with ellipsis
+  [✅] Consistent styling across all screens
+
+═══════════════════════════════════════════════════════════════════════════════════
+STATUS
+═══════════════════════════════════════════════════════════════════════════════════
+
+Implementation:   ✅ COMPLETE
+Testing:          ✅ READY
+Deployment:       PENDING
+
+═══════════════════════════════════════════════════════════════════════════════════

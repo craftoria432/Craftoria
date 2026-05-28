@@ -1165,6 +1165,10 @@ fun NavGraph(
                                 "Store Payments"
                             )
                         )
+                    },
+                    onNavigateToChat = { sellerId, sellerName ->
+                        // ✅ FIX: Navigate to seller-to-seller chat WITHOUT product context
+                        navController.navigate("${Screen.Chat.route}/$sellerId/$sellerName")
                     }
                 )
             }

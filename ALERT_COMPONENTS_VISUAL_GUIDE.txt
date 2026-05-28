@@ -1,0 +1,279 @@
+================================================================================
+                    PROFESSIONAL ALERT COMPONENTS
+                        VISUAL REFERENCE GUIDE
+================================================================================
+
+LOCATION: app/src/main/java/com/gcuf/craftoria/ui/components/CraftoriaTextField.kt
+
+================================================================================
+1. SUCCESS ALERT (GREEN) - ✓
+================================================================================
+
+Visual Appearance:
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ✓ Your changes have been saved successfully!                       [✕]   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Colors:
+  - Background: #F0F9FF (Very light green)
+  - Border: #C6F6D5 (Soft green, 1.dp)
+  - Icon: #22863A (Dark green)
+  - Text: #22863A (Dark green, matches icon)
+
+Typography:
+  - Font Size: 14.sp
+  - Font Weight: Medium
+  - Line Height: 18.sp (explicit)
+
+Spacing:
+  - Padding: 16.dp (all sides)
+  - Icon Size: 20.dp
+  - Gap (icon to text): 12.dp
+  - Corner Radius: 12.dp
+
+Usage:
+  SuccessAlert(message = "Your changes have been saved successfully!")
+  
+  SuccessAlert(
+      message = "Profile updated!",
+      onDismiss = { showAlert = false }
+  )
+
+================================================================================
+2. INFO ALERT (BLUE) - ℹ️
+================================================================================
+
+Visual Appearance:
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ℹ️ Payment processing is in test mode. No charges will be made.    [✕]   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Colors:
+  - Background: #F0F9FF (Very light blue)
+  - Border: #BDE4FF (Soft blue, 1.dp)
+  - Icon: #0969DA (Dark blue)
+  - Text: #0969DA (Dark blue, matches icon)
+
+Typography:
+  - Font Size: 14.sp
+  - Font Weight: Medium
+  - Line Height: 18.sp
+
+Spacing:
+  - Padding: 16.dp (all sides)
+  - Icon Size: 20.dp
+  - Gap (icon to text): 12.dp
+  - Corner Radius: 12.dp
+
+Usage:
+  InfoAlert(message = "Payment processing is in test mode.")
+  
+  InfoAlert(
+      message = "This is important information",
+      onDismiss = { showInfo = false }
+  )
+
+================================================================================
+3. WARNING ALERT (YELLOW) - ⚠️
+================================================================================
+
+Visual Appearance:
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ⚠️  Please fill in all required fields before proceeding.          [✕]   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Colors:
+  - Background: #FFF8C5 (Very light yellow)
+  - Border: #EAE5D9 (Subtle tan, 1.dp)
+  - Icon: #9A6700 (Dark brown/orange)
+  - Text: #9A6700 (Dark brown/orange, matches icon)
+
+Typography:
+  - Font Size: 14.sp
+  - Font Weight: Medium
+  - Line Height: 18.sp
+
+Spacing:
+  - Padding: 16.dp (all sides)
+  - Icon Size: 20.dp
+  - Gap (icon to text): 12.dp
+  - Corner Radius: 12.dp
+
+Usage:
+  WarningAlert(message = "Please fill in all required fields!")
+  
+  WarningAlert(
+      message = "This action cannot be undone",
+      onDismiss = { showWarning = false }
+  )
+
+================================================================================
+COMPONENT STRUCTURE
+================================================================================
+
+Layout (Icon + Text + Optional Dismiss):
+┌─────────────────────────────────────────────────────────┐
+│  [Icon]  [Text Message...]                          [X] │
+│  20.dp   (flexible)                                     │
+│  ├─ 12.dp ──┤  
+└─────────────────────────────────────────────────────────┘
+         Content Row: 16.dp padding all sides
+
+Full Dimensions:
+  - Width: Fills available width
+  - Min Height: ~52.dp (padding + icon + text)
+  - Auto height increase for multiline text
+
+================================================================================
+IMPLEMENTATION CHECKLIST
+================================================================================
+
+For LoginScreen.kt:
+  ✓ Import SuccessAlert, WarningAlert
+  ✓ Replace MessageCard(SUCCESS) → SuccessAlert()
+  ✓ Replace MessageCard(ERROR) → WarningAlert()
+  ✓ Remove old MessageCard function
+  ✓ Remove UIMessageType enum
+
+For CheckoutScreen.kt:
+  ✓ Import InfoAlert
+  ✓ Replace Surface(...) → InfoAlert()
+  ✓ Remove manual Icon + Text styling
+
+For New Screens:
+  ✓ Import required alert component
+  ✓ Use in composable with message
+  ✓ Optional: add onDismiss callback
+  ✓ Optional: wrap with state management
+
+================================================================================
+COLOR PALETTE QUICK REFERENCE
+================================================================================
+
+SUCCESS (Green):
+  Background:   #F0F9FF
+  Border:       #C6F6D5
+  Text/Icon:    #22863A
+
+INFO (Blue):
+  Background:   #F0F9FF
+  Border:       #BDE4FF
+  Text/Icon:    #0969DA
+
+WARNING (Yellow):
+  Background:   #FFF8C5
+  Border:       #EAE5D9
+  Text/Icon:    #9A6700
+
+================================================================================
+SCREENS UPDATED
+================================================================================
+
+1. LoginScreen.kt
+   - Lines ~272: Signup form alerts
+   - Lines ~539: Login form alerts
+   - Lines ~748: Error messages
+   - Lines ~943: Password reset confirmation
+   
+2. CheckoutScreen.kt
+   - Line ~156: Payment method info
+
+================================================================================
+WHEN TO USE EACH ALERT
+================================================================================
+
+✓ SuccessAlert → Operations completed successfully
+  • Order confirmed
+  • Profile saved
+  • File uploaded
+  • Password changed
+
+ℹ️ InfoAlert → General information
+  • System messages
+  • Feature descriptions
+  • Test mode notifications
+  • Helpful tips
+
+⚠️ WarningAlert → Attention needed
+  • Validation errors
+  • Confirmation required
+  • Failed operations
+  • Important notices
+
+================================================================================
+BEFORE & AFTER COMPARISON
+================================================================================
+
+BEFORE (Basic MessageCard):
+┌─────────────────────────┐
+│ Success message text... │
+└─────────────────────────┘
+- Plain, basic styling
+- No icon
+- Inconsistent with modern apps
+- Looks dated
+
+AFTER (Professional SuccessAlert):
+┌───────────────────────────────────┐
+│ ✓ Success message text...    [X]  │
+└───────────────────────────────────┘
+- Professional design
+- Clear icon for recognition
+- Modern e-commerce styling
+- Consistent with Shopify/Amazon/GitHub
+- Optional dismiss button
+
+================================================================================
+TIPS & BEST PRACTICES
+================================================================================
+
+✓ DO:
+  • Keep messages concise and clear
+  • Use action-oriented language
+  • Provide dismiss option for non-critical alerts
+  • Use consistent spacing between alerts
+  • Test on different screen sizes
+
+✗ DON'T:
+  • Make messages too long (break into multiple)
+  • Use CAPS LOCK or excessive punctuation
+  • Show too many alerts at once
+  • Force users to interact with non-critical alerts
+  • Change colors or styling
+
+================================================================================
+FONT SIZE REFERENCE
+================================================================================
+
+All Alerts (Consistent):
+  - Label/Title: 14.sp (Medium)
+  - Text: 14.sp (Medium)
+  - Icon: 20.dp
+  - Line Height: 18.sp (explicit)
+
+This ensures readability and professional appearance across all alert types.
+
+================================================================================
+RESPONSIVE BEHAVIOR
+================================================================================
+
+Mobile Screens (< 400.dp):
+  - Text wraps to 2-3 lines
+  - Icon stays top-left
+  - Dismiss button stays top-right
+  - Maintains 16.dp padding
+
+Tablet Screens (>= 400.dp):
+  - Single or dual line text
+  - Same layout
+  - Scales beautifully
+  - Professional appearance on all sizes
+
+Dark Mode (if supported):
+  - Colors can be adapted
+  - Icon visibility maintained
+  - Contrast ratios preserved
+
+================================================================================
+END OF VISUAL REFERENCE GUIDE
+================================================================================

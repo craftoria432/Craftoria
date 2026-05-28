@@ -1,0 +1,139 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    FAIR PAYMENT SPLIT SYSTEM - VISUAL GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+SCENARIO: Buyer orders 2 products from different co-sellers in same store
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              BUYER'S CART                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  🛍️  Product 1: Handmade Necklace                                           │
+│      Seller: Sara                                                            │
+│      Price: PKR 1,000                                                        │
+│                                                                              │
+│  🛍️  Product 2: Embroidered Scarf                                           │
+│      Seller: Fatima                                                          │
+│      Price: PKR 1,500                                                        │
+│                                                                              │
+│  ─────────────────────────────────────────────────────────────────────      │
+│  TOTAL: PKR 2,500                                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                                    ⬇️
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PAYMENT CALCULATION                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Step 1: Calculate Total Sales                                              │
+│  ═══════════════════════════════                                            │
+│  Sara's Sales:    PKR 1,000                                                  │
+│  Fatima's Sales:  PKR 1,500                                                  │
+│  ─────────────────────────────                                              │
+│  Total Sales:     PKR 2,500                                                  │
+│                                                                              │
+│  Step 2: Calculate Percentages                                              │
+│  ═══════════════════════════════                                            │
+│  Sara:    1,000 / 2,500 = 40%                                                │
+│  Fatima:  1,500 / 2,500 = 60%                                                │
+│                                                                              │
+│  Step 3: Deduct Admin Commission (5%)                                       │
+│  ═══════════════════════════════════════                                    │
+│  Total Sales:         PKR 2,500                                              │
+│  Admin Commission:    PKR   125  (5%)                                        │
+│  ─────────────────────────────────                                          │
+│  Amount to Split:     PKR 2,375                                              │
+│                                                                              │
+│  Step 4: Apply Fair Split                                                   │
+│  ═══════════════════════════                                                │
+│  Sara:    2,375 × 40% = PKR   950                                            │
+│  Fatima:  2,375 × 60% = PKR 1,425                                            │
+│  ─────────────────────────────────                                          │
+│  Total:               PKR 2,375  ✅                                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                                    ⬇️
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PAYMENT DISTRIBUTION                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  👤 Sara (40% of sales)                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │  Product Sold:     Necklace (PKR 1,000)                        │        │
+│  │  Commission (5%):  PKR 50                                       │        │
+│  │  Net Earnings:     PKR 950  ✅                                  │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+│  👤 Fatima (60% of sales)                                                    │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │  Product Sold:     Scarf (PKR 1,500)                           │        │
+│  │  Commission (5%):  PKR 75                                       │        │
+│  │  Net Earnings:     PKR 1,425  ✅                                │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+│  🏛️  Admin (5% commission)                                                   │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │  Commission:       PKR 125                                      │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                              COMPARISON
+═══════════════════════════════════════════════════════════════════════════════
+
+OLD SYSTEM (UNFAIR) ❌                    NEW SYSTEM (FAIR) ✅
+─────────────────────────────────────────────────────────────────────────────
+
+Equal Split (50/50):                     Product-Based Split:
+
+Sara:    PKR 1,250                       Sara:    PKR   950
+         (+PKR 250 more than earned)              (exactly what she earned)
+
+Fatima:  PKR 1,250                       Fatima:  PKR 1,425
+         (-PKR 250 less than earned)              (exactly what she earned)
+
+Result: UNFAIR                           Result: COMPLETELY FAIR ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+                           KEY BENEFITS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Each co-seller gets paid for EXACTLY what they sold
+✅ No cross-subsidization between sellers
+✅ Encourages high-quality, high-value products
+✅ Transparent and trustworthy
+✅ Supports women entrepreneurs fairly
+✅ Automatic calculation - no manual intervention needed
+✅ Works for any number of sellers and products
+
+═══════════════════════════════════════════════════════════════════════════════
+                         EXAMPLE SCENARIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+Scenario 1: Three Sellers
+─────────────────────────────────────────────────────────────────────────────
+Product A: PKR 1,000 (Seller A)  →  22.2% = PKR   950 (after commission)
+Product B: PKR 2,000 (Seller B)  →  44.4% = PKR 1,900 (after commission)
+Product C: PKR 1,500 (Seller C)  →  33.3% = PKR 1,425 (after commission)
+Total:     PKR 4,500             →  100%  = PKR 4,275 ✅
+
+Scenario 2: One Seller, Multiple Products
+─────────────────────────────────────────────────────────────────────────────
+Product A: PKR 500 (Seller A)
+Product B: PKR 500 (Seller A)    →  Seller A: 100% = PKR 950 ✅
+Total:     PKR 1,000
+
+Scenario 3: Negotiated Prices
+─────────────────────────────────────────────────────────────────────────────
+Product A: PKR 1,200 → Negotiated to PKR 1,000 (Seller A)
+Product B: PKR 1,800 → Negotiated to PKR 1,500 (Seller B)
+
+Split based on ACTUAL PAID PRICES:
+Seller A: 40% = PKR   950 ✅
+Seller B: 60% = PKR 1,425 ✅
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -488,6 +488,6 @@ fun InvitedEmailCard(email: String, status: String, onRemove: () -> Unit) {
 // ── Date helper ───────────────────────────────────────────────────────────────
 
 fun formatJoinedDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+    val sdf = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
     return "Joined: ${sdf.format(Date(timestamp))}"
 }

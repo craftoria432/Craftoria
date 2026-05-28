@@ -1,0 +1,270 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    PAYMENT & EARNINGS SYSTEM - VISUAL SUMMARY                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. SINGLE SELLER ORDER                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Buyer Places Order
+  ├─ Product A from Seller 1 (PKR 5000)
+  └─ Total: PKR 5000
+
+  ↓ Order Placed
+
+  Payment Created
+  ├─ seller_id: seller_1
+  ├─ amount: 5000
+  ├─ status: pending
+  └─ buyer_id: buyer_1
+
+  ↓ Order Delivered
+
+  Payment Updated
+  ├─ status: completed
+  ├─ payment_date: now()
+  └─ Seller Dashboard: PKR 5000 earnings
+
+  ↓ Seller Views Payment History
+  ├─ Total Earnings: PKR 5000
+  ├─ Completed: PKR 5000
+  ├─ Pending: PKR 0
+  └─ Status: Completed ✓
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. CO-SELLER ORDER (2 Sellers)                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Buyer Places Order
+  ├─ Product A from Seller 1 (PKR 2500)
+  ├─ Product B from Seller 2 (PKR 3000)
+  └─ Total: PKR 5500
+
+  ↓ Order Placed
+
+  Payments Created (2 separate records)
+  ├─ Payment 1:
+  │  ├─ seller_id: seller_1
+  │  ├─ amount: 2500
+  │  ├─ status: pending
+  │  └─ order_id: order_123
+  │
+  └─ Payment 2:
+     ├─ seller_id: seller_2
+     ├─ amount: 3000
+     ├─ status: pending
+     └─ order_id: order_123
+
+  ↓ Order Delivered
+
+  Payments Updated
+  ├─ Payment 1: status = completed
+  └─ Payment 2: status = completed
+
+  ↓ Seller 1 Views Dashboard
+  ├─ Total Earnings: PKR 2500 ✓
+  ├─ This Month: PKR 2500
+  └─ Active Orders: 0
+
+  ↓ Seller 2 Views Dashboard
+  ├─ Total Earnings: PKR 3000 ✓
+  ├─ This Month: PKR 3000
+  └─ Active Orders: 0
+
+  ↓ Buyer Views Payment History
+  ├─ Total Spent: PKR 5500 ✓
+  ├─ Payments: 2
+  ├─ Sellers: 2
+  └─ Status: All Completed ✓
+
+  ↓ View Co-Seller Payment Split
+  ├─ Total Order: PKR 5500
+  ├─ Platform Fee (5%): PKR 275
+  ├─ Total Payout: PKR 5225
+  │
+  ├─ Seller 1 Breakdown:
+  │  ├─ Product A: PKR 2500
+  │  └─ Status: Completed ✓
+  │
+  └─ Seller 2 Breakdown:
+     ├─ Product B: PKR 3000
+     └─ Status: Completed ✓
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. PAYMENT STATUS LIFECYCLE                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Order Placed
+  └─ Payment Status: PENDING ⏳
+     └─ Seller Dashboard: Not counted in earnings
+     └─ Payment History: Shows as Pending
+
+  Order Processing
+  └─ Payment Status: PROCESSING ⏳
+     └─ Seller Dashboard: Not counted in earnings
+     └─ Payment History: Shows as Processing
+
+  Order Delivered
+  └─ Payment Status: COMPLETED ✓
+     └─ Seller Dashboard: COUNTED in earnings ✓
+     └─ Payment History: Shows as Completed ✓
+
+  (Optional) Refund Requested
+  └─ Payment Status: REFUNDED ↩️
+     └─ Seller Dashboard: Removed from earnings
+     └─ Payment History: Shows as Refunded
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. DISPLAY LOCATIONS                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  SELLER SIDE:
+  ├─ Seller Dashboard
+  │  ├─ Total Earnings (from completed payments)
+  │  ├─ This Month's Earnings
+  │  ├─ Active Orders
+  │  └─ Quick Access → Payments & Earnings
+  │
+  ├─ Seller Payment History
+  │  ├─ All Payments (pending + completed)
+  │  ├─ Statistics:
+  │  │  ├─ Total Earnings
+  │  │  ├─ Completed Amount
+  │  │  ├─ Pending Amount
+  │  │  ├─ Total Payments
+  │  │  └─ Completed Payments
+  │  └─ Filter by Status
+  │
+  └─ Co-Seller Payment Split (per order)
+     ├─ Total Order Amount
+     ├─ Platform Fee
+     ├─ Total Payout
+     └─ Individual Seller Breakdown
+
+  BUYER SIDE:
+  └─ Payment History
+     ├─ Total Spent (all payments)
+     ├─ Statistics:
+     │  ├─ Completed Amount
+     │  ├─ Pending Amount
+     │  ├─ Total Payments
+     │  ├─ Total Sellers
+     │  └─ Total Orders
+     ├─ All Payments (across all sellers)
+     └─ Filter by Status
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. DATA FLOW                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Order Placed
+  ↓
+  PaymentRepository.processOrderPayments(order)
+  ├─ For each seller in order.items:
+  │  ├─ Create SellerPayment record
+  │  ├─ Set status = "pending"
+  │  ├─ Link to seller_id, buyer_id, order_id
+  │  └─ Save to seller_payments collection
+  │
+  └─ Send notification to each seller
+
+  Order Status Changes
+  ↓
+  OrderRepository.updateOrderStatus(order, newStatus)
+  ├─ If newStatus == "delivered":
+  │  ├─ Get all payments for this order
+  │  ├─ Update each payment.status = "completed"
+  │  ├─ Update payment.payment_date = now()
+  │  └─ Send notification to each seller
+  │
+  └─ Dashboard recalculates earnings
+
+  Seller Views Dashboard
+  ↓
+  DashboardRepository.getDashboardStats(sellerId)
+  ├─ Query seller_payments where seller_id == sellerId
+  ├─ Filter for status == "completed"
+  ├─ Sum amounts for total earnings
+  ├─ Calculate this month's earnings
+  └─ Return stats to SellerDashboardScreen
+
+  Seller Views Payment History
+  ↓
+  PaymentRepository.getSellerPayments(sellerId)
+  ├─ Query seller_payments where seller_id == sellerId
+  ├─ Sort by created_at (newest first)
+  ├─ Calculate statistics
+  └─ Return to SellerPaymentsScreen
+
+  Buyer Views Payment History
+  ↓
+  PaymentRepository.getBuyerPayments(buyerId)
+  ├─ Query seller_payments where buyer_id == buyerId
+  ├─ Sort by created_at (newest first)
+  ├─ Calculate statistics
+  └─ Return to PaymentHistoryScreen
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. KEY FIXES IMPLEMENTED                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  ✅ Dashboard Earnings Source
+     OLD: orders.total_price (all orders, regardless of status)
+     NEW: seller_payments where status == "completed" (actual earnings)
+
+  ✅ Payment Tracking
+     OLD: No separate payment records
+     NEW: Each seller gets separate SellerPayment record
+
+  ✅ Co-Seller Separation
+     OLD: Manual tracking
+     NEW: Automatic per-seller payment creation
+
+  ✅ Buyer Payment View
+     OLD: No buyer payment history
+     NEW: Complete payment history with statistics
+
+  ✅ Status Updates
+     OLD: Manual updates
+     NEW: Automatic on order completion
+
+  ✅ Statistics Accuracy
+     OLD: Calculated from orders
+     NEW: Calculated from completed payments
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. FIREBASE COLLECTIONS                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  seller_payments (NEW/UPDATED)
+  ├─ id: payment_doc_id
+  ├─ seller_id: seller_123
+  ├─ buyer_id: buyer_789
+  ├─ order_id: order_456
+  ├─ amount: 5000.0
+  ├─ status: "completed" | "pending" | "processing" | "failed" | "refunded"
+  ├─ payment_date: 1710604800000
+  ├─ items_count: 2
+  ├─ items_details: [...]
+  ├─ created_at: 1710604800000
+  └─ updated_at: 1710604800000
+
+  orders (EXISTING)
+  ├─ id: order_456
+  ├─ seller_id: seller_123
+  ├─ buyer_id: buyer_789
+  ├─ items: [...]
+  ├─ status: "pending" | "processing" | "delivered" | "completed"
+  ├─ total_price: 5000.0
+  └─ created_at: 1710604800000
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                              PRODUCTION READY ✓                               ║
+╚════════════════════════════════════════════════════════════════════════════════╝

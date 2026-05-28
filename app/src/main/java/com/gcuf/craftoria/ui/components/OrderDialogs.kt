@@ -92,7 +92,7 @@ fun OrderDetailsDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
-                .wrapContentHeight(align = Alignment.Center),
+                .wrapContentHeight(Alignment.CenterVertically),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
         ) {
@@ -370,27 +370,28 @@ fun OrderDetailsDialog(
                     }
                 }
 
-                // ── Bottom Action Buttons ─────────────────────────────────────
+                // ── Bottom Action Buttons ─────────────────────────────────────────
                 HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Print — 0.5.dp border matching design system
+                    // Print button
                     OutlinedButton(
                         onClick = {
                             coroutineScope.launch { printInvoice(context, order) }
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .height(52.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Primary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Print,
@@ -398,17 +399,22 @@ fun OrderDetailsDialog(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Print", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "Print",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
                     }
 
-                    // Save — gradient Box fill
+                    // Save button
                     Button(
                         onClick = {
                             coroutineScope.launch { saveInvoiceToGallery(context, order) }
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(10.dp)
@@ -424,7 +430,8 @@ fun OrderDetailsDialog(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Download,
@@ -434,9 +441,10 @@ fun OrderDetailsDialog(
                                 )
                                 Text(
                                     text = "Save",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
+                                    color = Color.White,
+                                    maxLines = 1
                                 )
                             }
                         }

@@ -1,0 +1,242 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║         PROFESSIONAL AUTH BUTTON STATES - VISUAL GUIDE                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ BEFORE: Generic Loading State (❌ Confusing)                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+IDLE STATE:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Email: [________________]  Password: [________________]                        │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                          [  Login  ]                                    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  🔵 Continue with Google                                                │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+USER CLICKS LOGIN:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Email: [user@example.com]  Password: [••••••••]                               │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  ⏳ Loading...  (DISABLED)                                              │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  🔵 Continue with Google  (DISABLED) ❌ Can't switch!                   │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  Problem: User can't switch to Google if email auth is slow                    │
+│           Both buttons disabled - confusing UX                                 │
+│           No indication of which method is loading                             │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ AFTER: Separate Loading States (✅ Professional)                               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+IDLE STATE:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Email: [________________]  Password: [________________]                        │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                          [  Login  ]                                    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  🔵 Continue with Google                                                │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+USER CLICKS LOGIN:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Email: [user@example.com]  Password: [••••••••]                               │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  ⏳ Authenticating...  (DISABLED)                                       │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  🔵 Continue with Google  (ENABLED) ✅ Can switch!                      │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  Benefits: Clear which method is loading                                       │
+│            User can switch to Google if email is slow                          │
+│            Specific text: "Authenticating..."                                  │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+USER CLICKS GOOGLE:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Email: [user@example.com]  Password: [••••••••]                               │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                          [  Login  ]  (ENABLED) ✅                      │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │  ⏳ Connecting to Google...  (DISABLED)                                 │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│  Benefits: Clear which method is loading                                       │
+│            User can switch back to email if Google is slow                     │
+│            Specific text: "Connecting to Google..."                            │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                         COMPARISON TABLE                                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ Feature                    │ Before (❌)        │ After (✅)                   ║
+╠════════════════════════════╪═══════════════════╪══════════════════════════════╣
+║ Loading State              │ Single "Loading"  │ EmailLoading / GoogleLoading ║
+║ Button Text                │ Static "Login"    │ Dynamic "Authenticating..."  ║
+║ Google Button Text         │ Static            │ "Connecting to Google..."    ║
+║ Login Button Disabled      │ During any auth   │ Only during email auth       ║
+║ Google Button Disabled     │ During any auth   │ Only during Google auth      ║
+║ Can Switch Methods         │ ❌ No             │ ✅ Yes                       ║
+║ User Clarity              │ ❌ Confusing      │ ✅ Clear                     ║
+║ Mobile Experience         │ ❌ Frustrating    │ ✅ Smooth                    ║
+║ Accessibility             │ ❌ Poor           │ ✅ Good                      ║
+║ Industry Standard         │ ❌ No             │ ✅ Yes (Shopify, Amazon)     ║
+╚════════════════════════════╧═══════════════════╧══════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    USER FLOW SCENARIOS                                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+SCENARIO 1: Successful Email Login
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 1. User enters credentials                                                      │
+│ 2. Clicks "Login"                                                               │
+│ 3. Button shows "Authenticating..."                                             │
+│ 4. Google button remains enabled                                                │
+│ 5. ✅ Success → Navigate to home                                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+SCENARIO 2: Email Auth Fails, User Tries Google
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 1. User enters wrong password                                                   │
+│ 2. Clicks "Login"                                                               │
+│ 3. Button shows "Authenticating..."                                             │
+│ 4. ❌ Error message appears                                                     │
+│ 5. Google button is still enabled!                                              │
+│ 6. User clicks "Continue with Google"                                           │
+│ 7. Button shows "Connecting to Google..."                                       │
+│ 8. ✅ Success → Navigate                                                        │
+│                                                                                 │
+│ BENEFIT: User didn't have to wait for timeout or refresh page!                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+SCENARIO 3: Slow Network (>5 seconds)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ BEFORE: User stuck waiting, can't do anything                                   │
+│ AFTER:  User can click Google button to try alternative method                  │
+│                                                                                 │
+│ Result: Better UX, higher conversion rate                                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    CODE STRUCTURE                                              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+AuthState Hierarchy:
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ sealed class AuthState                                                          │
+│ ├── object Idle                                                                 │
+│ ├── object Loading                    (Legacy, for other operations)            │
+│ ├── object EmailLoading               ✅ NEW: Email/Password auth               │
+│ ├── object GoogleLoading              ✅ NEW: Google Sign-In                    │
+│ ├── data class Success(message)                                                 │
+│ ├── data class Error(message)                                                   │
+│ └── Helper Properties                                                           │
+│     ├── isEmailLoading: Boolean                                                 │
+│     ├── isGoogleLoading: Boolean                                                │
+│     └── isAnyLoading: Boolean                                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    IMPLEMENTATION CHECKLIST                                    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+AuthViewModel.kt:
+  ✅ Updated AuthState sealed class
+  ✅ Added EmailLoading state
+  ✅ Added GoogleLoading state
+  ✅ Added helper properties
+  ✅ Updated signUp() to use EmailLoading
+  ✅ Updated signIn() to use EmailLoading
+  ✅ Updated signInWithGoogle() to use GoogleLoading
+
+LoginScreen.kt:
+  ✅ Updated email login button text
+  ✅ Updated email login button enable logic
+  ✅ Updated email login button loading state
+  ✅ Updated Google button text
+  ✅ Updated Google button enable logic
+  ✅ Updated Google button loading state
+  ✅ Updated SignUp form button
+
+Testing:
+  ✅ Email login shows "Authenticating..."
+  ✅ Google button shows "Connecting to Google..."
+  ✅ Buttons disable/enable correctly
+  ✅ Loading spinners display
+  ✅ Error messages show
+  ✅ Success navigation works
+  ✅ Works on slow networks
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    PROFESSIONAL STANDARDS                                      ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Matches Industry Leaders:
+  ✅ Shopify - Separate loading states for each auth method
+  ✅ Amazon - Clear button text during loading
+  ✅ Stripe - "Connecting..." text for external services
+  ✅ Firebase Auth UI - Specific loading messages
+  ✅ Google Sign-In - "Connecting to Google..." text
+
+Accessibility:
+  ✅ Screen readers announce specific states
+  ✅ Clear button text changes
+  ✅ Proper disabled states
+  ✅ High contrast loading indicators
+
+Mobile:
+  ✅ Prevents accidental re-submission
+  ✅ Works on slow networks
+  ✅ Clear visual feedback
+  ✅ Touch-friendly button sizes
+
+Security:
+  ✅ No sensitive data in loading states
+  ✅ Proper error messages
+  ✅ HTTPS enforced
+  ✅ Firebase security rules applied
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+Status: ✅ PRODUCTION READY
+Date: May 26, 2026
+Tested: Android API 24+
+═══════════════════════════════════════════════════════════════════════════════════

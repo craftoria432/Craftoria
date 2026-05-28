@@ -1,0 +1,252 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+  function isAuthenticated() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isAuthenticated() && request.auth.uid == userId;
+  }
+
+  function userRole() {
+    return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+  }
+
+  function isAdmin() {
+    return isAuthenticated() &&
+      userRole() in ['ADMIN', 'admin'];
+  }
+
+  function isChatParticipant(chatId) {
+    let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+    return isAuthenticated() && (
+      request.auth.uid in chat.get('participant_ids', []) ||
+      request.auth.uid in chat.get('participants', [])
+    );
+  }
+
+  match /users/{userId} {
+    allow read: if isOwner(userId) || isAdmin() || isAuthenticated();
+    allow write: if isOwner(userId);
+    allow create: if isAuthenticated();
+
+    match /wishlist/{itemId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+
+  match /payments/{paymentId} {
+    allow read: if isAuthenticated() &&
+      (request.auth.uid == resource.data.seller_id ||
+       request.auth.uid == resource.data.buyer_id ||
+       request.auth.uid in resource.data.get('involved_seller_ids', []) ||
+       isAdmin());
+    allow create: if isAuthenticated() &&
+      (request.auth.uid == request.resource.data.seller_id ||
+       request.auth.uid == request.resource.data.buyer_id);
+    allow update: if isAuthenticated() &&
+      (request.auth.uid == resource.data.seller_id ||
+       request.auth.uid == resource.data.buyer_id ||
+       isAdmin());
+    allow delete: if false;
+  }
+
+  match /refunds/{refundId} {
+    allow read: if isAuthenticated() && (
+      request.auth.uid == resource.data.buyer_id ||
+      request.auth.uid == resource.data.seller_id ||
+      isAdmin()
+    );
+    allow create: if isAuthenticated() && (
+      request.auth.uid == request.resource.data.buyer_id ||
+      request.auth.uid == request.resource.data.seller_id
+    );
+    allow update: if isAuthenticated() && (
+      isAdmin() ||
+      request.auth.uid == resource.data.seller_id ||
+      request.auth.uid == resource.data.buyer_id
+    );
+    allow delete: if false;
+  }
+
+  match /products/{productId} {
+    allow read: if true;
+    allow create: if isAuthenticated() &&
+      request.resource.data.seller_id != null &&
+      request.resource.data.seller_id != '' &&
+      request.resource.data.seller_id == request.auth.uid;
+    allow update: if isAuthenticated() &&
+      resource.data.seller_id != null &&
+      resource.data.seller_id != '' &&
+      (request.auth.uid == resource.data.seller_id || isAdmin());
+    allow delete: if isAuthenticated() &&
+      (request.auth.uid == resource.data.seller_id || isAdmin());
+  }
+
+  match /orders/{orderId} {
+    allow read: if isAuthenticated() &&
+      (request.auth.uid == resource.data.buyer_id ||
+       request.auth.uid == resource.data.seller_id ||
+       request.auth.uid in resource.data.get('involved_seller_ids', []) ||
+       isAdmin());
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated() &&
+      (request.auth.uid == resource.data.buyer_id ||
+       request.auth.uid == resource.data.seller_id ||
+       request.auth.uid in resource.data.get('involved_seller_ids', []) ||
+       isAdmin());
+    allow delete: if false;
+  }
+
+  match /notifications/{notificationId} {
+    allow read: if isAuthenticated() &&
+      (request.auth.uid == resource.data.user_id || isAdmin());
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated() &&
+      request.auth.uid == resource.data.user_id;
+    allow delete: if false;
+  }
+
+  // App uses flat cart documents with user_id field
+  match /cart/{cartItemId} {
+    allow read, write: if isAuthenticated() &&
+      (resource == null || request.auth.uid == resource.data.user_id) &&
+      (request.resource == null || request.auth.uid == request.resource.data.user_id);
+  }
+
+  // Legacy nested cart path (backward compatibility)
+  match /cart/{userId}/items/{itemId} {
+    allow read, write: if isOwner(userId);
+  }
+
+  match /chats/{chatId} {
+    allow read: if isAuthenticated() && (
+      request.auth.uid in resource.data.get('participant_ids', []) ||
+      request.auth.uid in resource.data.get('participants', [])
+    );
+    allow create: if isAuthenticated() &&
+      request.auth.uid in request.resource.data.get('participant_ids', []);
+    allow update: if isAuthenticated() && (
+      request.auth.uid in resource.data.get('participant_ids', []) ||
+      request.auth.uid in resource.data.get('participants', [])
+    );
+    allow delete: if false;
+  }
+
+  match /messages/{messageId} {
+    allow read: if isAuthenticated();
+    allow create: if isAuthenticated();
+    allow update, delete: if false;
+  }
+
+  match /chats/{chatId}/messages/{messageId} {
+    allow read: if isChatParticipant(chatId);
+    allow create: if isChatParticipant(chatId);
+    allow update, delete: if false;
+  }
+
+  match /co_seller_stores/{storeId} {
+    allow read: if true;
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated() &&
+      (request.auth.uid in resource.data.get('member_ids', []) || isAdmin());
+    allow delete: if isAuthenticated() &&
+      (request.auth.uid == resource.data.owner_id || isAdmin());
+  }
+
+  match /store_members/{memberId} {
+    allow read: if isAuthenticated();
+    allow write: if isAuthenticated();
+  }
+
+  match /store_invitations/{invitationId} {
+    allow read: if isAuthenticated();
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated();
+    allow delete: if false;
+  }
+
+  match /activities/{activityId} {
+    allow read: if isAuthenticated();
+    allow create: if isAuthenticated();
+    allow update, delete: if isAdmin();
+  }
+
+  match /store_ratings/{ratingId} {
+    allow read: if true;
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated() &&
+      request.auth.uid == resource.data.buyer_id;
+    allow delete: if isAuthenticated() &&
+      (request.auth.uid == resource.data.buyer_id || isAdmin());
+  }
+
+  match /learning_resources/{resourceId} {
+    allow read: if true;
+    allow write: if isAdmin();
+  }
+
+  match /learning_categories/{categoryId} {
+    allow read: if true;
+    allow write: if isAdmin();
+  }
+
+  match /reports/{reportId} {
+    allow read: if isAuthenticated() &&
+      (request.auth.uid == resource.data.reporter_id || isAdmin());
+    allow create: if isAuthenticated();
+    allow update, delete: if isAdmin();
+  }
+
+  match /negotiations/{negotiationId} {
+    allow read: if isAuthenticated();
+    allow create: if isAuthenticated();
+    allow update: if isAuthenticated();
+    allow delete: if false;
+  }
+
+  match /admin_activities/{activityId} {
+    allow read: if isAdmin();
+    allow write: if false;
+  }
+
+  match /admin_commissions/{commissionId} {
+    allow read: if isAdmin();
+    allow write: if isAdmin();
+  }
+
+  match /admin_earnings/{docId} {
+    allow read: if isAdmin();
+    allow write: if isAdmin();
+  }
+
+  match /wishlist/{userId}/items/{itemId} {
+    allow read, write: if isOwner(userId);
+  }
+
+  match /unread_messages/{userId} {
+    allow read, write: if isOwner(userId);
+  }
+
+  match /seller_verifications/{verificationId} {
+    allow read: if isAuthenticated() &&
+      request.auth.uid == resource.data.userId;
+    allow create: if isAuthenticated() &&
+      request.auth.uid == request.resource.data.userId;
+    allow read: if isAdmin();
+    allow update: if isAdmin() &&
+      (request.resource.data.verificationStatus in ['approved', 'rejected']);
+    allow delete: if false;
+  }
+
+  match /admin_audit_logs/{logId} {
+    allow read, write: if isAdmin();
+  }
+
+  match /password_reset_otps/{otpId} {
+    allow read, write: if false;
+  }
+  }
+}

@@ -1,0 +1,278 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    CHAT SYSTEM: ROLE CONVERSION FLOW                          ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+SCENARIO: Buyer converts to Seller
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BEFORE CONVERSION                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  User A (BUYER)  ←→  Chat  ←→  User B (SELLER)                            │
+│                                                                             │
+│  Chat Document:                                                             │
+│  ├─ participant_ids: [user_a, user_b]                                      │
+│  ├─ participant_roles: {user_a: "BUYER", user_b: "SELLER"}                │
+│  ├─ chat_type: "buyer_seller"                                              │
+│  └─ last_role_update: 1234567890                                           │
+│                                                                             │
+│  ChatScreen Logic:                                                          │
+│  ├─ canViewProfile = true (buyer can view seller)                          │
+│  └─ showViewProfile = true                                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+                        User A converts to SELLER
+                        (in Settings Screen)
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ AFTER CONVERSION (User A opens chat)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. ChatScreen.initializeChat() called                                      │
+│     └─ chatRepository.getOrCreateChat()                                     │
+│                                                                             │
+│  2. Chat exists, so:                                                        │
+│     └─ syncParticipantRoles(chatId, [user_a, user_b])                      │
+│                                                                             │
+│  3. fetchParticipantRoles() fetches from Firestore:                        │
+│     ├─ user_a → "SELLER" (updated!)                                        │
+│     └─ user_b → "SELLER"                                                   │
+│                                                                             │
+│  4. determineChatType({user_a: "SELLER", user_b: "SELLER"})               │
+│     └─ Returns: "seller_seller"                                            │
+│                                                                             │
+│  5. Update chat document:                                                   │
+│     ├─ participant_roles: {user_a: "SELLER", user_b: "SELLER"}            │
+│     ├─ chat_type: "seller_seller"                                          │
+│     └─ last_role_update: [new timestamp]                                   │
+│                                                                             │
+│  6. ChatViewModel.loadChat() loads new values:                             │
+│     ├─ _chatType.value = "seller_seller"                                   │
+│     └─ _otherUserRole.value = UserRole.SELLER                              │
+│                                                                             │
+│  7. ChatScreen recalculates canViewProfile:                                │
+│     ├─ chatType = "seller_seller"                                          │
+│     └─ canViewProfile = true (seller can view seller)                      │
+│                                                                             │
+│  RESULT:                                                                    │
+│  ├─ Chat type updated: buyer_seller → seller_seller                        │
+│  ├─ Profile viewing enabled: true                                          │
+│  └─ UI adapts automatically                                                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    CHAT SYSTEM: READ RECEIPT FLOW                             ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+SCENARIO: User A sends message to User B
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: MESSAGE SENT                                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  User A sends: "Hello"                                                      │
+│                                                                             │
+│  Message Document Created:                                                  │
+│  ├─ sender_id: user_a                                                       │
+│  ├─ content: "Hello"                                                        │
+│  ├─ is_read: false                                                          │
+│  ├─ read_at: 0                                                              │
+│  ├─ delivered_at: 0                                                         │
+│  └─ created_at: 1234567890                                                 │
+│                                                                             │
+│  UI Display:                                                                │
+│  └─ (no tick)                                                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: USER B OPENS CHAT                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. ChatScreen.initializeChat() called                                      │
+│                                                                             │
+│  2. startReadReceiptUpdates() starts listener:                             │
+│     └─ startContinuousReadReceiptUpdates(chatId, user_b)                   │
+│                                                                             │
+│  3. Listener detects undelivered messages:                                 │
+│     ├─ Finds: message from user_a with deliveredAt = 0                    │
+│     └─ Updates: deliveredAt = [current time]                              │
+│                                                                             │
+│  Message Document Updated:                                                  │
+│  ├─ sender_id: user_a                                                       │
+│  ├─ content: "Hello"                                                        │
+│  ├─ is_read: false                                                          │
+│  ├─ read_at: 0                                                              │
+│  ├─ delivered_at: 1234567895 ← UPDATED                                     │
+│  └─ created_at: 1234567890                                                 │
+│                                                                             │
+│  UI Display (User A's screen):                                             │
+│  └─ ✓ (gray) - Message delivered                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: MESSAGE READ (Automatic)                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. Listener continues listening                                            │
+│                                                                             │
+│  2. Listener detects unread messages:                                      │
+│     ├─ Finds: message from user_a with is_read = false                    │
+│     └─ Updates: is_read = true, read_at = [current time]                  │
+│                                                                             │
+│  Message Document Updated:                                                  │
+│  ├─ sender_id: user_a                                                       │
+│  ├─ content: "Hello"                                                        │
+│  ├─ is_read: true ← UPDATED                                                │
+│  ├─ read_at: 1234567900 ← UPDATED                                          │
+│  ├─ delivered_at: 1234567895                                               │
+│  └─ created_at: 1234567890                                                 │
+│                                                                             │
+│  UI Display (User A's screen):                                             │
+│  └─ ✓✓ (blue) - Message read                                               │
+│                                                                             │
+│  Firestore Listener triggers:                                              │
+│  └─ Messages flow re-emits updated message                                 │
+│     └─ ChatScreen updates UI in real-time                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    CHAT TYPE DETERMINATION LOGIC                              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+determineChatType(roles: Map<String, String>): String
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ INPUT: roles = {user_a: "BUYER", user_b: "SELLER"}                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  roleList = ["BUYER", "SELLER"]                                            │
+│                                                                             │
+│  Check: roleList.all { it == "SELLER" }                                    │
+│  └─ false                                                                   │
+│                                                                             │
+│  Check: roleList.all { it == "BUYER" }                                     │
+│  └─ false                                                                   │
+│                                                                             │
+│  Result: "buyer_seller"                                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ INPUT: roles = {user_a: "SELLER", user_b: "SELLER"}                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  roleList = ["SELLER", "SELLER"]                                           │
+│                                                                             │
+│  Check: roleList.all { it == "SELLER" }                                    │
+│  └─ true                                                                    │
+│                                                                             │
+│  Result: "seller_seller"                                                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ INPUT: roles = {user_a: "BUYER", user_b: "BUYER"}                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  roleList = ["BUYER", "BUYER"]                                             │
+│                                                                             │
+│  Check: roleList.all { it == "SELLER" }                                    │
+│  └─ false                                                                   │
+│                                                                             │
+│  Check: roleList.all { it == "BUYER" }                                     │
+│  └─ true                                                                    │
+│                                                                             │
+│  Result: "buyer_buyer"                                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    PROFILE VIEWING LOGIC                                       ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+canViewProfile = when (chatType) {
+    "seller_seller" → true      // Sellers can view other sellers
+    "buyer_seller" → !isCurrentUserSeller  // Only buyers view sellers
+    "buyer_buyer" → true        // Buyers can view other buyers
+    else → false
+}
+
+EXAMPLES:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Scenario 1: Seller-to-Seller Chat                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ chatType = "seller_seller"                                                  │
+│ isCurrentUserSeller = true                                                  │
+│ canViewProfile = true                                                       │
+│ Result: ✓ Can view profile                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Scenario 2: Buyer-Seller Chat (Buyer's perspective)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ chatType = "buyer_seller"                                                   │
+│ isCurrentUserSeller = false                                                 │
+│ canViewProfile = !false = true                                              │
+│ Result: ✓ Can view profile                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Scenario 3: Buyer-Seller Chat (Seller's perspective)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ chatType = "buyer_seller"                                                   │
+│ isCurrentUserSeller = true                                                  │
+│ canViewProfile = !true = false                                              │
+│ Result: ✗ Cannot view profile                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Scenario 4: Buyer-Buyer Chat                                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ chatType = "buyer_buyer"                                                    │
+│ isCurrentUserSeller = false                                                 │
+│ canViewProfile = true                                                       │
+│ Result: ✓ Can view profile                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    READ RECEIPT DISPLAY LOGIC                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+val receiptText = when {
+    message.isRead → "✓✓"           // Double tick = read
+    message.deliveredAt > 0 → "✓"   // Single tick = delivered
+    else → ""                        // No tick = sent
+}
+
+val receiptColor = when {
+    message.isRead → Primary         // Blue for read
+    message.deliveredAt > 0 → TextSecondary  // Gray for delivered
+    else → TextLight                 // Light gray for sent
+}
+
+TIMELINE:
+
+Time 0ms:  Message sent
+           ├─ isRead: false
+           ├─ deliveredAt: 0
+           └─ Display: (nothing)
+
+Time 100ms: Chat opened by recipient
+           ├─ isRead: false
+           ├─ deliveredAt: 1234567895
+           └─ Display: ✓ (gray)
+
+Time 200ms: Message automatically marked as read
+           ├─ isRead: true
+           ├─ deliveredAt: 1234567895
+           └─ Display: ✓✓ (blue)

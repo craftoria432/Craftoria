@@ -1,0 +1,127 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                   GOOGLE SIGN-IN BUTTON - VISUAL GUIDE                         ║
+║                         Before & After Comparison                              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ BEFORE (INCORRECT BEHAVIOR) ─────────────────────────────────────────────────┐
+│                                                                                 │
+│  IDLE STATE (Not Loading):                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │ [Google Icon] Continue with Google                                      │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  LOADING STATE (During Authentication):                                        │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │ [Spinner] Authenticating...                                             │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ❌ PROBLEM: Button text changes from "Continue with Google" to                │
+│     "Authenticating..." - This is confusing and inconsistent                   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ AFTER (CORRECT BEHAVIOR) ────────────────────────────────────────────────────┐
+│                                                                                 │
+│  IDLE STATE (Not Loading):                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │ [Google Icon] Continue with Google                                      │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  LOADING STATE (During Authentication):                                        │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │ [Spinner] Continue with Google                                          │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ✅ SOLUTION: Button text remains "Continue with Google" at all times.         │
+│     Only the icon changes (Google icon → Spinner) to show loading state        │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                            USER FLOW COMPARISON                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ BEFORE (CONFUSING) ──────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  1. User sees: [Google Icon] Continue with Google                              │
+│  2. User clicks button                                                          │
+│  3. Button changes to: [Spinner] Authenticating...                             │
+│     ❌ Text changed - User might think something went wrong                    │
+│  4. After auth: Navigation to Home or Role Selection                           │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ AFTER (CLEAR & CONSISTENT) ──────────────────────────────────────────────────┐
+│                                                                                 │
+│  1. User sees: [Google Icon] Continue with Google                              │
+│  2. User clicks button                                                          │
+│  3. Button changes to: [Spinner] Continue with Google                          │
+│     ✅ Text stays the same - User knows they clicked the right button         │
+│     ✅ Spinner shows authentication is in progress                            │
+│  4. After auth: Navigation to Home or Role Selection                           │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          BUTTON STATE DETAILS                                  ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ IDLE STATE ──────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Visual:     [Google Icon] Continue with Google                                │
+│  Button:     Enabled (clickable)                                               │
+│  Icon:       Google logo (20dp)                                                │
+│  Text:       "Continue with Google" (14sp, SemiBold)                           │
+│  Color:      TextPrimary                                                       │
+│  Border:     0.5dp BorderColor                                                 │
+│  Height:     48dp                                                              │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ LOADING STATE ───────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Visual:     [Spinner] Continue with Google                                    │
+│  Button:     Disabled (not clickable)                                          │
+│  Icon:       CircularProgressIndicator (18dp, 2dp stroke, Primary color)       │
+│  Text:       "Continue with Google" (14sp, SemiBold) ✅ UNCHANGED              │
+│  Color:      TextPrimary                                                       │
+│  Border:     0.5dp BorderColor                                                 │
+│  Height:     48dp                                                              │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                            KEY IMPROVEMENTS                                    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+✅ CONSISTENT TEXT
+   The button text "Continue with Google" never changes, providing a stable
+   visual anchor for the user.
+
+✅ CLEAR VISUAL FEEDBACK
+   The spinner replaces the Google icon, clearly indicating that authentication
+   is in progress without changing the button's primary message.
+
+✅ PREVENTS MULTIPLE CLICKS
+   The button is disabled during loading, preventing accidental multiple
+   authentication attempts.
+
+✅ BETTER UX
+   Users understand that they clicked the correct button and authentication
+   is processing, rather than being confused by a text change.
+
+✅ CONSISTENT WITH DESIGN SYSTEM
+   Follows Material Design 3 principles for button loading states.
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                         IMPLEMENTATION LOCATION                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+File:     app/src/main/java/com/gcuf/craftoria/ui/screens/auth/LoginScreen.kt
+Lines:    640-680
+Function: LoginForm() composable
+Component: OutlinedButton for Google Sign-In
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                              STATUS: ✅ COMPLETE                              ║
+╚════════════════════════════════════════════════════════════════════════════════╝

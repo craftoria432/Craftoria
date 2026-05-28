@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Shipped</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        .content {
+            padding: 40px 20px;
+        }
+        .order-details {
+            background-color: #f9f9f9;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #555;
+        }
+        .detail-value {
+            color: #333;
+        }
+        .tracking-box {
+            background-color: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .tracking-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .tracking-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4caf50;
+            font-family: monospace;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #4caf50;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .footer {
+            background-color: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #e0e0e0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                width: 100%;
+            }
+            .detail-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Your Order Has Shipped!</h1>
+            <p>It's on its way to you</p>
+        </div>
+
+        <div class="content">
+            <p>Hi {{to_name}},</p>
+            <p>Great news! Your order {{order_id}} has been shipped and is on its way to you.</p>
+
+            <div class="order-details">
+                <div class="detail-row">
+                    <span class="detail-label">Order ID:</span>
+                    <span class="detail-value">{{order_id}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Order Date:</span>
+                    <span class="detail-value">{{order_date}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Delivery Address:</span>
+                    <span class="detail-value">{{delivery_address}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Order Total:</span>
+                    <span class="detail-value">${{total_price}}</span>
+                </div>
+            </div>
+
+            <div class="tracking-box">
+                <div class="tracking-label">TRACKING NUMBER</div>
+                <div class="tracking-number">{{tracking_number}}</div>
+                <p style="margin-top: 15px; font-size: 12px; color: #666;">
+                    Use this number to track your package
+                </p>
+            </div>
+
+            <center>
+                <a href="#" class="cta-button">Track Package</a>
+            </center>
+
+            <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                <strong>Estimated Delivery:</strong> {{estimated_delivery}}<br>
+                Your package will be delivered to the address above. If you have any questions, please contact our support team.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 Craftoria. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

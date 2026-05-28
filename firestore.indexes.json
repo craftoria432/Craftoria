@@ -1,0 +1,233 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "seller_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buyer_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "order_id",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "co_seller_store_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "involved_seller_ids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "retry_count",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_retry_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "retry_count",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "co_seller_store_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "co_seller_store_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "co_seller_store_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "involved_seller_ids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "seller_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "order_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "seller_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buyer_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "admin_commissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "seller_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "admin_commissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

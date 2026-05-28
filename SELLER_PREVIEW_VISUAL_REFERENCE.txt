@@ -1,0 +1,113 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    SELLER PREVIEW - PRODUCT DETAILS SCREEN                    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ TOP BAR ──────────────────────────────────────────────────────────────────────┐
+│ ← Product Details                                                    ❤️ ⭕      │
+│ [Gradient Background: Primary → PrimaryLight]                                  │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ IMAGE GALLERY ────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│                          [Product Image Display]                               │
+│                                                                                 │
+│                    [Thumbnail 1] [Thumbnail 2] [Thumbnail 3]                   │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ PRODUCT INFO ─────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│ Handmade Leather Wallet                                                        │
+│ PKR 2,500                                                                      │
+│                                                                                 │
+│ [Negotiable] [In Stock] [Accessories]                                          │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SELLER CARD ──────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│ [Avatar] Artisan Crafts ✓                                                      │
+│          Member since Jan 2024                                                 │
+│                                                                                 │
+│ (No "Chat" button - hidden in seller preview)                                  │
+│ (No "View Store" button - hidden in seller preview)                            │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DESCRIPTION ──────────────────────────────────────────────────────────────────┐
+│ 📝 Product Description                                                         │
+│                                                                                 │
+│ Handcrafted leather wallet with multiple compartments...                       │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SPECIFICATIONS ───────────────────────────────────────────────────────────────┐
+│ ✓ Specifications                                                               │
+│                                                                                 │
+│ Material          Genuine Leather                                              │
+│ Color             Brown                                                        │
+│ Dimensions        12cm x 10cm x 2cm                                            │
+│ Weight            150g                                                         │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ BOTTOM ACTION BAR (SELLER PREVIEW MODE) ──────────────────────────────────────┐
+│                                                                                 │
+│ ┌─────────────────────────────────────────────────────────────────────────┐   │
+│ │ 👁️ Seller Preview — Buttons are disabled                               │   │
+│ └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│ ┌──────────────────────────────┐  ┌──────────────────────────────┐            │
+│ │  Add to Cart                 │  │  Negotiate                   │            │
+│ │  (Outlined, Grayed Out)      │  │  (Faded Gradient, Disabled)  │            │
+│ └──────────────────────────────┘  └──────────────────────────────┘            │
+│                                                                                 │
+│ 🔒 Secure & encrypted checkout                                                │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+KEY DIFFERENCES FROM BUYER VIEW:
+
+BUYER VIEW                          │  SELLER PREVIEW VIEW
+────────────────────────────────────┼─────────────────────────────────────
+✓ "Add to Cart" button active       │  ✗ "Add to Cart" button disabled
+✓ "Negotiate" button active         │  ✗ "Negotiate" button disabled
+✓ "Chat" button visible             │  ✗ "Chat" button hidden
+✓ "View Store" button visible       │  ✗ "View Store" button hidden
+✓ No warning banner                 │  ✓ Yellow warning banner shown
+✓ All interactive elements work     │  ✗ All buttons are non-functional
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+SELLER PREVIEW BANNER STYLING:
+
+Background Color: #FFF8E1 (Light Yellow)
+Text Color: #856404 (Dark Brown)
+Icon: Visibility (👁️)
+Font Weight: Medium
+Font Size: 12sp
+Padding: 12dp horizontal, 8dp vertical
+Border Radius: 8dp
+Alignment: Center
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+DISABLED BUTTONS STYLING:
+
+ADD TO CART BUTTON:
+├─ Border: 0.5dp, BorderColor
+├─ Background: Transparent
+├─ Text Color: TextSecondary (Grayed out)
+├─ Font Weight: SemiBold
+├─ Border Radius: 14dp
+└─ Clickable: NO
+
+NEGOTIATE BUTTON:
+├─ Background: Primary.copy(alpha = 0.35f) (Faded)
+├─ Text Color: White
+├─ Font Weight: SemiBold
+├─ Border Radius: 14dp
+└─ Clickable: NO
+
+═══════════════════════════════════════════════════════════════════════════════════

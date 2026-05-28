@@ -1,0 +1,327 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    SELLER VERIFICATION FLOW - VISUAL GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BEFORE FIX (INCORRECT)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Opens App
+      │
+      ▼
+┌─────────────────┐
+│ Continue with   │
+│ Google          │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Role Selection  │
+│ Screen          │
+│                 │
+│ [Buyer] [Seller]│
+└────────┬────────┘
+         │ User taps "Seller"
+         ▼
+┌─────────────────────────────────────────┐
+│ AuthRepository.setInitialRole()         │
+│                                         │
+│ Firestore Update:                       │
+│ ┌─────────────────────────────────────┐ │
+│ │ role: "seller"                      │ │
+│ │ verification_status: "not_submitted"│ │
+│ │ verified: false                     │ │
+│ │ seller_application_status: "approved"│ ← ❌ WRONG!
+│ └─────────────────────────────────────┘ │
+└────────┬────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│ SellerVerificationScreen                │
+│                                         │
+│ Checks:                                 │
+│ if (role == BUYER &&                    │
+│     seller_application_status == PENDING)│
+│     ↓                                   │
+│     Show "Application Under Review"     │ ← ❌ WRONG SCREEN!
+│ else                                    │
+│     Show verification form              │
+└─────────────────────────────────────────┘
+
+❌ PROBLEM: User sees "Application Under Review" instead of verification form
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          AFTER FIX (CORRECT)                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+User Opens App
+      │
+      ▼
+┌─────────────────┐
+│ Continue with   │
+│ Google          │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Role Selection  │
+│ Screen          │
+│                 │
+│ ✅ Logo Present │
+│ [Buyer] [Seller]│
+└────────┬────────┘
+         │ User taps "Seller"
+         ▼
+┌─────────────────────────────────────────┐
+│ AuthRepository.setInitialRole()         │
+│                                         │
+│ Firestore Update:                       │
+│ ┌─────────────────────────────────────┐ │
+│ │ role: "seller"                      │ │
+│ │ verification_status: "not_submitted"│ │
+│ │ verified: false                     │ │
+│ │ seller_application_status: "none"   │ │ ← ✅ CORRECT!
+│ └─────────────────────────────────────┘ │
+└────────┬────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│ SellerVerificationScreen                │
+│                                         │
+│ Shows verification form based on:       │
+│ verification_status = "not_submitted"   │
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ 📸 Take Selfie for Verification     │ │
+│ │                                     │ │
+│ │ [Start Verification]                │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+
+✅ CORRECT: User sees verification form and can submit selfie
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                         VERIFICATION STATUS FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────┐
+│ NOT_SUBMITTED   │ ← User lands here after role selection
+└────────┬────────┘
+         │ User takes selfie and submits
+         ▼
+┌─────────────────┐
+│ PENDING         │ ← Admin reviews verification
+└────────┬────────┘
+         │
+         ├─────────────────┐
+         │                 │
+         ▼                 ▼
+┌─────────────┐   ┌─────────────┐
+│ APPROVED    │   │ REJECTED    │
+└─────────────┘   └──────┬──────┘
+         │                │
+         │                │ User can retry
+         │                ▼
+         │        ┌─────────────────┐
+         │        │ NOT_SUBMITTED   │
+         │        └─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Seller Dashboard│
+└─────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                    PAYMENT SPLIT SYSTEM (ALREADY CORRECT)
+═══════════════════════════════════════════════════════════════════════════════
+
+Order with Multiple Sellers
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│ Order Items:                            │
+│ • Amina's Product: PKR 2500             │
+│ • Fatima's Product: PKR 1500            │
+│ Total: PKR 4000                         │
+└────────┬────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│ PaymentSplitProcessor                   │
+│                                         │
+│ Step 1: Calculate Commission            │
+│ ┌─────────────────────────────────────┐ │
+│ │ Total: PKR 4000                     │ │
+│ │ Commission (5%): PKR 200            │ │
+│ │ Remaining: PKR 3800                 │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Step 2: Calculate Sales by Seller      │
+│ ┌─────────────────────────────────────┐ │
+│ │ Amina: PKR 2500 (62.5%)             │ │
+│ │ Fatima: PKR 1500 (37.5%)            │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Step 3: Split Payment Proportionally   │
+│ ┌─────────────────────────────────────┐ │
+│ │ Amina: 62.5% × PKR 3800 = PKR 2375  │ │ ✅ FAIR!
+│ │ Fatima: 37.5% × PKR 3800 = PKR 1425 │ │ ✅ FAIR!
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+
+✅ Each seller gets paid proportional to their actual sales
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                         FIRESTORE DATA STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+users/{userId}
+┌─────────────────────────────────────────┐
+│ {                                       │
+│   "id": "user123",                      │
+│   "email": "seller@gmail.com",          │
+│   "name": "Amina Khan",                 │
+│   "role": "seller",                     │ ← Set immediately
+│   "verification_status": "not_submitted",│ ← Ready for verification
+│   "verified": false,                    │
+│   "seller_application_status": "none",  │ ← ✅ No application needed
+│   "account_created_at": 1716691200000   │
+│ }                                       │
+└─────────────────────────────────────────┘
+
+payments/{paymentId}
+┌─────────────────────────────────────────┐
+│ {                                       │
+│   "id": "payment123",                   │
+│   "order_id": "order456",               │
+│   "amount": 3800,                       │ ← After commission
+│   "payment_splits": [                   │
+│     {                                   │
+│       "seller_id": "amina_id",          │
+│       "seller_name": "Amina",           │
+│       "split_percentage": 0.625,        │ ← 62.5%
+│       "split_amount": 2375              │ ← Fair share
+│     },                                  │
+│     {                                   │
+│       "seller_id": "fatima_id",         │
+│       "seller_name": "Fatima",          │
+│       "split_percentage": 0.375,        │ ← 37.5%
+│       "split_amount": 1425              │ ← Fair share
+│     }                                   │
+│   ]                                     │
+│ }                                       │
+└─────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              KEY CHANGES SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ File: AuthRepository.kt                                                     │
+│ Function: setInitialRole()                                                  │
+│                                                                             │
+│ ❌ OLD: "seller_application_status" to "approved"                           │
+│ ✅ NEW: "seller_application_status" to "none"                               │
+│                                                                             │
+│ Impact: First-time sellers now proceed directly to verification            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ File: SellerVerificationScreen.kt                                          │
+│ Change: Removed BUYER + PENDING check                                      │
+│                                                                             │
+│ ❌ OLD: if (role == BUYER && status == PENDING) show pending screen        │
+│ ✅ NEW: Show verification form based on verification_status only           │
+│                                                                             │
+│ Impact: Correct screen shown for all verification states                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ File: RoleSelectionScreen.kt                                               │
+│ Status: ✅ Already Correct                                                  │
+│                                                                             │
+│ • Logo present (AutoAwesome icon)                                          │
+│ • Professional UI styling                                                  │
+│ • No "change role anytime" text                                            │
+│                                                                             │
+│ Impact: No changes needed                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ File: PaymentSplitProcessor.kt                                             │
+│ Status: ✅ Already Correct                                                  │
+│                                                                             │
+│ • Uses contribution-based split (fair)                                     │
+│ • Each seller paid proportional to sales                                   │
+│ • Commission deducted before split                                         │
+│                                                                             │
+│ Impact: No changes needed                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Test Case 1: First-Time Seller
+┌─────────────────────────────────────────┐
+│ [ ] Open app                            │
+│ [ ] Click "Continue with Google"        │
+│ [ ] Select Google account               │
+│ [ ] Tap "Seller" on role selection      │
+│ [ ] Confirm selection                   │
+│                                         │
+│ Expected:                               │
+│ ✅ See verification form                │
+│ ✅ Can take selfie                      │
+│ ✅ Can submit verification              │
+│                                         │
+│ Firestore Check:                        │
+│ ✅ role = "seller"                      │
+│ ✅ verification_status = "not_submitted"│
+│ ✅ seller_application_status = "none"   │
+└─────────────────────────────────────────┘
+
+Test Case 2: Deleted Account Re-registration
+┌─────────────────────────────────────────┐
+│ [ ] Create account → Select Seller      │
+│ [ ] Admin deletes user from Firebase    │
+│ [ ] User logs in again with same Gmail  │
+│ [ ] Select Seller role again            │
+│                                         │
+│ Expected:                               │
+│ ✅ Same as Test Case 1                  │
+│ ✅ See verification form                │
+│ ✅ NOT pending screen                   │
+└─────────────────────────────────────────┘
+
+Test Case 3: Payment Split Verification
+┌─────────────────────────────────────────┐
+│ [ ] Create co-seller store              │
+│ [ ] Add products from 2 sellers         │
+│ [ ] Buyer purchases both products       │
+│ [ ] Check payment splits in Firestore   │
+│                                         │
+│ Expected:                               │
+│ ✅ Commission deducted (5%)             │
+│ ✅ Split proportional to sales          │
+│ ✅ Each seller gets fair share          │
+└─────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                                END OF GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+Version: 1.0
+Date: 2026-05-26
+Status: ✅ Implementation Complete
+
+For detailed documentation, see:
+• SELLER_VERIFICATION_FLOW_AND_PAYMENT_SPLIT_FIXES_COMPLETE.md
+• SELLER_VERIFICATION_FIX_QUICK_REFERENCE.md
