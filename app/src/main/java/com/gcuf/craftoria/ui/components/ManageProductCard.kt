@@ -226,47 +226,47 @@ fun ManageProductCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Approval status badge — pending/rejected only
+                            // Approval status badge — pending/rejected only (pill-rounded)
                             if (product.approvalStatus == "pending") {
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFFFA500).copy(alpha = 0.15f)
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color(0xFFFFF3CD)
                                 ) {
                                     Text(
                                         text = "Pending",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFFFA500),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        color = Color(0xFF856404),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
                             } else if (product.approvalStatus == "rejected") {
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Error.copy(alpha = 0.10f)
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color(0xFFF8D7DA)
                                 ) {
                                     Text(
                                         text = "Rejected",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Error,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        color = Color(0xFF721C24),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
                             }
 
-                            // Co-seller badge — info blue tinted
+                            // Co-seller badge — info blue tinted (pill-rounded)
                             if (product.coSellerStoreId.isNotEmpty()) {
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFE3F2FD)
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color(0xFFD1ECF1)
                                 ) {
                                     Text(
                                         text = "Co-Seller",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1565C0),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        color = Color(0xFF0C5460),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
                             }

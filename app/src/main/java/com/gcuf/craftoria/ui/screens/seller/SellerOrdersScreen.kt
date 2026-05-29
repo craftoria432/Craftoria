@@ -642,51 +642,41 @@ fun SellerOrderCard(
 
 @Composable
 fun SellerEmptyOrdersState(filterType: OrderStatus? = null) {
-    // ✅ FIXED: Show specific empty state text based on filter type with professional subtext
-    val (title, message, subtext) = when (filterType) {
-        OrderStatus.PENDING -> Triple(
+    val (title, message) = when (filterType) {
+        OrderStatus.PENDING -> Pair(
             "No Pending Orders",
-            "New orders will appear here",
-            "You'll be notified when customers place orders that need your attention"
+            "New orders will appear here"
         )
-        OrderStatus.PROCESSING -> Triple(
+        OrderStatus.PROCESSING -> Pair(
             "No Processing Orders",
-            "Orders being prepared will appear here",
-            "Orders you've accepted will show up here while you prepare them"
+            "Orders being prepared will appear here"
         )
-        OrderStatus.SHIPPED -> Triple(
+        OrderStatus.SHIPPED -> Pair(
             "No Shipped Orders",
-            "Shipped orders will appear here",
-            "Track orders that are on their way to customers"
+            "Shipped orders will appear here"
         )
-        OrderStatus.DELIVERED -> Triple(
+        OrderStatus.DELIVERED -> Pair(
             "No Delivered Orders",
-            "Delivered orders will appear here",
-            "Orders successfully delivered to customers will show up here"
+            "Delivered orders will appear here"
         )
-        OrderStatus.COMPLETED -> Triple(
+        OrderStatus.COMPLETED -> Pair(
             "No Completed Orders",
-            "Completed orders will appear here",
-            "Your order history and completed transactions will be listed here"
+            "Completed orders will appear here"
         )
-        OrderStatus.CANCELLED -> Triple(
+        OrderStatus.CANCELLED -> Pair(
             "No Cancelled Orders",
-            "Cancelled orders will appear here",
-            "Orders that were cancelled will show up here for your records"
+            "Cancelled orders will appear here"
         )
-        null -> Triple(
+        null -> Pair(
             "No Orders Yet",
-            "Your orders will appear here",
-            "Start selling your products and manage incoming orders from this screen"
+            "Your orders will appear here"
         )
-        else -> Triple(
+        else -> Pair(
             "No Orders Yet",
-            "Your orders will appear here",
-            "Start selling your products and manage incoming orders from this screen"
+            "Your orders will appear here"
         )
     }
     
-    // ✅ STANDARDIZED: Use unified EmptyStateComponent with consistent sizing and styling
     EmptyStateComponent(
         icon = Icons.Default.ShoppingBag,
         title = title,

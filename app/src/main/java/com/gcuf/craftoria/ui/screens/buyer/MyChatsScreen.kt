@@ -53,7 +53,7 @@ fun MyChatsScreen(
         when (val state = uiState) {
             is com.gcuf.craftoria.viewmodel.ChatState.ActionSuccess -> {
                 snackbarHostState.showSnackbar(message = state.message, duration = SnackbarDuration.Short)
-                chatViewModel.resetState(); isLoading = true
+                chatViewModel.resetState()
             }
             is com.gcuf.craftoria.viewmodel.ChatState.Error -> {
                 snackbarHostState.showSnackbar(message = state.message, duration = SnackbarDuration.Short)
@@ -279,7 +279,13 @@ fun MyChatsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        chatToDelete?.let { chatViewModel.deleteChat(it.id) }
+                        chatToDelete?.let { chat ->
+                            // ✅ INSTANT: Remove from UI immediately
+                            chats = chats.filter { it.id != chat.id }
+                            
+                            // ✅ Background: Delete from backend
+                            chatViewModel.deleteChat(chat.id)
+                        }
                         showDeleteDialog = false
                         chatToDelete = null
                     },
@@ -341,7 +347,15 @@ fun MyChatsScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { chatViewModel.deleteAllChats(userId); showDeleteAllDialog = false },
+                    onClick = {
+                        // ✅ INSTANT: Clear UI immediately
+                        chats = emptyList()
+                        
+                        // ✅ Background: Delete from backend
+                        chatViewModel.deleteAllChats(userId)
+                        
+                        showDeleteAllDialog = false
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Error),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.height(40.dp)

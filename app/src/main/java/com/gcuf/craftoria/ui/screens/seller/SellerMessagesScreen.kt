@@ -59,7 +59,6 @@ fun SellerMessagesScreen(
                     duration = SnackbarDuration.Short
                 )
                 chatViewModel.resetState()
-                isLoading = true
             }
             is com.gcuf.craftoria.viewmodel.ChatState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -336,6 +335,10 @@ fun SellerMessagesScreen(
                 Button(
                     onClick = {
                         chatToDelete?.let { chat ->
+                            // ✅ INSTANT: Remove from UI immediately
+                            chats = chats.filter { it.id != chat.id }
+                            
+                            // ✅ Background: Delete from backend
                             chatViewModel.deleteChat(chat.id)
                         }
                         showDeleteDialog = false

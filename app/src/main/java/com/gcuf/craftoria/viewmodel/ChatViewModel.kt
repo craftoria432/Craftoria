@@ -405,39 +405,49 @@ class ChatViewModel(
         }
     }
 
-    // Delete entire chat
-    fun deleteChat(chatId: String) {
+    // Delete entire chat (optimistic - instant UI update)
+    fun deleteChat(chatId: String, onOptimisticDelete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                _uiState.value = ChatState.Loading
+                // ✅ INSTANT: Trigger optimistic UI update immediately
+                onOptimisticDelete()
+                
+                // ✅ Background: Perform actual deletion without blocking UI
                 val result = chatRepository.deleteChat(chatId)
                 
                 if (result.isSuccess) {
-                    _uiState.value = ChatState.ActionSuccess("Chat deleted successfully")
+                    Log.d(TAG, "✅ Chat deleted successfully: $chatId")
+                    _uiState.value = ChatState.ActionSuccess("Chat deleted")
                 } else {
+                    Log.e(TAG, "❌ Failed to delete chat: ${result.exceptionOrNull()?.message}")
                     _uiState.value = ChatState.Error("Failed to delete chat")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete chat", e)
+                Log.e(TAG, "❌ Exception deleting chat", e)
                 _uiState.value = ChatState.Error(e.message ?: "Failed to delete chat")
             }
         }
     }
     
-    // Delete all chats for user
-    fun deleteAllChats(userId: String) {
+    // Delete all chats for user (optimistic - instant UI update)
+    fun deleteAllChats(userId: String, onOptimisticDelete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                _uiState.value = ChatState.Loading
+                // ✅ INSTANT: Trigger optimistic UI update immediately
+                onOptimisticDelete()
+                
+                // ✅ Background: Perform actual deletion without blocking UI
                 val result = chatRepository.deleteAllChats(userId)
                 
                 if (result.isSuccess) {
-                    _uiState.value = ChatState.ActionSuccess("All chats deleted successfully")
+                    Log.d(TAG, "✅ All chats deleted successfully for user: $userId")
+                    _uiState.value = ChatState.ActionSuccess("All chats deleted")
                 } else {
+                    Log.e(TAG, "❌ Failed to delete all chats: ${result.exceptionOrNull()?.message}")
                     _uiState.value = ChatState.Error("Failed to delete all chats")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete all chats", e)
+                Log.e(TAG, "❌ Exception deleting all chats", e)
                 _uiState.value = ChatState.Error(e.message ?: "Failed to delete all chats")
             }
         }

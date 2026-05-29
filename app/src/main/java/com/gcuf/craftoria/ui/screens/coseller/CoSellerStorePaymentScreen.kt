@@ -223,10 +223,12 @@ fun CoSellerStorePaymentScreen(
                     )
 
                     if (filteredPayments.isEmpty()) {
-                        EmptyStates.NoCoSellerPayments(
-                            rangeLabel = selectedDateRange.displayName,
-                            hasFilter = selectedStatus != "all"
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            EmptyStates.NoCoSellerPayments(
+                                rangeLabel = selectedDateRange.displayName,
+                                hasFilter = selectedStatus != "all"
+                            )
+                        }
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),

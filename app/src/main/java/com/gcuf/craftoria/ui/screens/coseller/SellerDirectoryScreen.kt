@@ -99,22 +99,17 @@ fun SellerDirectoryScreen(
         seller.email.contains(searchQuery, ignoreCase = true)
     }
 
-    // ✅ Handle system back button to close seller directory overlay
-    BackHandler {
-        onBackClick()
-    }
-
     // Show profile if seller selected
     if (selectedSellerForProfile != null) {
-        // ✅ Handle system back button to close profile overlay
-        BackHandler {
-            selectedSellerForProfile = null
-        }
-        
+        // ✅ FIX: Prevent directory's BackHandler from interfering with profile navigation
+        // The profile screen has its own BackHandler that will close the profile first
         SellerPublicProfileScreen(
             sellerId = selectedSellerForProfile!!,
             currentUserId = currentUserId,
-            onBackClick = { selectedSellerForProfile = null },
+            onBackClick = { 
+                // ✅ Only close the profile, stay in directory
+                selectedSellerForProfile = null 
+            },
             onProductClick = { productId ->
                 // ✅ NEW: Navigate to product preview in seller preview mode
                 onNavigateToProductPreview(productId)
@@ -137,6 +132,12 @@ fun SellerDirectoryScreen(
             }
         )
         return
+    }
+
+    // ✅ Handle system back button to close seller directory overlay
+    // Only active when profile is NOT showing
+    BackHandler {
+        onBackClick()
     }
 
     Scaffold(

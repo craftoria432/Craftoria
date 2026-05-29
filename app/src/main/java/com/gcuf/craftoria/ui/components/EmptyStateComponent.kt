@@ -45,64 +45,71 @@ fun EmptyStateComponent(
     modifier: Modifier = Modifier,
     actionButton: @Composable (() -> Unit)? = null
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(BackgroundSecondary)
-            .padding(40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .background(BackgroundSecondary),
+        contentAlignment = Alignment.Center
     ) {
-        // Icon Container - 88dp circle with tinted background
-        Surface(
-            shape = CircleShape,
-            color = com.gcuf.craftoria.ui.theme.Primary.copy(alpha = 0.10f),
-            modifier = Modifier.size(88.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
+            // Icon Container - 88dp circle with tinted background
+            Surface(
+                shape = CircleShape,
+                color = com.gcuf.craftoria.ui.theme.Primary.copy(alpha = 0.10f),
+                modifier = Modifier.size(88.dp)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = com.gcuf.craftoria.ui.theme.Primary.copy(alpha = 0.70f),
-                    modifier = Modifier.size(44.dp)
-                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = com.gcuf.craftoria.ui.theme.Primary.copy(alpha = 0.70f),
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Title - 20sp Bold, no decoration
-        Text(
-            text = title,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = TextAlign.Center,
-            lineHeight = 28.sp,
-            textDecoration = TextDecoration.None
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Message - 14sp Normal, professional light black color
-        Text(
-            text = message,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Normal,
-            color = TextPrimary.copy(alpha = 0.70f), // Professional light black
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            modifier = Modifier.fillMaxWidth(0.85f),
-            textDecoration = TextDecoration.None
-        )
-
-        // Optional Action Button
-        if (actionButton != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            actionButton()
+
+            // Title - 20sp Bold, no decoration
+            Text(
+                text = title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 28.sp,
+                textDecoration = TextDecoration.None,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Message - 14sp Normal, professional light black color
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = TextPrimary.copy(alpha = 0.70f), // Professional light black
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp,
+                textDecoration = TextDecoration.None,
+                modifier = Modifier.fillMaxWidth(0.90f)
+            )
+
+            // Optional Action Button
+            if (actionButton != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                actionButton()
+            }
         }
     }
 }
