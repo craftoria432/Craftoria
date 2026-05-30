@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.*
+import com.gcuf.craftoria.ui.theme.ThemeType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ fun SettingsScreen(
     val borderColor = LocalBorderColor.current
     val textPrimary = LocalTextPrimary.current
     val backgroundSecondary = LocalBackgroundSecondary.current
+    val textSecondary = LocalTextSecondary.current
 
     val themeViewModel = remember {
         if (themeRepository != null && themeManager != null) {
@@ -124,7 +126,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(BackgroundSecondary)
+                .background(backgroundSecondary)
                 .verticalScroll(rememberScrollState())
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -178,7 +180,7 @@ fun SettingsScreen(
                             Text(
                                 text = "Choose your Craftoria theme",
                                 fontSize = 10.sp,
-                                color = TextSecondary
+                                color = textSecondary
                             )
                         }
                     }
@@ -260,7 +262,7 @@ fun ThemeTile(
 ) {
     val borderColor = LocalBorderColor.current
     val textPrimary = LocalTextPrimary.current
-    
+    val textSecondary = LocalTextSecondary.current
     Surface(
         onClick = { if (!isLoading) onClick() },
         shape = RoundedCornerShape(10.dp),
@@ -330,7 +332,7 @@ fun ThemeTile(
                 Text(
                     text = description,
                     fontSize = 10.sp,
-                    color = TextSecondary
+                    color = textSecondary
                 )
             }
         }
