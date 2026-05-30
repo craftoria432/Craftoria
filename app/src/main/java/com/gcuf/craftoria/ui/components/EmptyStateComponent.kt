@@ -221,10 +221,45 @@ object EmptyStates {
 
     @Composable
     fun NoPaymentsFiltered(filterName: String, modifier: Modifier = Modifier) {
+        val (title, message) = when (filterName.lowercase()) {
+            "pending" -> Pair(
+                "No pending payments",
+                "Payments awaiting processing will appear here"
+            )
+            "processing" -> Pair(
+                "No processing payments",
+                "Payments currently being processed will appear here"
+            )
+            "completed" -> Pair(
+                "No completed payments",
+                "Successfully completed payment transactions will appear here"
+            )
+            "failed" -> Pair(
+                "No failed payments",
+                "Failed or declined payment transactions will appear here"
+            )
+            "refund pending" -> Pair(
+                "No refund pending payments",
+                "Payments with pending refund requests will appear here"
+            )
+            "refund processing" -> Pair(
+                "No refund processing payments",
+                "Payments with refunds being processed will appear here"
+            )
+            "refunded" -> Pair(
+                "No refunded payments",
+                "Completed refund transactions will appear here"
+            )
+            else -> Pair(
+                "No ${filterName.lowercase()} payments found",
+                "Payments matching this filter will appear here"
+            )
+        }
+        
         EmptyStateComponent(
-            icon = Icons.Default.FilterList,
-            title = "No ${filterName.lowercase()} payments found",
-            message = "Try adjusting your filters or date range to see more payments",
+            icon = Icons.Default.AccountBalanceWallet,
+            title = title,
+            message = message,
             modifier = modifier
         )
     }
@@ -233,9 +268,9 @@ object EmptyStates {
     fun NoPaymentsYet(modifier: Modifier = Modifier, forBuyer: Boolean = true) {
         EmptyStateComponent(
             icon = Icons.Default.AccountBalanceWallet,
-            title = if (forBuyer) "No Payments Yet" else "No Earnings Yet",
+            title = if (forBuyer) "No payments yet" else "No earnings yet",
             message = if (forBuyer) {
-                "Your purchase payment history will appear here after you place orders"
+                "Your payment history will appear here once you complete purchases"
             } else {
                 "Your earnings from completed orders will appear here"
             },

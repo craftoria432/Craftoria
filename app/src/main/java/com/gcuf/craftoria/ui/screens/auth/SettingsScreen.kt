@@ -40,6 +40,13 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Use composition locals for dynamic theme colors
+    val primary = LocalPrimary.current
+    val primaryLight = LocalPrimaryLight.current
+    val borderColor = LocalBorderColor.current
+    val textPrimary = LocalTextPrimary.current
+    val backgroundSecondary = LocalBackgroundSecondary.current
+
     val themeViewModel = remember {
         if (themeRepository != null && themeManager != null) {
             ThemeViewModel(themeRepository, themeManager)
@@ -68,7 +75,7 @@ fun SettingsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = BackgroundSecondary,
+        containerColor = backgroundSecondary,
         topBar = {
             TopAppBar(
                 title = {
@@ -108,7 +115,7 @@ fun SettingsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 modifier = Modifier.background(
-                    brush = Brush.horizontalGradient(colors = listOf(Primary, PrimaryLight))
+                    brush = Brush.horizontalGradient(colors = listOf(primary, primaryLight))
                 )
             )
         }
@@ -127,7 +134,7 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.cardElevation(0.dp),
-                border = BorderStroke(0.5.dp, BorderColor),
+                border = BorderStroke(0.5.dp, borderColor),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -139,8 +146,8 @@ fun SettingsScreen(
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        Primary.copy(alpha = 0.06f),
-                                        Primary.copy(alpha = 0.02f)
+                                        primary.copy(alpha = 0.06f),
+                                        primary.copy(alpha = 0.02f)
                                     )
                                 )
                             )
@@ -151,13 +158,13 @@ fun SettingsScreen(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(Primary.copy(alpha = 0.10f), RoundedCornerShape(8.dp)),
+                                .background(primary.copy(alpha = 0.10f), RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = null,
-                                tint = Primary,
+                                tint = primary,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -166,7 +173,7 @@ fun SettingsScreen(
                                 text = "Appearance",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
+                                color = textPrimary
                             )
                             Text(
                                 text = "Choose your Craftoria theme",
@@ -176,9 +183,9 @@ fun SettingsScreen(
                         }
                     }
 
-                    HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                    HorizontalDivider(color = borderColor, thickness = 0.5.dp)
 
-                    // ── Two-column theme tile grid ──────────────────────────
+                    // ── Three-column theme tile grid ──────────────────────────
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -214,6 +221,21 @@ fun SettingsScreen(
                                 Log.d("SettingsScreen", "Ocean theme selected")
                             }
                         )
+
+                        // Purple tile
+                        ThemeTile(
+                            primaryColor   = Color(0xFF9C27B0),
+                            primaryLight   = Color(0xFFBA68C8),
+                            label          = "Purple",
+                            description    = "Purple theme",
+                            isSelected     = selectedTheme == ThemeType.PURPLE,
+                            isLoading      = isLoading,
+                            modifier       = Modifier.weight(1f),
+                            onClick        = {
+                                themeViewModel?.selectTheme(ThemeType.PURPLE, user.id)
+                                Log.d("SettingsScreen", "Purple theme selected")
+                            }
+                        )
                     }
                 }
             }
@@ -236,13 +258,16 @@ fun ThemeTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val borderColor = LocalBorderColor.current
+    val textPrimary = LocalTextPrimary.current
+    
     Surface(
         onClick = { if (!isLoading) onClick() },
         shape = RoundedCornerShape(10.dp),
         color = if (isSelected) primaryColor.copy(alpha = 0.05f) else Color.White,
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 0.5.dp,
-            color = if (isSelected) primaryColor else BorderColor
+            color = if (isSelected) primaryColor else borderColor
         ),
         modifier = modifier
     ) {
@@ -300,7 +325,7 @@ fun ThemeTile(
                     text = label,
                     fontSize = 11.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (isSelected) primaryColor else TextPrimary
+                    color = if (isSelected) primaryColor else textPrimary
                 )
                 Text(
                     text = description,
@@ -323,9 +348,15 @@ fun ThemeOptionButton(
     isLoading: Boolean = false,
     onClick: () -> Unit
 ) {
-    val borderColor     = if (isSelected) Primary else BorderColor
+    val primary = LocalPrimary.current
+    val borderColorLocal = LocalBorderColor.current
+    val textPrimary = LocalTextPrimary.current
+    val textSecondary = LocalTextSecondary.current
+    val textLight = LocalTextLight.current
+    
+    val borderColor     = if (isSelected) primary else borderColorLocal
     val borderWidth     = if (isSelected) 1.5.dp  else 0.5.dp
-    val backgroundColor = if (isSelected) Primary.copy(alpha = 0.06f) else Color.White
+    val backgroundColor = if (isSelected) primary.copy(alpha = 0.06f) else Color.White
 
     Surface(
         onClick = { if (!isLoading) onClick() },
@@ -356,12 +387,12 @@ fun ThemeOptionButton(
                     text = label,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = textPrimary
                 )
                 Text(
                     text = description,
                     fontSize = 11.sp,
-                    color = TextSecondary
+                    color = textSecondary
                 )
             }
 
@@ -369,14 +400,14 @@ fun ThemeOptionButton(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = Primary,
+                    tint = primary,
                     modifier = Modifier.size(20.dp)
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = TextLight,
+                    tint = textLight,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -385,7 +416,7 @@ fun ThemeOptionButton(
                 CircularProgressIndicator(
                     modifier = Modifier.size(16.dp),
                     strokeWidth = 2.dp,
-                    color = Primary
+                    color = primary
                 )
             }
         }

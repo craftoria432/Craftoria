@@ -103,7 +103,7 @@ object LearningDataSeeder {
                 id = "pricing_negotiation",
                 title = "Pricing & Negotiation",
                 description = "Price confidently and handle offers professionally.",
-                icon = "build",
+                icon = "handyman",
                 displayOrder = 3,
                 tutorials = listOf(
                     Tutorial(
@@ -111,7 +111,7 @@ object LearningDataSeeder {
                         title = "How to Price Your Handicrafts",
                         description = "Calculate fair pricing considering materials, time, and market value.",
                         duration = "10 min read",
-                        icon = "build",
+                        icon = "article",
                         url = "https://example.com/pricing-guide",
                         categoryId = "pricing_negotiation",
                         isVideo = false
@@ -131,7 +131,7 @@ object LearningDataSeeder {
                         title = "Understanding Profit Margins",
                         description = "Learn to calculate and maintain healthy profit margins for sustainable business.",
                         duration = "7 min read",
-                        icon = "code",
+                        icon = "article",
                         url = "https://example.com/profit-margins",
                         categoryId = "pricing_negotiation",
                         isVideo = false
@@ -189,7 +189,7 @@ object LearningDataSeeder {
                         title = "Processing Orders Efficiently",
                         description = "Streamline your order workflow for faster processing and happier customers.",
                         duration = "8 min read",
-                        icon = "build",
+                        icon = "article",
                         url = "https://example.com/order-processing",
                         categoryId = "order_management",
                         isVideo = false
@@ -209,7 +209,7 @@ object LearningDataSeeder {
                         title = "Handling Customer Questions",
                         description = "Professional tips for answering inquiries and resolving concerns quickly.",
                         duration = "6 min read",
-                        icon = "idea",
+                        icon = "article",
                         url = "https://example.com/customer-questions",
                         categoryId = "order_management",
                         isVideo = false

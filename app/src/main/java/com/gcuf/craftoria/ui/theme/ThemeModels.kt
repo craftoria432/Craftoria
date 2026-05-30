@@ -7,7 +7,8 @@ import androidx.compose.ui.graphics.Color
  */
 enum class ThemeType {
     ROSE,      // Pink theme (default)
-    OCEAN      // Blue theme
+    OCEAN,     // Blue theme
+    PURPLE     // Purple theme
 }
 
 /**

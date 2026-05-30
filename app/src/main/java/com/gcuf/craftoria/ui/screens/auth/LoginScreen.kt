@@ -240,7 +240,12 @@ fun LoginScreen(
                             .requestIdToken(context.getString(R.string.google_client_id))
                             .requestEmail().build()
                         val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                        
+                        // ✅ FIX: Sign out first to force account picker to show every time
+                        // This ensures users can select any Google account, even if already signed in
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                        }
                     },
                     switchToSignUp = { selectedTab = 0; onNavigateToSignUpTab() }
                 )

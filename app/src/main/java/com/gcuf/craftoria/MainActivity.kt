@@ -26,7 +26,6 @@ import com.gcuf.craftoria.ui.theme.CraftoriaTheme
 import com.gcuf.craftoria.ui.theme.ThemeManager
 import com.gcuf.craftoria.BuildConfig
 import com.gcuf.craftoria.utils.CloudinaryManager
-import com.gcuf.craftoria.utils.SampleDataHelper
 import com.gcuf.craftoria.viewmodel.AuthViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.ktx.auth
@@ -36,6 +35,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
@@ -95,18 +96,24 @@ class MainActivity : ComponentActivity() {
         // ⭐ THEME INITIALIZATION
         // ─────────────────────────────────────────────
         if (isFirebaseReady) {
-            CoroutineScope(Dispatchers.IO).launch {
+            // Initialize theme synchronously with timeout to prevent delays
+            val themeManager = ThemeManager.getInstance()
+            CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    val themeManager = ThemeManager.getInstance()
-                    val themeInitService = ThemeInitializationService(
-                        firebaseAuth = Firebase.auth,
-                        firestore = Firebase.firestore,
-                        themeManager = themeManager
-                    )
-                    themeInitService.initializeTheme()
+                    withTimeoutOrNull(1000) { // 1 second timeout
+                        withContext(Dispatchers.IO) {
+                            val themeInitService = ThemeInitializationService(
+                                firebaseAuth = Firebase.auth,
+                                firestore = Firebase.firestore,
+                                themeManager = themeManager
+                            )
+                            themeInitService.initializeTheme()
+                        }
+                    }
                     Log.d("Craftoria", "✅ Theme initialized on app startup")
                 } catch (e: Exception) {
-                    Log.e("Craftoria", "❌ Theme initialization failed", e)
+                    Log.e("Craftoria", "❌ Theme initialization failed, using default", e)
+                    // Fallback to default theme already set in ThemeManager
                 }
             }
 
@@ -253,27 +260,9 @@ class MainActivity : ComponentActivity() {
             if (currentUser != null) {
                 val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
 
-                // ─────────────────────────────────────────
-                // Step 1: Add Products (debug builds only — never seed production catalogs)
-                val productsAdded = prefs.getBoolean("sample_products_added", false)
-                if (BuildConfig.DEBUG && !productsAdded) {
-                    Log.d("Craftoria", "")
-                    Log.d("Craftoria", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    Log.d("Craftoria", "🛒 ADDING SELLER PRODUCTS")
-                    Log.d("Craftoria", "   Seller: ${currentUser.displayName}")
-                    Log.d("Craftoria", "   ID: ${currentUser.uid}")
-                    Log.d("Craftoria", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-                    try {
-                        SampleDataHelper.addSampleProducts()
-                        prefs.edit { putBoolean("sample_products_added", true) }
-                        Log.d("Craftoria", "✅ 4 Products added successfully")
-                    } catch (e: Exception) {
-                        Log.e("Craftoria", "❌ Failed to add products", e)
-                    }
-                } else {
-                    Log.d("Craftoria", "ℹ️ Products already exist")
-                }
+                // ✅ FIX: Removed automatic sample product creation
+                // Sellers must manually add their own products
+                Log.d("Craftoria", "ℹ️ User logged in - sellers should add products manually")
 
                 // ─────────────────────────────────────────
                 // Step 2: Add Activities (Once)

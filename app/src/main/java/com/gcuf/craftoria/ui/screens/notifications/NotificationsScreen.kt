@@ -1031,27 +1031,50 @@ fun NotificationActions(actionType: NotificationActionType, onAction: (String) -
 
 @Composable
 fun EmptyNotificationUiState(currentFilter: NotificationCategory = NotificationCategory.ALL) {
-    val (title, message) = if (currentFilter != NotificationCategory.ALL) {
-        val filterName = when (currentFilter) {
-            NotificationCategory.UNREAD -> "unread"
-            NotificationCategory.ORDERS -> "order"
-            NotificationCategory.PAYMENTS -> "payment"
-            NotificationCategory.REFUNDS -> "refund"
-            NotificationCategory.MESSAGES -> "message"
-            NotificationCategory.PROMOTIONS -> "promotion"
-            NotificationCategory.SYSTEM -> "system"
-            NotificationCategory.STORE_RATING -> "store rating"
-            NotificationCategory.REPORT -> "report"
-            else -> "notification"
-        }
-        Pair(
-            "No $filterName notifications yet",
-            "Try adjusting your filters to see more notifications"
+    val (title, message) = when (currentFilter) {
+        NotificationCategory.UNREAD -> Pair(
+            "No unread notifications",
+            "All notifications have been read"
         )
-    } else {
-        Pair(
+        NotificationCategory.ORDERS -> Pair(
+            "No order notifications",
+            "Order updates and status changes will appear here"
+        )
+        NotificationCategory.PAYMENTS -> Pair(
+            "No payment notifications",
+            "Payment confirmations and transaction updates will appear here"
+        )
+        NotificationCategory.REFUNDS -> Pair(
+            "No refund notifications",
+            "Refund requests and status updates will appear here"
+        )
+        NotificationCategory.MESSAGES -> Pair(
+            "No message notifications",
+            "New messages from buyers and sellers will appear here"
+        )
+        NotificationCategory.PROMOTIONS -> Pair(
+            "No promotion notifications",
+            "Special offers and promotional updates will appear here"
+        )
+        NotificationCategory.SYSTEM -> Pair(
+            "No system notifications",
+            "Important system updates and announcements will appear here"
+        )
+        NotificationCategory.STORE_RATING -> Pair(
+            "No store rating notifications",
+            "Customer reviews and ratings will appear here"
+        )
+        NotificationCategory.REPORT -> Pair(
+            "No report notifications",
+            "Report updates and resolutions will appear here"
+        )
+        NotificationCategory.ADMIN_MESSAGE -> Pair(
+            "No admin messages",
+            "Important messages from administrators will appear here"
+        )
+        NotificationCategory.ALL -> Pair(
             "No notifications yet",
-            "You're all caught up!"
+            "You're all caught up! New notifications will appear here"
         )
     }
     

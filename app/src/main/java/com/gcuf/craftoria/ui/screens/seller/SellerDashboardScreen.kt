@@ -163,10 +163,10 @@ fun SellerDashboardScreen(
                     .get()
                     .await()
 
+                // ✅ FIX: Removed automatic sample product creation
+                // Sellers must manually add their own products
                 if (productSnapshot.isEmpty) {
-                    Log.d("SellerDashboard", "No products found, adding sample products...")
-                    com.gcuf.craftoria.utils.DashboardDataHelper.addSellerProducts(user.id, user.name, user.verified)
-                    dashboardViewModel.loadDashboardData(user.id)
+                    Log.d("SellerDashboard", "No products found - seller needs to add products manually")
                 }
             } catch (e: Exception) {
                 Log.e("SellerDashboard", "Error checking/adding sample data", e)

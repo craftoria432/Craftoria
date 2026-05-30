@@ -26,7 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.R
 import androidx.compose.ui.platform.LocalInspectionMode
-import com.gcuf.craftoria.ui.theme.Primary
+import com.gcuf.craftoria.ui.theme.ThemeManager
+import com.gcuf.craftoria.ui.theme.ThemeType
 import kotlinx.coroutines.delay
 import com.gcuf.craftoria.ui.theme.CraftoriaTheme
 
@@ -80,6 +81,11 @@ fun SplashScreen(
 ) {
     val isPreview = LocalInspectionMode.current
 
+    // Observe theme from ThemeManager
+    val themeManager = remember { ThemeManager.getInstance() }
+    val currentTheme by themeManager.currentTheme.collectAsState()
+    val themeColors by themeManager.themeColors.collectAsState()
+
     var startAnimation by remember { mutableStateOf(false) }
 
     val logoScale by animateFloatAsState(
@@ -103,6 +109,24 @@ fun SplashScreen(
         label = "badgeScale"
     )
 
+    // Get theme-specific gradient colors
+    val gradientColors = remember(currentTheme) {
+        when (currentTheme) {
+            ThemeType.ROSE -> listOf(
+                Color(0xFFFFF6F8),  // Light pink
+                Color(0xFFFFE5EC)   // Darker pink
+            )
+            ThemeType.OCEAN -> listOf(
+                Color(0xFFF0F7FA),  // Light blue
+                Color(0xFFE1F5FE)   // Darker blue
+            )
+            ThemeType.PURPLE -> listOf(
+                Color(0xFFF8F5FA),  // Light purple
+                Color(0xFFF3E5F5)   // Darker purple
+            )
+        }
+    }
+
     // Prevent preview crash by skipping navigation + delay
     LaunchedEffect(Unit) {
         startAnimation = true
@@ -115,13 +139,10 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Base gradient: #FFF6F8 → #FFE5EC (matches HTML)
+            // Dynamic gradient based on current theme
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFFFF6F8),
-                        Color(0xFFFFE5EC)
-                    )
+                    colors = gradientColors
                 )
             )
     ) {
@@ -162,7 +183,7 @@ fun SplashScreen(
                 text = "Craftoria",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
-                color = Primary,
+                color = themeColors.primary,  // Use dynamic theme color
                 letterSpacing = 1.5.sp,
                 modifier = Modifier.alpha(contentAlpha)
             )
@@ -172,7 +193,7 @@ fun SplashScreen(
             Text(
                 text = "Empowering Women through Handicrafts",
                 fontSize = 15.sp,
-                color = Color(0xFF666666),
+                color = themeColors.textSecondary,  // Use dynamic theme color
                 modifier = Modifier.alpha(contentAlpha)
             )
 
@@ -184,7 +205,7 @@ fun SplashScreen(
                 modifier = Modifier.alpha(contentAlpha)
             ) {
                 CircularProgressIndicator(
-                    color = Primary,
+                    color = themeColors.primary,  // Use dynamic theme color
                     strokeWidth = 4.dp,
                     modifier = Modifier.size(40.dp)
                 )
@@ -193,7 +214,7 @@ fun SplashScreen(
                     text = "Loading...",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF666666)
+                    color = themeColors.textSecondary  // Use dynamic theme color
                 )
             }
         }
@@ -208,7 +229,7 @@ fun SplashScreen(
             Text(
                 text = "Version 1.0.0",
                 fontSize = 12.sp,
-                color = Color(0xFFAAAAAA)
+                color = themeColors.textLight  // Use dynamic theme color
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -216,7 +237,7 @@ fun SplashScreen(
             Text(
                 text = "© 2026 Craftoria. All rights reserved.",
                 fontSize = 11.sp,
-                color = Color(0xFFAAAAAA)
+                color = themeColors.textLight  // Use dynamic theme color
             )
         }
     }

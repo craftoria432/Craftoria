@@ -64,6 +64,7 @@ class ThemeManager private constructor() {
         return when (themeType) {
             ThemeType.ROSE -> getRoseColors()
             ThemeType.OCEAN -> getOceanColors()
+            ThemeType.PURPLE -> getPurpleColors()
         }
     }
     
@@ -143,6 +144,45 @@ class ThemeManager private constructor() {
         // Additional theme-specific colors
         accentColor = Color(0xFF0288D1),       // Blue Accent
         disabledColor = Color(0xFF90CAF9)      // Disabled Light Blue
+    )
+    
+    /**
+     * Purple Theme - Purple color palette
+     */
+    private fun getPurpleColors(): ThemeColors = ThemeColors(
+        // Primary colors
+        primary = Color(0xFF9C27B0),           // Purple
+        primaryLight = Color(0xFFBA68C8),      // Light Purple
+        primaryDark = Color(0xFF7B1FA2),       // Dark Purple
+        
+        // Secondary colors
+        secondary = Color(0xFF673AB7),         // Deep Purple
+        secondaryLight = Color(0xFF9575CD),    // Light Deep Purple
+        
+        // Background colors
+        background = Color(0xFFFFFFFF),        // White
+        backgroundSecondary = Color(0xFFF3E5F5), // Light Purple-Gray
+        backgroundLight = Color(0xFFF8F5FA),   // Very Light Purple
+        
+        // Text colors
+        textPrimary = Color(0xFF4A148C),       // Dark Purple
+        textSecondary = Color(0xFF6A1B9A),     // Medium Purple
+        textLight = Color(0xFF9C27B0),         // Light Purple
+        
+        // State colors
+        success = Color(0xFF66BB6A),           // Green
+        warning = Color(0xFFFFA726),           // Orange
+        error = Color(0xFFEF5350),             // Red
+        info = Color(0xFF42A5F5),              // Blue
+        
+        // Border and UI
+        borderColor = Color(0xFFE1BEE7),       // Light Purple Border
+        dividerColor = Color(0xFFF3E5F5),      // Very Light Purple Divider
+        surfaceColor = Color(0xFFF8F5FA),      // Surface
+        
+        // Additional theme-specific colors
+        accentColor = Color(0xFF9C27B0),       // Purple Accent
+        disabledColor = Color(0xFFCE93D8)      // Disabled Light Purple
     )
     
 }

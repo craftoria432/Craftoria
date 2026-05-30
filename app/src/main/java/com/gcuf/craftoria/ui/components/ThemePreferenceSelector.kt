@@ -63,6 +63,16 @@ fun ThemePreferenceSelector(
                 modifier      = Modifier.weight(1f),
                 onClick       = { onThemeSelected(ThemeType.OCEAN) }
             )
+            ThemePreviewTile(
+                primaryColor  = Color(0xFF9C27B0),
+                primaryLight  = Color(0xFFBA68C8),
+                label         = "Purple",
+                description   = "Purple theme",
+                isSelected    = selectedTheme == ThemeType.PURPLE,
+                isLoading     = isLoading,
+                modifier      = Modifier.weight(1f),
+                onClick       = { onThemeSelected(ThemeType.PURPLE) }
+            )
         }
     }
 }

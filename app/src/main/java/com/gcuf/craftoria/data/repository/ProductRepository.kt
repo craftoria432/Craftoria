@@ -32,9 +32,23 @@ class ProductRepository {
         imageUris: List<Uri>
     ): Result<String> {
         return try {
-            // Hard block: never create a product without a valid seller_id
+            // ✅ SECURITY: Hard block - never create a product without a valid seller_id
             if (product.sellerId.isBlank()) {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Attempted to create product without seller_id")
                 return Result.failure(Exception("Cannot create product: seller_id is missing"))
+            }
+            
+            // ✅ SECURITY: Verify seller is approved before allowing product creation
+            val sellerDoc = firestore.collection("users").document(product.sellerId).get().await()
+            if (!sellerDoc.exists()) {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Seller ${product.sellerId} does not exist")
+                return Result.failure(Exception("Cannot create product: seller account not found"))
+            }
+            
+            val verificationStatus = sellerDoc.getString("verification_status") ?: "not_submitted"
+            if (verificationStatus != "approved") {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Unverified seller ${product.sellerId} attempted to create product (status: $verificationStatus)")
+                return Result.failure(Exception("Cannot create product: seller verification is $verificationStatus. Please complete verification first."))
             }
 
             Log.d(TAG, "Creating product with ${imageUris.size} images")
@@ -96,8 +110,23 @@ class ProductRepository {
      */
     suspend fun createProduct(product: Product): Result<String> {
         return try {
+            // ✅ SECURITY: Hard block - never create a product without a valid seller_id
             if (product.sellerId.isBlank()) {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Attempted to create product without seller_id")
                 return Result.failure(Exception("Cannot create product: seller_id is missing"))
+            }
+            
+            // ✅ SECURITY: Verify seller is approved before allowing product creation
+            val sellerDoc = firestore.collection("users").document(product.sellerId).get().await()
+            if (!sellerDoc.exists()) {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Seller ${product.sellerId} does not exist")
+                return Result.failure(Exception("Cannot create product: seller account not found"))
+            }
+            
+            val verificationStatus = sellerDoc.getString("verification_status") ?: "not_submitted"
+            if (verificationStatus != "approved") {
+                Log.e(TAG, "❌ SECURITY VIOLATION: Unverified seller ${product.sellerId} attempted to create product (status: $verificationStatus)")
+                return Result.failure(Exception("Cannot create product: seller verification is $verificationStatus. Please complete verification first."))
             }
 
             val docRef = productsCollection.document()

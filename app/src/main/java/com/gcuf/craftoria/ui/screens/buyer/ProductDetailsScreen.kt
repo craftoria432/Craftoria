@@ -1195,3 +1195,69 @@ fun ReportProductDialog(
         }
     )
 }
+
+
+/* ---------------------- PRODUCT DETAILS WRAPPER ---------------------- */
+@Composable
+fun ProductDetailsScreenWrapper(
+    productId: String,
+    currentUserId: String,
+    onBackClick: () -> Unit,
+    onAddToCart: (Product, Double, Boolean, NegotiationStatus?) -> Unit,
+    onNavigateToCart: () -> Unit,
+    isSellerPreview: Boolean = false,
+    onChatWithSeller: (String, String) -> Unit,
+    onNavigateToStore: (String) -> Unit,
+    cartViewModel: com.gcuf.craftoria.viewmodel.CartViewModel? = null,
+    wishlistViewModel: com.gcuf.craftoria.viewmodel.WishlistViewModel? = null
+) {
+    var product by remember { mutableStateOf<Product?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(productId) {
+        try {
+            val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("products")
+                .document(productId)
+                .get()
+                .await()
+
+            if (doc.exists()) {
+                product = doc.toObject(Product::class.java)?.copy(id = doc.id)
+            } else {
+                errorMessage = "Product not found"
+            }
+        } catch (e: Exception) {
+            errorMessage = e.message
+        } finally {
+            isLoading = false
+        }
+    }
+
+    when {
+        isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+            CircularProgressIndicator()
+        }
+
+        errorMessage != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+            Text(errorMessage ?: "Unknown error")
+        }
+
+        product != null -> {
+            val prod = product ?: return
+            ProductDetailsScreen(
+                product = prod,
+                currentUserId = currentUserId,
+                onBackClick = onBackClick,
+                onAddToCart = onAddToCart,
+                onNavigateToCart = onNavigateToCart,
+                onChatWithSeller = onChatWithSeller,
+                onNavigateToStore = onNavigateToStore,
+                isSellerPreview = isSellerPreview,
+                cartViewModel = cartViewModel,
+                wishlistViewModel = wishlistViewModel
+            )
+        }
+    }
+}

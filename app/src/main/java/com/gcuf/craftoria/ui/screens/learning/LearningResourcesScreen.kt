@@ -462,7 +462,7 @@ fun TutorialItem(tutorial: Tutorial, onOpen: () -> Unit) {
                 Button(
                     onClick = onOpen,
                     modifier = Modifier
-                        .height(30.dp)
+                        .height(32.dp)
                         .background(
                             Brush.horizontalGradient(listOf(Primary, PrimaryLight)),
                             RoundedCornerShape(20.dp)
@@ -545,7 +545,11 @@ fun ExternalLinkDialog(url: String, onConfirm: () -> Unit, onDismiss: () -> Unit
             Text("External Link", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
                     "You are about to open an external website. This content is provided by third parties.",
                     fontSize = 13.sp,
@@ -554,15 +558,18 @@ fun ExternalLinkDialog(url: String, onConfirm: () -> Unit, onDismiss: () -> Unit
                     color = TextSecondary
                 )
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = BackgroundSecondary,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor)
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = url,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = Primary,
-                        modifier = Modifier.padding(10.dp),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(12.dp),
+                        textAlign = TextAlign.Center,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )

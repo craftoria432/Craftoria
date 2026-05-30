@@ -1,6 +1,7 @@
 package com.gcuf.craftoria.ui.navigation
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gcuf.craftoria.data.model.NegotiationStatus
 import com.gcuf.craftoria.data.model.Product
+import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.model.UserRole
 import com.gcuf.craftoria.data.model.VerificationStatus
 import com.gcuf.craftoria.ui.screens.SplashScreen
@@ -213,6 +215,8 @@ fun NavGraph(
             SplashScreen(
                 isUserLoggedIn = currentUser != null,
                 onNavigateToNext = {
+                    // The 3-second splash delay ensures auth state is almost always available
+                    // AuthViewModel starts its Firestore listener immediately in init
                     val destination = when {
                         currentUser == null -> Screen.Login.route
 
@@ -307,6 +311,13 @@ fun NavGraph(
         composable(Screen.Verification.route) {
             val user = currentUser
 
+            // ✅ SECURITY: Prevent any navigation away from verification screen for unverified sellers
+            BackHandler(enabled = user?.role == UserRole.SELLER && 
+                               user.verificationStatus != VerificationStatus.APPROVED) {
+                // Block back button - unverified sellers cannot leave this screen
+                // They must complete verification or logout
+            }
+
             SellerVerificationScreen(
                 verificationStatus = user?.verificationStatus ?: VerificationStatus.NOT_SUBMITTED,
                 rejectionReason = user?.rejectionReason,
@@ -314,28 +325,15 @@ fun NavGraph(
                 sellerEmail = user?.email ?: "",
                 sellerPhone = user?.phone ?: "",
                 onBackClick = {
-                    // ✅ FIX: For first-time sellers in verification, prevent going back
-                    // They must complete verification or logout
-                    // Only allow back if they're coming from Profile (already have an account)
-                    val isFirstTimeSetup = user?.role == UserRole.SELLER && 
-                                          user.verificationStatus == VerificationStatus.NOT_SUBMITTED
+                    // ✅ SECURITY: Strictly block back navigation for unverified sellers
+                    val isUnverified = user?.role == UserRole.SELLER && 
+                                      user.verificationStatus != VerificationStatus.APPROVED
                     
-                    if (isFirstTimeSetup) {
-                        // Don't allow back navigation for first-time setup
-                        // User must complete verification or logout
-                        // Show a message or do nothing
-                    } else {
-                        // Allow back for existing users checking their status
-                        if (user?.role == UserRole.SELLER) {
-                            navController.navigate(Screen.SellerDashboard.route) {
-                                popUpTo(Screen.Verification.route) { inclusive = true }
-                            }
-                        } else {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Verification.route) { inclusive = true }
-                            }
-                        }
+                    if (!isUnverified) {
+                        // Allow approved sellers to go back (e.g., from Profile)
+                        navController.popBackStack()
                     }
+                    // If unverified, do nothing - back is completely blocked by BackHandler
                 },
                 onNavigateToSellerDashboard = {
                     navController.navigate(Screen.SellerDashboard.route) {
@@ -451,6 +449,18 @@ fun NavGraph(
         /* ---------------------- SELLER DASHBOARD ---------------------- */
         composable(Screen.SellerDashboard.route) {
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - redirect unverified sellers immediately
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 SellerDashboardScreen(
                     user = user,
                     onNavigateToAddProduct = {
@@ -843,6 +853,18 @@ fun NavGraph(
         ) { backStackEntry ->
             val highlightOrderId = backStackEntry.arguments?.getString("highlightOrderId") ?: ""
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block orders for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 if (user.role == UserRole.SELLER) {
                     SellerOrdersScreen(
                         user = user,
@@ -868,6 +890,18 @@ fun NavGraph(
         /* ---------------------- SELLER PAYMENTS ---------------------- */
         composable(Screen.SellerPayments.route) {
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block payments for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 if (user.role == UserRole.SELLER) {
                     SellerPaymentsScreen(
                         sellerId = user.id,
@@ -906,17 +940,31 @@ fun NavGraph(
         /* Seller Refund Management                                                        */
         /* ══════════════════════════════════════════════════════════════════════════════ */
         composable(Screen.SellerRefundManagement.route) {
-            // Guard: only sellers can access
-            if (currentUser?.role == UserRole.SELLER) {
-                SellerRefundManagementScreen(
-                    onBackClick = { navController.popBackStack() },
-                    onRefundClick = { refundId ->
-                        navController.navigate(Screen.SellerRefundDetail.createRoute(refundId))
+            currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block refunds for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
                     }
-                )
-            } else {
-                // Redirect unauthorized users
-                LaunchedEffect(Unit) { navController.popBackStack() }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
+                // Guard: only sellers can access
+                if (user.role == UserRole.SELLER) {
+                    SellerRefundManagementScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onRefundClick = { refundId ->
+                            navController.navigate(Screen.SellerRefundDetail.createRoute(refundId))
+                        }
+                    )
+                } else {
+                    // Redirect unauthorized users
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                }
             }
         }
 
@@ -995,6 +1043,18 @@ fun NavGraph(
         /* ---------------------- NEGOTIATION REQUESTS ---------------------- */
         composable(Screen.NegotiationRequests.route) {
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block negotiation access for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 if (user.role == UserRole.SELLER) {
                     NegotiationRequestsScreen(
                         user = user,
@@ -1015,6 +1075,18 @@ fun NavGraph(
         /* ---------------------- SELLER MESSAGES ---------------------- */
         composable(Screen.SellerMessages.route) {
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block messages for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 if (user.role == UserRole.SELLER) {
                     SellerMessagesScreen(
                         user = user,
@@ -1048,6 +1120,18 @@ fun NavGraph(
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block product creation for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 AddProductScreen(
                     user = user,
                     editProductId = productId,
@@ -1064,6 +1148,18 @@ fun NavGraph(
         /* ---------------------- MANAGE PRODUCTS ---------------------- */
         composable(Screen.ManageProducts.route) {
             currentUser?.let { user ->
+                // ✅ SECURITY: Strictly enforce verification - block product management for unverified sellers
+                if (user.role == UserRole.SELLER && user.verificationStatus != VerificationStatus.APPROVED) {
+                    LaunchedEffect(user.verificationStatus) {
+                        navController.navigate(Screen.Verification.route) {
+                            popUpTo(0) { inclusive = true } // Clear entire back stack
+                        }
+                    }
+                    // Show nothing while redirecting
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
+                
                 ManageProductsScreen(
                     user = user,
                     onBackClick = { navController.popBackStack() },

@@ -529,7 +529,7 @@ fun StockBadge(stock: Int) {
         else -> Triple("In Stock", Success.copy(alpha = 0.10f), Success)
     }
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(20.dp),
         color = backgroundColor,
         modifier = Modifier
             .wrapContentSize()
@@ -540,7 +540,7 @@ fun StockBadge(stock: Int) {
             fontSize = 9.sp,
             fontWeight = FontWeight.SemiBold,
             color = textColor,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
