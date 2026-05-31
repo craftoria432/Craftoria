@@ -54,6 +54,17 @@ object ThemePreferenceCache {
             .also { Log.d(TAG, "✅ Cache hit: ${it?.name} for user $userId") }
     }
 
+    /**
+     * Return the last cached theme regardless of which user it belongs to.
+     * Used on the Login/Splash screens when no user is authenticated yet —
+     * so the UI already shows the returning user's theme before they log in.
+     */
+    fun getLastUserTheme(context: Context): ThemeType? {
+        val name = prefs(context).getString(KEY_THEME, null) ?: return null
+        return ThemeType.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            .also { Log.d(TAG, "✅ Last-user theme cache hit: ${it?.name}") }
+    }
+
     /** Clear the cache (e.g. on logout). */
     fun clear(context: Context) {
         prefs(context).edit().clear().apply()

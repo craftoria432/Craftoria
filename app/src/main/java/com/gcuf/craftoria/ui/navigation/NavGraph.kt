@@ -194,13 +194,39 @@ fun NavGraph(
     val context = LocalContext.current
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    // Start listening for unread messages and initialize cart when user changes
+    // Start listening for unread messages, initialize cart, and restore theme when user changes
     LaunchedEffect(currentUser?.id) {
         currentUser?.id?.let { userId ->
             if (userId.isNotEmpty()) {
                 unreadMessageViewModel.startListening(userId)
-                cartViewModel.initializeCart(userId)  // ✅ Initialize cart for real-time updates
-                wishlistViewModel.initForUser(userId)  // ✅ Initialize wishlist for real-time updates
+                cartViewModel.initializeCart(userId)
+                wishlistViewModel.initForUser(userId)
+
+                // Restore theme from local cache immediately (synchronous, no network).
+                // This covers the in-app login case: when a user logs back in during the
+                // same app session, MainActivity.onCreate won't run again, so we apply
+                // the cached theme here instead.
+                val cachedTheme = com.gcuf.craftoria.utils.ThemePreferenceCache
+                    .getSavedTheme(context, userId)
+                if (cachedTheme != null) {
+                    com.gcuf.craftoria.ui.theme.ThemeManager.getInstance()
+                        .setTheme(cachedTheme)
+                } else {
+                    // No local cache — fetch from Firestore in the background
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            val themeRepo = com.gcuf.craftoria.data.repository.ThemeRepository(
+                                firestore = firestore,
+                                context = context
+                            )
+                            val theme = themeRepo.getUserThemePreference(userId)
+                            com.gcuf.craftoria.ui.theme.ThemeManager.getInstance().setTheme(theme)
+                        } catch (e: Exception) {
+                            android.util.Log.e("NavGraph", "Failed to load theme on login", e)
+                        }
+                    }
+                }
             }
         }
     }
@@ -638,9 +664,12 @@ fun NavGraph(
                     user = user,
                     onBackClick = { navController.popBackStack() },
                     onLogout = {
-                        // Clear local theme cache so a different user doesn't inherit this theme
-                        com.gcuf.craftoria.utils.ThemePreferenceCache.clear(context)
-                        // Reset ThemeManager to default so the login screen uses Rose
+                        // Do NOT clear the theme cache here.
+                        // The cache is keyed by userId, so a different user logging in
+                        // will get a cache miss and fall back to their own Firestore preference.
+                        // Keeping the cache means the same user re-logging in gets their
+                        // theme applied instantly on the first frame — no Rose flash.
+                        // Reset ThemeManager to Rose only for the login screen UI.
                         com.gcuf.craftoria.ui.theme.ThemeManager.getInstance()
                             .setTheme(com.gcuf.craftoria.ui.theme.ThemeType.ROSE)
                         authViewModel.signOut()

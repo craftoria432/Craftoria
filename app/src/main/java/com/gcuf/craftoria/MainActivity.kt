@@ -108,11 +108,21 @@ class MainActivity : ComponentActivity() {
             // This eliminates the Rose-flash that happened while waiting for Firestore.
             val currentFirebaseUser = try { Firebase.auth.currentUser } catch (e: Exception) { null }
             if (currentFirebaseUser != null) {
+                // Authenticated user — load their specific theme
                 val cachedTheme = com.gcuf.craftoria.utils.ThemePreferenceCache
                     .getSavedTheme(applicationContext, currentFirebaseUser.uid)
                 if (cachedTheme != null) {
                     themeManager.initializeTheme(cachedTheme)
                     Log.d("Craftoria", "✅ Theme pre-seeded from cache: ${cachedTheme.name}")
+                }
+            } else {
+                // No authenticated user (login/splash screen) — apply the last user's theme
+                // so returning users see their preferred theme on the login screen too
+                val lastTheme = com.gcuf.craftoria.utils.ThemePreferenceCache
+                    .getLastUserTheme(applicationContext)
+                if (lastTheme != null) {
+                    themeManager.initializeTheme(lastTheme)
+                    Log.d("Craftoria", "✅ Theme pre-seeded from last-user cache: ${lastTheme.name}")
                 }
             }
 

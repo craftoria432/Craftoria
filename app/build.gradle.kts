@@ -63,8 +63,9 @@ dependencies {
 
     // Core
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.activity:activity-compose:1.9.0")
+    // Splash Screen API — shows app icon instantly on cold start (Android 12+ native, backported to API 23+)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Compose BOM (controls all compose versions) - Using stable version
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
