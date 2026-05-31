@@ -131,7 +131,11 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         startAnimation = true
         if (!isPreview) {
-            delay(3000)
+            // The OS splash screen already showed the branded launch screen instantly.
+            // This Compose screen is only reached after the first frame renders, so
+            // we navigate as soon as auth state is available — no artificial delay needed.
+            // A minimal 800ms gives the enter animation time to complete gracefully.
+            delay(800)
             onNavigateToNext()
         }
     }

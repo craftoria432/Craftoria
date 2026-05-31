@@ -638,6 +638,11 @@ fun NavGraph(
                     user = user,
                     onBackClick = { navController.popBackStack() },
                     onLogout = {
+                        // Clear local theme cache so a different user doesn't inherit this theme
+                        com.gcuf.craftoria.utils.ThemePreferenceCache.clear(context)
+                        // Reset ThemeManager to default so the login screen uses Rose
+                        com.gcuf.craftoria.ui.theme.ThemeManager.getInstance()
+                            .setTheme(com.gcuf.craftoria.ui.theme.ThemeType.ROSE)
                         authViewModel.signOut()
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
@@ -729,7 +734,11 @@ fun NavGraph(
             currentUser?.let { user ->
                 // Inject dependencies properly - use singleton ThemeManager
                 val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val themeRepository = com.gcuf.craftoria.data.repository.ThemeRepository(firestore)
+                // Pass context so ThemeRepository can write to the local cache on every save
+                val themeRepository = com.gcuf.craftoria.data.repository.ThemeRepository(
+                    firestore = firestore,
+                    context = context
+                )
                 val themeManager = com.gcuf.craftoria.ui.theme.ThemeManager.getInstance()
 
                 SettingsScreen(
@@ -1228,7 +1237,9 @@ fun NavGraph(
                     },
                     onProductClick = { product ->
                         // ✅ Use seller preview mode for co-sellers viewing their store products
-                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(product.id))
+                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(product.id)) {
+                            launchSingleTop = true
+                        }
                     },
                     onAddProductClick = {
                         navController.navigate(Screen.AddProduct.route)
@@ -1250,8 +1261,10 @@ fun NavGraph(
                         navController.navigate("${Screen.Chat.route}/$sellerId/$sellerName")
                     },
                     onNavigateToProductPreview = { productId ->
-                        // ✅ NEW: Navigate to product preview in seller preview mode
-                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(productId))
+                        // Navigate to product preview in seller preview mode
+                        navController.navigate(Screen.ProductDetails.createSellerPreviewRoute(productId)) {
+                            launchSingleTop = true
+                        }
                     }
                 )
             }

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.runtime.saveable.rememberSaveable
 import coil.compose.AsyncImage
 import com.gcuf.craftoria.data.model.*
 import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextFieldCompact
@@ -63,12 +64,14 @@ fun ManageCoSellerStoreScreen(
     val storeProducts by coSellerStoreViewModel.storeProducts.collectAsState()
     val storeInvitations by coSellerStoreViewModel.storeInvitations.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showRemoveMemberDialog by remember { mutableStateOf(false) }
     var showDeleteProductDialog by remember { mutableStateOf(false) }
     var showLeaveStoreDialog by remember { mutableStateOf(false) }
-    var showSellerDirectory by remember { mutableStateOf(false) }
+    // rememberSaveable so these survive NavGraph back-navigation from ProductDetails
+    var showSellerDirectory by rememberSaveable { mutableStateOf(false) }
+    var sellerDirectorySelectedSellerId by rememberSaveable { mutableStateOf<String?>(null) }
     var memberToRemove by remember { mutableStateOf<StoreMember?>(null) }
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -204,12 +207,13 @@ fun ManageCoSellerStoreScreen(
         }
     }
 
-    // ── Seller Directory Navigation ───────────────────────────────────────────
-    // ── Seller Directory Navigation ───────────────────────────────────────────
+    // ── Seller Directory overlay ──────────────────────────────────────────────
     if (showSellerDirectory && currentStore != null) {
         SellerDirectoryScreen(
             currentStoreId = storeId,
             currentUserId = user.id,
+            // Restore the previously-selected seller profile after back-navigation
+            initialSelectedSellerId = sellerDirectorySelectedSellerId,
             onSellerSelected = { seller ->
                 val invitation = StoreInvitation(
                     storeId = currentStore!!.id,
@@ -220,14 +224,20 @@ fun ManageCoSellerStoreScreen(
                 )
                 coSellerStoreViewModel.sendInvitation(invitation)
                 showSellerDirectory = false
+                sellerDirectorySelectedSellerId = null
             },
-            onBackClick = { showSellerDirectory = false },
+            onBackClick = {
+                showSellerDirectory = false
+                sellerDirectorySelectedSellerId = null
+            },
             onNavigateToChat = { sellerId, sellerName ->
                 showSellerDirectory = false
-                onNavigateToChat(sellerId, sellerName) // ✅ Pass to parent
+                sellerDirectorySelectedSellerId = null
+                onNavigateToChat(sellerId, sellerName)
             },
-            onNavigateToProductPreview = { productId ->
-                // ✅ NEW: Navigate to product preview in seller preview mode
+            onNavigateToProductPreview = { productId, sellerId ->
+                // Save which seller profile was open so we can restore it on back
+                sellerDirectorySelectedSellerId = sellerId
                 onNavigateToProductPreview(productId)
             }
         )

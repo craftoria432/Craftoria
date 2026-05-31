@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Base app theme — used after the splash screen hands off -->
     <style name="Theme.Craftoria" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+        Splash screen theme — applied to MainActivity only during cold start.
+        The OS renders this instantly (before any code runs) eliminating the
+        blank white window. Once installSplashScreen() is called in onCreate,
+        Android transitions to Theme.Craftoria automatically.
+
+        windowSplashScreenBackground  : full-screen brand color
+        windowSplashScreenAnimatedIcon: your logo (shown centered, ~1/3 screen width)
+        windowSplashScreenIconBackgroundColor: white circle behind the logo
+        postSplashScreenTheme         : the theme to switch to after the splash
+    -->
+    <style name="Theme.Craftoria.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFF6F8</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/handmade_logo</item>
+        <item name="windowSplashScreenIconBackgroundColor">#FFFFFF</item>
+        <item name="postSplashScreenTheme">@style/Theme.Craftoria</item>
+    </style>
+
 </resources>

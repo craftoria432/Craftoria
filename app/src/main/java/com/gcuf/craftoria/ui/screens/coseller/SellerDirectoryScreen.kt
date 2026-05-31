@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
 import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.ui.screens.seller.SellerPublicProfileScreen
-import com.gcuf.craftoria.ui.screens.buyer.ProductDetailsScreenWrapper
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import android.util.Log
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.gcuf.craftoria.ui.components.StandardizedOutlinedTextFieldCompact
 
 data class SellerDirectoryItem(
@@ -46,15 +46,16 @@ fun SellerDirectoryScreen(
     currentUserId: String,
     onSellerSelected: (SellerDirectoryItem) -> Unit,
     onBackClick: () -> Unit,
-    onNavigateToChat: (String, String) -> Unit = { _, _ -> }, // ✅ Chat navigation callback
-    onNavigateToProductPreview: (String) -> Unit = { _ -> } // ✅ NEW: Product preview navigation
+    initialSelectedSellerId: String? = null,
+    onNavigateToChat: (String, String) -> Unit = { _, _ -> },
+    onNavigateToProductPreview: (productId: String, sellerId: String) -> Unit = { _, _ -> }
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var sellers by remember { mutableStateOf<List<SellerDirectoryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var storeMembers by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var selectedSellerForProfile by remember { mutableStateOf<String?>(null) }
-    var selectedProductForPreview by remember { mutableStateOf<String?>(null) } // ✅ NEW: Track product preview
+    // Restore the previously-open seller profile when returning from ProductDetails
+    var selectedSellerForProfile by rememberSaveable { mutableStateOf(initialSelectedSellerId) }
 
     LaunchedEffect(currentStoreId, currentUserId) {
         try {
@@ -101,26 +102,6 @@ fun SellerDirectoryScreen(
         seller.email.contains(searchQuery, ignoreCase = true)
     }
 
-    // ✅ NEW: Show product preview if product selected from seller profile
-    if (selectedProductForPreview != null) {
-        ProductDetailsScreenWrapper(
-            productId = selectedProductForPreview!!,
-            currentUserId = currentUserId,
-            isSellerPreview = true,
-            cartViewModel = null,
-            wishlistViewModel = null,
-            onBackClick = { 
-                // ✅ Go back to seller profile, not directory
-                selectedProductForPreview = null
-            },
-            onAddToCart = { _, _, _, _ -> },
-            onNavigateToCart = {},
-            onChatWithSeller = { _, _ -> },
-            onNavigateToStore = { _ -> }
-        )
-        return
-    }
-
     // Show profile if seller selected
     if (selectedSellerForProfile != null) {
         // ✅ FIX: Prevent directory's BackHandler from interfering with profile navigation
@@ -133,8 +114,9 @@ fun SellerDirectoryScreen(
                 selectedSellerForProfile = null 
             },
             onProductClick = { productId ->
-                // ✅ FIX: Show product preview locally instead of navigating
-                selectedProductForPreview = productId
+                // Pass the current seller ID so ManageCoSellerStore can save it
+                // and restore this profile overlay when the user presses back from ProductDetails
+                onNavigateToProductPreview(productId, selectedSellerForProfile!!)
             },
             onChatWithSeller = { sellerId, sellerName ->
                 // ✅ FIX: Navigate to chat screen

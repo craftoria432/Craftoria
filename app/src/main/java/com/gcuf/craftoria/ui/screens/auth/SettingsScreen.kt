@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.*
 import com.gcuf.craftoria.ui.theme.ThemeType
 import androidx.compose.runtime.*
@@ -28,7 +27,6 @@ import com.gcuf.craftoria.data.model.User
 import com.gcuf.craftoria.data.repository.ThemeRepository
 import com.gcuf.craftoria.ui.theme.*
 import com.gcuf.craftoria.viewmodel.ThemeViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

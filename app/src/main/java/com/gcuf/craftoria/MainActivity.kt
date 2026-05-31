@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gcuf.craftoria.services.ThemeInitializationService
 import com.gcuf.craftoria.ui.navigation.NavGraph
@@ -47,6 +48,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ── Install OS splash screen FIRST — eliminates the blank white window ──
+        // The splash stays visible until setContent renders its first frame.
+        // This is the standard approach used by all major e-commerce apps.
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
 
         // ═══════════════════════════════════════════════════════════════
@@ -95,25 +101,38 @@ class MainActivity : ComponentActivity() {
         // ─────────────────────────────────────────────
         // ⭐ THEME INITIALIZATION
         // ─────────────────────────────────────────────
+        val themeManager = ThemeManager.getInstance()
+
         if (isFirebaseReady) {
-            // Initialize theme synchronously with timeout to prevent delays
-            val themeManager = ThemeManager.getInstance()
+            // ── Step 1: Apply cached theme SYNCHRONOUSLY so the first frame is correct ──
+            // This eliminates the Rose-flash that happened while waiting for Firestore.
+            val currentFirebaseUser = try { Firebase.auth.currentUser } catch (e: Exception) { null }
+            if (currentFirebaseUser != null) {
+                val cachedTheme = com.gcuf.craftoria.utils.ThemePreferenceCache
+                    .getSavedTheme(applicationContext, currentFirebaseUser.uid)
+                if (cachedTheme != null) {
+                    themeManager.initializeTheme(cachedTheme)
+                    Log.d("Craftoria", "✅ Theme pre-seeded from cache: ${cachedTheme.name}")
+                }
+            }
+
+            // ── Step 2: Sync with Firebase in the background (keeps cache fresh) ──
             CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    withTimeoutOrNull(1000) { // 1 second timeout
+                    withTimeoutOrNull(1000) {
                         withContext(Dispatchers.IO) {
                             val themeInitService = ThemeInitializationService(
                                 firebaseAuth = Firebase.auth,
                                 firestore = Firebase.firestore,
-                                themeManager = themeManager
+                                themeManager = themeManager,
+                                context = applicationContext
                             )
                             themeInitService.initializeTheme()
                         }
                     }
-                    Log.d("Craftoria", "✅ Theme initialized on app startup")
+                    Log.d("Craftoria", "✅ Theme synced with Firebase on startup")
                 } catch (e: Exception) {
-                    Log.e("Craftoria", "❌ Theme initialization failed, using default", e)
-                    // Fallback to default theme already set in ThemeManager
+                    Log.e("Craftoria", "❌ Theme sync failed, using cached/default", e)
                 }
             }
 

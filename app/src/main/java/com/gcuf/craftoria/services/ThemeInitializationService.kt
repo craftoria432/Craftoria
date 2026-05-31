@@ -1,5 +1,6 @@
 package com.gcuf.craftoria.services
 
+import android.content.Context
 import android.util.Log
 import com.gcuf.craftoria.data.repository.ThemeRepository
 import com.gcuf.craftoria.ui.theme.ThemeManager
@@ -11,55 +12,50 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Service for initializing theme on app startup
- * Handles theme retrieval from Firebase and migration for existing users
- * 
- * Requirements: 11.1, 11.2, 11.3, 11.4
+ * Service for initializing theme on app startup.
+ * Loads the user's saved theme from Firebase and applies it via [ThemeManager].
+ * Also writes the result to [ThemePreferenceCache] so subsequent cold starts
+ * can apply the correct theme synchronously before Firestore responds.
  */
 class ThemeInitializationService(
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val themeManager: ThemeManager
+    private val themeManager: ThemeManager,
+    private val context: Context? = null
 ) {
     companion object {
         private const val TAG = "ThemeInitializationService"
     }
-    
-    private val themeRepository = ThemeRepository(firestore)
+
+    private val themeRepository = ThemeRepository(firestore, context)
     private val themeMigration = ThemeMigration(firestore)
-    
+
     /**
-     * Initialize theme on app startup
-     * - If user is authenticated: retrieve their theme preference from Firebase
-     * - If user is not authenticated: apply default Rose theme
-     * - For existing users: run migration to add theme_preference field if missing
+     * Initialize theme on app startup:
+     * - Authenticated user  → load their preference from Firebase, cache it locally
+     * - Unauthenticated     → apply default Rose theme
      */
     suspend fun initializeTheme() = withContext(Dispatchers.IO) {
         try {
             val currentUser = firebaseAuth.currentUser
-            
+
             if (currentUser != null) {
                 Log.d(TAG, "User authenticated: ${currentUser.uid}")
-                
-                // Run migration for existing users
+
+                // Run migration for existing users (adds theme_preference field if missing)
                 themeMigration.migrateUserIfNeeded(currentUser.uid)
-                
-                // Retrieve user's theme preference
+
+                // Retrieve user's theme preference (also updates local cache)
                 val theme = themeRepository.getUserThemePreference(currentUser.uid)
                 Log.d(TAG, "✅ Retrieved theme preference: ${theme.name}")
-                
-                // Apply theme
+
                 themeManager.initializeTheme(theme)
             } else {
-                Log.d(TAG, "No authenticated user - applying default Rose theme")
-                
-                // Apply default Rose theme for unauthenticated users
+                Log.d(TAG, "No authenticated user — applying default Rose theme")
                 themeManager.initializeTheme(ThemeType.ROSE)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error initializing theme", e)
-            
-            // Fallback to Rose theme on error
+            Log.e(TAG, "❌ Error initializing theme, falling back to Rose", e)
             themeManager.initializeTheme(ThemeType.ROSE)
         }
     }
